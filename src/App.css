@@ -400,3 +400,365 @@ body {
     flex: 1;
   }
 }
+
+/* --- Filtry osób nad siatką --- */
+
+.filtry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filtr {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 999px;
+  background: var(--karta);
+  color: var(--tekst-drugi);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.filtr.wlaczony {
+  opacity: 1;
+  color: var(--tekst);
+  border-color: #cfc9d9;
+}
+
+.filtr:hover {
+  border-color: var(--akcent);
+}
+
+/* --- Kropka koloru domownika --- */
+
+.kropka {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.kropka-pusta {
+  background: #cfcbd6;
+}
+
+/* --- Ekran "Mój dom" --- */
+
+.dom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+.karta {
+  padding: 20px;
+  background: var(--karta);
+  border: 1px solid var(--kreska);
+  border-radius: 16px;
+  box-shadow: var(--cien);
+}
+
+.lista-osob {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lista-osob li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+/* --- Wybór koloru w formularzu domownika --- */
+
+.etykieta-koloru {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tekst-drugi);
+}
+
+.paleta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.kolor {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--kreska);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+
+.kolor:hover {
+  transform: scale(1.12);
+}
+
+.kolor.aktywny {
+  border-color: var(--karta);
+  box-shadow: 0 0 0 2px var(--tekst);
+}
+
+/* --- Podpis osoby przy wydarzeniu w panelu dnia --- */
+
+.autor {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--tekst-drugi);
+  white-space: nowrap;
+}
+
+/* --- Lista wyboru osoby w formularzu wydarzenia --- */
+
+.formularz select {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  color: var(--tekst);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.formularz select:focus {
+  outline: 2px solid var(--akcent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+/* --- Ekran logowania i komunikaty bramy --- */
+
+.brama {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.brama-karta {
+  width: 100%;
+  max-width: 380px;
+  padding: 28px;
+  background: var(--karta);
+  border: 1px solid var(--kreska);
+  border-radius: 16px;
+  box-shadow: var(--cien);
+  text-align: center;
+}
+
+.brama-karta h1 {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.brama-karta .podtytul {
+  margin: 0 0 20px;
+  font-size: 15px;
+}
+
+.brama-karta .formularz {
+  text-align: left;
+  border-top: none;
+  padding-top: 0;
+}
+
+.brama-stopka {
+  margin: 18px 0 0;
+  font-size: 13px;
+  color: var(--tekst-drugi);
+}
+
+/* --- Pasek nad nagłówkiem: zakładki i zalogowany użytkownik --- */
+
+.pasek {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+  text-align: left;
+}
+
+.zakladki {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--kreska);
+  border-radius: 12px;
+  background: var(--karta);
+}
+
+.zakladka {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tekst-drugi);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.zakladka:hover {
+  color: var(--tekst);
+}
+
+.zakladka.aktywna {
+  background: var(--akcent-jasny);
+  color: #4c1d95;
+  font-weight: 600;
+}
+
+.konto {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.konto-kto {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.meta {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--tekst-drugi);
+}
+
+.konto-kto .meta {
+  display: inline;
+  margin-left: 4px;
+}
+
+.to-ja {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--akcent-jasny);
+  color: #4c1d95;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* --- Drobne przyciski --- */
+
+.drobny {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 8px;
+  background: var(--karta);
+  color: var(--tekst-drugi);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.drobny:hover {
+  border-color: var(--akcent);
+  color: var(--tekst);
+}
+
+.formularz button.drugi {
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid var(--kreska);
+  color: var(--tekst-drugi);
+}
+
+.formularz button.drugi:hover:not(:disabled) {
+  background: var(--tlo);
+  border-color: var(--akcent);
+}
+
+.usun:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Wiersz osoby w trybie edycji rozwija się na cały formularz. */
+.lista-osob li.osoba-edycja {
+  display: block;
+  padding: 16px;
+  border-color: var(--akcent);
+}
+
+.osoba-edycja .formularz {
+  border-top: none;
+  padding-top: 0;
+}
+
+@media (max-width: 900px) {
+  .dom {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pasek {
+    justify-content: center;
+  }
+}
+
+/* --- Przełącznik "Mam konto / Załóż konto" na ekranie wejściowym --- */
+
+.zakladki.rowne {
+  margin-bottom: 18px;
+}
+
+.zakladki.rowne .zakladka {
+  flex: 1;
+  text-align: center;
+}
+
+.brama-karta .blad {
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.wskazowka {
+  margin: -2px 0 8px;
+  font-size: 12px;
+  color: var(--tekst-drugi);
+}
+
+.brama-karta b {
+  overflow-wrap: anywhere;
+}

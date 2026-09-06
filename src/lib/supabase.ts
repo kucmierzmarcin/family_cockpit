@@ -12,11 +12,52 @@ if (!url || !key) {
 
 export const supabase = createClient(url, key)
 
+/** Rola domownika - decyduje, co wolno mu w aplikacji i w bazie. */
+export type Rola = 'rodzic' | 'domownik' | 'dziecko'
+
+export const OPISY_ROL: Record<Rola, string> = {
+  rodzic: 'Rodzic',
+  domownik: 'Domownik',
+  dziecko: 'Dziecko',
+}
+
 /** Jedno wydarzenie w kalendarzu, tak jak leży w tabeli `events`. */
 export type WydarzenieDb = {
   id: string
   title: string
   event_date: string // 'RRRR-MM-DD'
   event_time: string | null // 'GG:MM:SS'
+  member_id: string | null // kto z domowników; null = wydarzenie wspólne
+  household_id: string
+  created_by: string | null // kto dodał wpis
   created_at: string
+}
+
+/**
+ * Jeden domownik w tabeli `members`. Łączy profil w kalendarzu (imię, kolor)
+ * z przynależnością do domu (rola, konto). Puste `user_id` i `email` oznaczają
+ * osobę bez konta - np. małe dziecko, które się nie loguje.
+ */
+export type DomownikDb = {
+  id: string
+  household_id: string
+  name: string
+  color: string // id koloru z palety, patrz src/kolory.ts
+  role: Rola
+  user_id: string | null
+  email: string | null
+  created_at: string
+}
+
+/** Gospodarstwo domowe - wszystkie dane należą do dokładnie jednego. */
+export type DomDb = {
+  id: string
+  name: string
+  created_at: string
+}
+
+/** Stan konta przypisanego do osoby - do pokazania na ekranie "Mój dom". */
+export function stanKonta(d: DomownikDb): 'polaczone' | 'czeka' | 'brak' {
+  if (d.user_id) return 'polaczone'
+  return d.email ? 'czeka' : 'brak'
 }
