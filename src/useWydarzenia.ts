@@ -11,7 +11,8 @@ export type Wydarzenie = Przedzial & {
   tytul: string
   calodniowe: boolean
   seriaId: string | null
-  osobaId: string | null
+  /** Identyfikatory przypisanych domowników; pusta lista = wydarzenie wspólne. */
+  osobyId: string[]
   autorId: string | null
 }
 
@@ -21,11 +22,14 @@ export type DaneWydarzenia = {
   start: Date
   koniec: Date
   calodniowe: boolean
-  osobaId: string | null
+  osobyId: string[]
 }
 
 /** Czego dotyczy zmiana wydarzenia należącego do serii. */
 export type ZakresZmiany = 'tylko-to' | 'to-i-kolejne'
+
+/** Pobieramy wydarzenie razem z przypisaniami - jednym zapytaniem. */
+const KOLUMNY = '*, event_members(member_id)'
 
 function zBazy(w: WydarzenieDb): Wydarzenie {
   return {
@@ -35,7 +39,7 @@ function zBazy(w: WydarzenieDb): Wydarzenie {
     koniec: zTimestampu(w.ends_at),
     calodniowe: w.all_day,
     seriaId: w.series_id,
-    osobaId: w.member_id,
+    osobyId: (w.event_members ?? []).map((p) => p.member_id),
     autorId: w.created_by,
   }
 }
@@ -58,7 +62,7 @@ export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) =
     // końcem zakresu i kończy po jego początku.
     const { data, error } = await supabase
       .from('events')
-      .select('*')
+      .select(KOLUMNY)
       .lt('starts_at', doTekst)
       .gt('ends_at', odTekst)
       .order('starts_at')
@@ -92,6 +96,21 @@ export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) =
     if (lista) setWydarzenia(lista)
   }, [pobierz])
 
+  /** Zapisuje przypisania osób do wskazanych wydarzeń. */
+  const przypisz = useCallback(
+    async (idWydarzen: string[], osobyId: string[]): Promise<string | null> => {
+      if (osobyId.length === 0) return null
+
+      const wiersze = idWydarzen.flatMap((eventId) =>
+        osobyId.map((memberId) => ({ event_id: eventId, member_id: memberId })),
+      )
+
+      const { error } = await supabase.from('event_members').insert(wiersze)
+      return error ? error.message : null
+    },
+    [],
+  )
+
   /**
    * Zapisuje wydarzenie. Przy powtarzaniu tworzy od razu wszystkie wystąpienia
    * ze wspólnym `series_id` - dzięki temu każde da się później zmienić osobno.
@@ -106,20 +125,43 @@ export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) =
         starts_at: naTimestamp(w.start),
         ends_at: naTimestamp(w.koniec),
         all_day: dane.calodniowe,
-        member_id: dane.osobaId,
         series_id: seriaId,
       }))
 
-      const { error } = await supabase.from('events').insert(wiersze)
-      if (error) {
-        onBlad(`Nie udało się zapisać wydarzenia: ${error.message}`)
+      const { data, error } = await supabase.from('events').insert(wiersze).select('id')
+      if (error || !data) {
+        onBlad(`Nie udało się zapisać wydarzenia: ${error?.message ?? 'brak odpowiedzi'}`)
+        return false
+      }
+
+      const problem = await przypisz(
+        data.map((w) => w.id),
+        dane.osobyId,
+      )
+      if (problem) {
+        onBlad(`Wydarzenie zapisane, ale nie udało się przypisać osób: ${problem}`)
+        await odswiez()
         return false
       }
 
       await odswiez()
       return true
     },
-    [odswiez, onBlad],
+    [odswiez, onBlad, przypisz],
+  )
+
+  /** Podmienia komplet przypisań: najpierw czyścimy, potem wstawiamy nowe. */
+  const ustawOsoby = useCallback(
+    async (idWydarzen: string[], osobyId: string[]): Promise<string | null> => {
+      const { error } = await supabase
+        .from('event_members')
+        .delete()
+        .in('event_id', idWydarzen)
+
+      if (error) return error.message
+      return przypisz(idWydarzen, osobyId)
+    },
+    [przypisz],
   )
 
   /**
@@ -129,11 +171,7 @@ export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) =
    */
   const zmien = useCallback(
     async (wydarzenie: Wydarzenie, dane: DaneWydarzenia, zakres: ZakresZmiany) => {
-      const wspolne = {
-        title: dane.tytul,
-        all_day: dane.calodniowe,
-        member_id: dane.osobaId,
-      }
+      const wspolne = { title: dane.tytul, all_day: dane.calodniowe }
 
       if (zakres === 'tylko-to' || !wydarzenie.seriaId) {
         const { error } = await supabase
@@ -149,6 +187,14 @@ export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) =
           onBlad(`Nie udało się zapisać zmiany: ${error.message}`)
           return false
         }
+
+        const problem = await ustawOsoby([wydarzenie.id], dane.osobyId)
+        if (problem) {
+          onBlad(`Nie udało się zapisać osób: ${problem}`)
+          await odswiez()
+          return false
+        }
+
         await odswiez()
         return true
       }
@@ -160,7 +206,7 @@ export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) =
 
       const { data: kolejne, error: bladPobrania } = await supabase
         .from('events')
-        .select('*')
+        .select('id, starts_at')
         .eq('series_id', wydarzenie.seriaId)
         .gte('starts_at', naTimestamp(wydarzenie.start))
 
@@ -187,28 +233,38 @@ export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) =
         }
       }
 
+      const problem = await ustawOsoby(
+        (kolejne ?? []).map((w) => w.id),
+        dane.osobyId,
+      )
+      if (problem) {
+        onBlad(`Nie udało się zapisać osób w serii: ${problem}`)
+        await odswiez()
+        return false
+      }
+
       await odswiez()
       return true
     },
-    [odswiez, onBlad],
+    [odswiez, onBlad, ustawOsoby],
   )
 
   const usun = useCallback(
     async (wydarzenie: Wydarzenie, zakres: ZakresZmiany) => {
       const kopia = wydarzenia
+      const calaSeria = zakres === 'to-i-kolejne' && wydarzenie.seriaId
 
-      const zapytanie =
-        zakres === 'to-i-kolejne' && wydarzenie.seriaId
-          ? supabase
-              .from('events')
-              .delete()
-              .eq('series_id', wydarzenie.seriaId)
-              .gte('starts_at', naTimestamp(wydarzenie.start))
-          : supabase.from('events').delete().eq('id', wydarzenie.id)
+      const zapytanie = calaSeria
+        ? supabase
+            .from('events')
+            .delete()
+            .eq('series_id', wydarzenie.seriaId)
+            .gte('starts_at', naTimestamp(wydarzenie.start))
+        : supabase.from('events').delete().eq('id', wydarzenie.id)
 
       // Od razu znika z ekranu; przy błędzie wracamy do poprzedniego stanu.
       setWydarzenia((stare) =>
-        zakres === 'to-i-kolejne' && wydarzenie.seriaId
+        calaSeria
           ? stare.filter((w) => w.seriaId !== wydarzenie.seriaId || w.start < wydarzenie.start)
           : stare.filter((w) => w.id !== wydarzenie.id),
       )

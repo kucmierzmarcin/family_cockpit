@@ -3,6 +3,7 @@ import type { DomownikDb } from './lib/supabase'
 import type { DaneWydarzenia, Wydarzenie, ZakresZmiany } from './useWydarzenia'
 import { OPISY_POWTARZANIA, godzinaHM, type Powtarzanie } from './czas'
 import { klucz } from './dates'
+import { kolor } from './kolory'
 
 const POWTARZANIA: Powtarzanie[] = ['brak', 'tydzien', 'dwa-tygodnie', 'miesiac']
 
@@ -58,7 +59,7 @@ export function FormularzWydarzenia({
 
   const [tytul, setTytul] = useState(wydarzenie?.tytul ?? '')
   const [calodniowe, setCalodniowe] = useState(wydarzenie?.calodniowe ?? false)
-  const [osobaId, setOsobaId] = useState(wydarzenie?.osobaId ?? '')
+  const [osobyId, setOsobyId] = useState<string[]>(wydarzenie?.osobyId ?? [])
 
   const startowy = wydarzenie
     ? rozbij(wydarzenie.start)
@@ -85,6 +86,12 @@ export function FormularzWydarzenia({
   const [zakres, setZakres] = useState<ZakresZmiany>('tylko-to')
   const [zapisywanie, setZapisywanie] = useState(false)
   const [blad, setBlad] = useState<string | null>(null)
+
+  function przelaczOsobe(id: string) {
+    setOsobyId((stare) =>
+      stare.includes(id) ? stare.filter((x) => x !== id) : [...stare, id],
+    )
+  }
 
   /** Przesuwa koniec za początkiem, żeby nie zostawał w tyle. */
   function zmienPoczatek(nowaData: string) {
@@ -127,7 +134,7 @@ export function FormularzWydarzenia({
         start: przedzial.start,
         koniec: przedzial.koniec,
         calodniowe,
-        osobaId: osobaId || null,
+        osobyId,
       },
       powtarzanie,
       zloz(powtarzajDo, '23:59'),
@@ -204,15 +211,33 @@ export function FormularzWydarzenia({
 
       {domownicy.length > 0 && (
         <>
-          <label htmlFor="w-kto">Kto</label>
-          <select id="w-kto" value={osobaId} onChange={(e) => setOsobaId(e.target.value)}>
-            <option value="">Bez osoby</option>
-            {domownicy.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+          <span className="etykieta-koloru" id="w-kto">
+            Kto bierze udział
+          </span>
+          <div className="wybor-osob" role="group" aria-labelledby="w-kto">
+            {domownicy.map((d) => {
+              const wybrany = osobyId.includes(d.id)
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  className={`filtr${wybrany ? ' wlaczony' : ''}`}
+                  aria-pressed={wybrany}
+                  onClick={() => przelaczOsobe(d.id)}
+                >
+                  <span
+                    className="kropka"
+                    style={{ background: kolor(d.color).kropka }}
+                    aria-hidden="true"
+                  />
+                  {d.name}
+                </button>
+              )
+            })}
+          </div>
+          {osobyId.length === 0 && (
+            <span className="wskazowka">Nikt nie zaznaczony - wydarzenie wspólne.</span>
+          )}
         </>
       )}
 

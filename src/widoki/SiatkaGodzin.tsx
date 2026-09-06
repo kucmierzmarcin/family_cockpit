@@ -11,7 +11,8 @@ import {
   wJednymDniu,
 } from '../czas'
 import { klucz } from '../dates'
-import { kolor } from '../kolory'
+import { barwyWydarzenia } from '../osoby'
+import { KropkiOsob } from './KropkiOsob'
 
 /** Wysokość jednej godziny w pikselach - stąd biorą się pozycje bloków. */
 const WYSOKOSC_GODZINY = 48
@@ -58,11 +59,9 @@ export function SiatkaGodzin({
   const paskowe = wydarzenia.filter((w) => w.calodniowe || !wJednymDniu(w))
   const godzinne = wydarzenia.filter((w) => !w.calodniowe && wJednymDniu(w))
 
+  // Barwy bierzemy od pierwszej przypisanej osoby; reszta pokazuje się kropkami.
   function barwy(w: Wydarzenie) {
-    const osoba = w.osobaId ? osobaPoId.get(w.osobaId) : undefined
-    if (!osoba) return { tlo: '#eeedf2', tekst: '#4a4553', kropka: '#9b96a6' }
-    const k = kolor(osoba.color)
-    return { tlo: k.tlo, tekst: k.tekst, kropka: k.kropka }
+    return barwyWydarzenia(w.osobyId, osobaPoId)
   }
 
   return (
@@ -120,6 +119,7 @@ export function SiatkaGodzin({
                 >
                   {w.start < odZakresu && <span aria-hidden="true">◀ </span>}
                   {w.tytul}
+                  <KropkiOsob osobyId={w.osobyId} osobaPoId={osobaPoId} />
                   {w.koniec > doZakresu && <span aria-hidden="true"> ▶</span>}
                 </button>
               )
@@ -178,7 +178,10 @@ export function SiatkaGodzin({
                         onClick={() => onKlikWydarzenie(w)}
                         title={`${godzinaHM(w.start)}–${godzinaHM(w.koniec)} ${w.tytul}`}
                       >
-                        <span className="sg-blok-godzina">{godzinaHM(w.start)}</span>
+                        <span className="sg-blok-godzina">
+                          {godzinaHM(w.start)}
+                          <KropkiOsob osobyId={w.osobyId} osobaPoId={osobaPoId} />
+                        </span>
                         <span className="sg-blok-tytul">{w.tytul}</span>
                       </button>
                     )

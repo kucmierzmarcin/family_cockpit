@@ -1083,3 +1083,73 @@ body {
     max-height: 55vh;
   }
 }
+
+/* --- Kilka osób na jednym wydarzeniu --- */
+
+/* Kropki pozostałych uczestników - pierwsza osoba niesie kolor tła. */
+.kropki-osob {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.kropka.mala {
+  width: 6px;
+  height: 6px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+.sg-blok-godzina {
+  display: flex;
+  align-items: center;
+}
+
+/* Imiona uczestników pod tytułem w panelu dnia */
+
+.uczestnicy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.uczestnicy .autor {
+  margin-left: 0;
+}
+
+/* Wybór uczestników w formularzu - te same pigułki co w filtrach.
+   Reguła `.formularz button` maluje przyciski na fioletowo, więc pigułki
+   muszą odzyskać swój wygląd wyższą specyficznością. */
+
+.wybor-osob {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.formularz .wybor-osob .filtr {
+  margin-top: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 999px;
+  background: var(--karta);
+  color: var(--tekst-drugi);
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.55;
+}
+
+.formularz .wybor-osob .filtr.wlaczony {
+  opacity: 1;
+  color: var(--tekst);
+  border-color: var(--akcent);
+  background: var(--akcent-jasny);
+}
+
+.formularz .wybor-osob .filtr:hover {
+  background: var(--akcent-jasny);
+  border-color: var(--akcent);
+}

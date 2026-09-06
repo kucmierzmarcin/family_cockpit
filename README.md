@@ -65,6 +65,7 @@ wciągnąć do nowo założonego domu.
 | `src/widoki/SiatkaGodzin.tsx` | Wspólny silnik tygodnia i dnia |
 | `src/FormularzWydarzenia.tsx` | Dodawanie i edycja wydarzeń |
 | `src/czas.ts` | Przedziały czasu, serie, układanie nakładek |
+| `src/osoby.ts` | Uczestnicy wydarzenia: kolejność, barwy, filtr |
 | `src/useWydarzenia.ts` | Pobieranie i zapis wydarzeń |
 | `src/MojDom.tsx` | Ekran „Mój dom": domownicy, role, konta |
 | `src/useDomownicy.ts` | Wczytywanie i zmiany listy domowników |
@@ -86,6 +87,19 @@ a wyjazd 9–11 września zapisuje się jako `09-09 00:00 → 09-12 00:00`.
 
 Czytaj te kolumny przez `zTimestampu()` z `src/czas.ts`, a zapisuj przez
 `naTimestamp()` — `new Date(...)` i `toISOString()` przesunęłyby godziny.
+
+Do wydarzenia można przypisać kilka osób — służy do tego tabela łącząca
+`event_members`. Blok w kalendarzu bierze kolor od **pierwszej** przypisanej
+osoby, a pozostali pokazują się kropkami. „Pierwsza" znaczy pierwsza w kolejności
+domowników w domu, nie w kolejności klikania — dzięki temu ta sama para osób
+zawsze daje ten sam kolor.
+
+Filtr osób zostawia wydarzenie widoczne, dopóki widoczny jest **choć jeden**
+uczestnik. Inaczej wspólny obiad znikałby po ukryciu kogokolwiek z rodziny.
+
+Osoby do wydarzenia dopisuje jego autor albo rodzic. Bez tego ograniczenia
+dziecko mogłoby dopisać się do dowolnego cudzego wpisu — a przypisanie daje
+prawo do usunięcia wydarzenia.
 
 Wydarzenia cykliczne powstają jako osobne wpisy ze wspólnym `series_id`.
 Każde da się zmienić lub usunąć osobno albo razem z kolejnymi. Seria kończy

@@ -17,11 +17,9 @@ import { FormularzWydarzenia } from './FormularzWydarzenia'
 import { useDomownicy } from './useDomownicy'
 import { useWydarzenia, type Wydarzenie } from './useWydarzenia'
 import { wyloguj } from './auth/useSesja'
+import { BEZ_OSOBY, osobyWydarzenia, widocznePrzyFiltrze } from './osoby'
 import { kolor } from './kolory'
 import './App.css'
-
-/** Klucz filtra dla wydarzeń, których nie przypisano nikomu. */
-const BEZ_OSOBY = 'brak'
 
 type Widok = 'miesiac' | 'tydzien' | 'dzien'
 type Ekran = 'kalendarz' | 'dom'
@@ -82,8 +80,9 @@ function App({ profil, email }: Props) {
   const dane = useWydarzenia(od, doKiedy, setBlad)
 
   // Filtr działa po stronie przeglądarki - wydarzenia zakresu i tak już mamy.
+  // Wydarzenie zostaje, dopóki widoczny jest choć jeden z jego uczestników.
   const widoczne = useMemo(
-    () => dane.wydarzenia.filter((w) => !ukryci.has(w.osobaId ?? BEZ_OSOBY)),
+    () => dane.wydarzenia.filter((w) => widocznePrzyFiltrze(w.osobyId, ukryci)),
     [dane.wydarzenia, ukryci],
   )
 
@@ -114,7 +113,7 @@ function App({ profil, email }: Props) {
    * nie klikał w coś, co baza i tak odrzuci - ale to baza jest tu strażnikiem.
    */
   function mogeUsunac(w: Wydarzenie) {
-    return jestemRodzicem || w.autorId === profil.id || w.osobaId === profil.id
+    return jestemRodzicem || w.autorId === profil.id || w.osobyId.includes(profil.id)
   }
 
   const usunDomownika = useCallback(
@@ -367,21 +366,25 @@ function ListaDnia({ dzien, wydarzenia, osobaPoId, onKlik }: ListaProps) {
       ) : (
         <ul className="lista">
           {tegoDnia.map((w) => {
-            const osoba = w.osobaId ? osobaPoId.get(w.osobaId) : undefined
+            const uczestnicy = osobyWydarzenia(w.osobyId, osobaPoId)
             return (
               <li key={w.id}>
                 <button type="button" className="wpis" onClick={() => onKlik(w)}>
                   <span className="czas">{opisCzasu(w, w.calodniowe)}</span>
                   <span className="nazwa">
                     {w.tytul}
-                    {osoba && (
-                      <span className="autor">
-                        <span
-                          className="kropka"
-                          style={{ background: kolor(osoba.color).kropka }}
-                          aria-hidden="true"
-                        />
-                        {osoba.name}
+                    {uczestnicy.length > 0 && (
+                      <span className="uczestnicy">
+                        {uczestnicy.map((o) => (
+                          <span key={o.id} className="autor">
+                            <span
+                              className="kropka"
+                              style={{ background: kolor(o.color).kropka }}
+                              aria-hidden="true"
+                            />
+                            {o.name}
+                          </span>
+                        ))}
                       </span>
                     )}
                   </span>

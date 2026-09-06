@@ -33,10 +33,11 @@ export type WydarzenieDb = {
   ends_at: string // wyłączny - wydarzenie trwa do tej chwili, ale jej nie obejmuje
   all_day: boolean
   series_id: string | null // wspólne dla wystąpień jednej serii
-  member_id: string | null // kto z domowników; null = wydarzenie wspólne
   household_id: string
   created_by: string | null // kto dodał wpis
   created_at: string
+  /** Przypisane osoby - z tabeli łączącej `event_members`. */
+  event_members?: { member_id: string }[]
 }
 
 /**

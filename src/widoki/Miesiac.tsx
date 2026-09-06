@@ -3,7 +3,8 @@ import type { DomownikDb } from '../lib/supabase'
 import type { Wydarzenie } from '../useWydarzenia'
 import { dniWydarzenia, godzinaHM, wJednymDniu } from '../czas'
 import { DNI_TYGODNIA, klucz } from '../dates'
-import { kolor } from '../kolory'
+import { barwyWydarzenia } from '../osoby'
+import { KropkiOsob } from './KropkiOsob'
 
 /** Ile pigułek mieści się w komórce dnia, zanim zaczniemy zwijać w "+N więcej". */
 const PIGULEK_W_DNIU = 3
@@ -42,11 +43,10 @@ export function Miesiac({
     return mapa
   }, [wydarzenia])
 
+  // Barwy bierzemy od pierwszej przypisanej osoby; reszta pokazuje się kropkami.
   function stylPigulki(w: Wydarzenie) {
-    const osoba = w.osobaId ? osobaPoId.get(w.osobaId) : undefined
-    if (!osoba) return { background: '#eeedf2', color: '#4a4553' }
-    const k = kolor(osoba.color)
-    return { background: k.tlo, color: k.tekst }
+    const barwy = barwyWydarzenia(w.osobyId, osobaPoId)
+    return { background: barwy.tlo, color: barwy.tekst }
   }
 
   return (
@@ -89,6 +89,7 @@ export function Miesiac({
                   >
                     {!w.calodniowe && wJednymDniu(w) && <b>{godzinaHM(w.start)}</b>}
                     {w.tytul}
+                    <KropkiOsob osobyId={w.osobyId} osobaPoId={osobaPoId} />
                   </span>
                 ))}
                 {lista.length > PIGULEK_W_DNIU && (

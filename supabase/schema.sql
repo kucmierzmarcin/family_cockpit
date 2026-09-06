@@ -36,22 +36,39 @@ create index if not exists members_household_idx
   on public.members (household_id);
 
 -- 3. Wydarzenia kalendarza.
---    `member_id` puste = wydarzenie wspólne, nieprzypisane nikomu.
---    `on delete set null`: usunięcie osoby nie kasuje jej wydarzeń.
+--    `starts_at` i `ends_at` to `timestamp` BEZ strefy - aplikacja działa
+--    w jednej strefie, a timestamptz przy wydarzeniach całodniowych daje
+--    przesunięcia o godzinę. Koniec jest WYŁĄCZNY: wydarzenie trwa do tej
+--    chwili, ale jej nie obejmuje, więc wyjazd 9-11 września zapisuje się
+--    jako 09-09 00:00 -> 09-12 00:00.
+--    `series_id` łączy wystąpienia jednego powtarzającego się wydarzenia.
 create table if not exists public.events (
   id           uuid        primary key default gen_random_uuid(),
   title        text        not null,
-  event_date   date        not null,
-  event_time   time,
-  member_id    uuid        references public.members(id)    on delete set null,
+  starts_at    timestamp   not null,
+  ends_at      timestamp   not null,
+  all_day      boolean     not null default false,
+  series_id    uuid,
   household_id uuid        references public.households(id) on delete cascade,
   created_by   uuid        references public.members(id)    on delete set null,
-  created_at   timestamptz not null default now()
+  created_at   timestamptz not null default now(),
+  constraint events_zakres_check check (ends_at > starts_at)
 );
 
-create index if not exists events_event_date_idx on public.events (event_date);
-create index if not exists events_member_id_idx  on public.events (member_id);
-create index if not exists events_household_idx  on public.events (household_id);
+create index if not exists events_household_idx on public.events (household_id);
+create index if not exists events_zakres_idx     on public.events (household_id, starts_at, ends_at);
+create index if not exists events_series_idx     on public.events (series_id) where series_id is not null;
+
+-- 3a. Kto bierze udział w wydarzeniu. Pusto = wydarzenie wspólne.
+--     Usunięcie domownika kasuje jego przypisania, ale zostawia wydarzenia.
+create table if not exists public.event_members (
+  event_id  uuid not null references public.events(id)  on delete cascade,
+  member_id uuid not null references public.members(id) on delete cascade,
+  primary key (event_id, member_id)
+);
+
+create index if not exists event_members_member_idx
+  on public.event_members (member_id);
 
 -- 4. Funkcje pomocnicze. SECURITY DEFINER omija RLS w środku, dzięki czemu
 --    polityka na `members` może pytać o `members` bez wpadania w rekurencję.
@@ -138,6 +155,47 @@ begin
 end
 $$;
 
+-- Czy jestem przypisany do tego wydarzenia? SECURITY DEFINER przerywa
+-- rekurencję: polityka na `events` pyta o `event_members`, którego własna
+-- polityka pyta o `events`.
+create or replace function public.jestem_przypisany(p_event uuid) returns boolean
+  language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1
+      from public.event_members em
+     where em.event_id = p_event
+       and em.member_id = public.ja_jako_member()
+  )
+$$;
+
+create or replace function public.jestem_autorem(p_event uuid) returns boolean
+  language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1
+      from public.events e
+     where e.id = p_event
+       and e.household_id = public.moj_dom()
+       and e.created_by = public.ja_jako_member()
+  )
+$$;
+
+create or replace function public.wydarzenie_z_mojego_domu(p_event uuid) returns boolean
+  language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1
+      from public.events e
+     where e.id = p_event
+       and e.household_id = public.moj_dom()
+  )
+$$;
+
+grant execute on function public.jestem_przypisany(uuid)        to authenticated;
+grant execute on function public.jestem_autorem(uuid)           to authenticated;
+grant execute on function public.wydarzenie_z_mojego_domu(uuid) to authenticated;
+
 grant execute on function public.moj_dom()           to authenticated;
 grant execute on function public.ja_jako_member()    to authenticated;
 grant execute on function public.jestem_rodzicem()   to authenticated;
@@ -146,9 +204,10 @@ grant execute on function public.zaloz_dom(text, text) to authenticated;
 
 -- 6. Ochrona wierszy. Od tej chwili nic nie jest dostępne bez reguł poniżej,
 --    a niezalogowany (rola "anon") nie dostaje żadnej.
-alter table public.households enable row level security;
-alter table public.members    enable row level security;
-alter table public.events     enable row level security;
+alter table public.households    enable row level security;
+alter table public.members       enable row level security;
+alter table public.events        enable row level security;
+alter table public.event_members enable row level security;
 
 -- 7. Dom: widzi go tylko jego mieszkaniec, zmienia tylko rodzic.
 drop policy if exists "Dom - odczyt" on public.households;
@@ -203,7 +262,7 @@ create policy "Wydarzenia - zmiana" on public.events
     household_id = public.moj_dom()
     and (
       created_by = public.ja_jako_member()
-      or member_id = public.ja_jako_member()
+      or public.jestem_przypisany(id)
       or public.jestem_rodzicem()
     )
   )
@@ -216,7 +275,30 @@ create policy "Wydarzenia - usuwanie" on public.events
     household_id = public.moj_dom()
     and (
       created_by = public.ja_jako_member()
-      or member_id = public.ja_jako_member()
+      or public.jestem_przypisany(id)
       or public.jestem_rodzicem()
     )
+  );
+
+-- 10. Przypisania osób: widzi je cały dom, zmienia autor wpisu albo rodzic.
+--     Bez tego ograniczenia dziecko mogłoby dopisać się do dowolnego wydarzenia.
+drop policy if exists "Przypisania - odczyt" on public.event_members;
+create policy "Przypisania - odczyt" on public.event_members
+  for select to authenticated
+  using (public.wydarzenie_z_mojego_domu(event_id));
+
+drop policy if exists "Przypisania - dodawanie" on public.event_members;
+create policy "Przypisania - dodawanie" on public.event_members
+  for insert to authenticated
+  with check (
+    public.wydarzenie_z_mojego_domu(event_id)
+    and (public.jestem_autorem(event_id) or public.jestem_rodzicem())
+  );
+
+drop policy if exists "Przypisania - usuwanie" on public.event_members;
+create policy "Przypisania - usuwanie" on public.event_members
+  for delete to authenticated
+  using (
+    public.wydarzenie_z_mojego_domu(event_id)
+    and (public.jestem_autorem(event_id) or public.jestem_rodzicem())
   );
