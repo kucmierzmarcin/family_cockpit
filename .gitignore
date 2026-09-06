@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Zmienne srodowiskowe - nie wrzucamy kluczy na GitHub
+.env
+.env.*
+!.env.example

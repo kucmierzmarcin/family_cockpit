@@ -1,184 +1,402 @@
-.counter {
+:root {
+  --tlo: #f6f5f9;
+  --karta: #ffffff;
+  --tekst: #1d1b22;
+  --tekst-drugi: #6b6375;
+  --kreska: #e5e3ea;
+  --akcent: #7c3aed;
+  --akcent-jasny: #f1eafe;
+  --dzisiaj: #fff4e0;
+  --dzisiaj-kreska: #f0a500;
+  --blad: #b42318;
+  --blad-tlo: #fef3f2;
+  --cien: 0 1px 2px rgba(16, 12, 30, 0.06), 0 8px 24px rgba(16, 12, 30, 0.06);
+}
+
+body {
+  margin: 0;
+  background: var(--tlo);
+  color: var(--tekst);
+}
+
+.kokpit {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+/* --- Nagłówek --- */
+
+.naglowek {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.naglowek h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--tekst);
+}
+
+.podtytul {
+  margin: 6px 0 0;
+  color: var(--tekst-drugi);
   font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
-
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
 }
 
-.hero {
-  position: relative;
-
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
-
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .framework,
-  .vite {
-    position: absolute;
-  }
-
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
-
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
-  }
+.blad {
+  max-width: 720px;
+  margin: 0 auto 20px;
+  padding: 12px 16px;
+  border: 1px solid #fda29b;
+  border-radius: 10px;
+  background: var(--blad-tlo);
+  color: var(--blad);
+  font-size: 15px;
 }
 
-#center {
+/* --- Układ: kalendarz + panel boczny --- */
+
+.uklad {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+  align-items: start;
+}
+
+.kalendarz,
+.panel {
+  background: var(--karta);
+  border: 1px solid var(--kreska);
+  border-radius: 16px;
+  box-shadow: var(--cien);
+}
+
+.kalendarz {
+  padding: 20px;
+}
+
+/* --- Pasek sterowania miesiącami --- */
+
+.sterowanie {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.miesiac {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  min-width: 210px;
+  text-align: center;
+}
+
+.strzalka {
+  width: 38px;
+  height: 38px;
+  font-size: 22px;
+  line-height: 1;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  color: var(--tekst);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.strzalka:hover {
+  background: var(--akcent-jasny);
+  border-color: var(--akcent);
+}
+
+.dzis {
+  margin-left: auto;
+  padding: 9px 18px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  color: var(--tekst);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.dzis:hover {
+  background: var(--akcent-jasny);
+  border-color: var(--akcent);
+}
+
+/* --- Siatka dni --- */
+
+.dni-tygodnia,
+.siatka {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.dni-tygodnia {
+  margin-bottom: 8px;
+}
+
+.dni-tygodnia span {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--tekst-drugi);
+}
+
+.siatka.wczytywanie {
+  opacity: 0.55;
+}
+
+.dzien {
   display: flex;
   flex-direction: column;
-  gap: 25px;
-  place-content: center;
-  place-items: center;
-  flex-grow: 1;
-
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
-  }
-}
-
-#next-steps {
-  display: flex;
-  border-top: 1px solid var(--border);
+  align-items: stretch;
+  gap: 4px;
+  min-height: 104px;
+  padding: 8px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  font: inherit;
   text-align: left;
-
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
-
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s, background 0.15s;
 }
 
-#docs {
-  border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
+.dzien:hover {
+  border-color: var(--akcent);
 }
 
-#next-steps ul {
+.dzien.obcy {
+  background: #fafafc;
+  color: #b6b2bf;
+}
+
+.dzien.dzisiaj {
+  background: var(--dzisiaj);
+  border-color: var(--dzisiaj-kreska);
+}
+
+.dzien.wybrany {
+  border-color: var(--akcent);
+  box-shadow: 0 0 0 2px var(--akcent-jasny);
+}
+
+.numer {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dzien.dzisiaj .numer {
+  color: #8a5a00;
+}
+
+.wydarzenia {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.pigulka {
+  display: block;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: var(--akcent-jasny);
+  color: #4c1d95;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pigulka b {
+  margin-right: 4px;
+  font-weight: 700;
+}
+
+.wiecej {
+  font-size: 11px;
+  color: var(--tekst-drugi);
+  padding-left: 6px;
+}
+
+/* --- Panel boczny --- */
+
+.panel {
+  padding: 20px;
+  position: sticky;
+  top: 24px;
+}
+
+.panel-tytul {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.panel-dzien {
+  margin: 2px 0 18px;
+  color: var(--tekst-drugi);
+  font-size: 14px;
+  text-transform: capitalize;
+}
+
+.pusto {
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px dashed var(--kreska);
+  border-radius: 10px;
+  color: var(--tekst-drugi);
+  font-size: 14px;
+  text-align: center;
+}
+
+.lista {
   list-style: none;
+  margin: 0 0 18px;
   padding: 0;
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  margin: 32px 0 0;
-
-  .logo {
-    height: 18px;
-  }
-
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
-
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
 }
 
-#spacer {
-  height: 88px;
-  border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
+.lista li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  font-size: 15px;
 }
 
-.ticks {
-  position: relative;
-  width: 100%;
+.czas {
+  flex-shrink: 0;
+  min-width: 44px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--akcent);
+}
 
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
+.nazwa {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.usun {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tekst-drugi);
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.usun:hover {
+  background: var(--blad-tlo);
+  color: var(--blad);
+}
+
+/* --- Formularz --- */
+
+.formularz {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 18px;
+  border-top: 1px solid var(--kreska);
+}
+
+.formularz label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tekst-drugi);
+}
+
+.formularz label + input {
+  margin-bottom: 8px;
+}
+
+.formularz input {
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  color: var(--tekst);
+  font: inherit;
+  font-size: 15px;
+}
+
+.formularz input:focus {
+  outline: 2px solid var(--akcent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.formularz button {
+  margin-top: 6px;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--akcent);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.formularz button:hover:not(:disabled) {
+  background: #6b21d6;
+}
+
+.formularz button:disabled {
+  background: #c9c5d2;
+  cursor: not-allowed;
+}
+
+/* --- Telefon / tablet --- */
+
+@media (max-width: 900px) {
+  .uklad {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
+  .panel {
+    position: static;
   }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
+
+  .dzien {
+    min-height: 78px;
+    padding: 6px;
+  }
+
+  .pigulka {
+    font-size: 11px;
+  }
+
+  .miesiac {
+    font-size: 19px;
+    min-width: 0;
+    flex: 1;
   }
 }

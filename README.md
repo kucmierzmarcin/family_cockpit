@@ -1,32 +1,57 @@
-# React + TypeScript + Vite
+# Kokpit Rodzinny
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Wspólny kalendarz rodzinny — widok miesiąca, dodawanie wydarzeń (tytuł + godzina),
+przełączanie miesięcy. Wydarzenia zapisują się w bazie Supabase, więc widzi je
+każdy domownik, który otworzy aplikację.
 
-Currently, two official plugins are available:
+Zbudowane na React + TypeScript + Vite.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Uruchomienie
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Aplikacja wystartuje pod adresem, który wypisze się w terminalu (zwykle
+http://localhost:5173).
+
+## Konfiguracja bazy
+
+1. Skopiuj `.env.example` do `.env` i wpisz dane swojego projektu Supabase
+   (panel Supabase → **Project Settings** → **API**):
+
+   ```
+   VITE_SUPABASE_URL=https://twoj-projekt.supabase.co
+   VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxxxxxx
+   ```
+
+   Plik `.env` jest w `.gitignore` — nie trafia na GitHub.
+
+2. W panelu Supabase otwórz **SQL Editor**, wklej całą zawartość
+   [`supabase/schema.sql`](supabase/schema.sql) i kliknij **Run**.
+
+## Struktura
+
+| Plik | Do czego służy |
+| --- | --- |
+| `src/App.tsx` | Cały kalendarz: siatka miesiąca, panel dnia, formularz |
+| `src/dates.ts` | Polskie nazwy miesięcy i dni, budowanie siatki kalendarza |
+| `src/lib/supabase.ts` | Połączenie z bazą i typ wydarzenia |
+| `supabase/schema.sql` | SQL tworzący tabelę `events` i reguły dostępu |
+
+## Uwaga o dostępie
+
+Reguły w `schema.sql` pozwalają czytać, dodawać i usuwać wydarzenia każdemu,
+kto ma adres aplikacji — nie ma logowania. To wygodne dla kalendarza w rodzinie,
+ale nie nadaje się do danych, które mają pozostać prywatne. Jeśli kiedyś zechcesz
+ograniczyć dostęp, trzeba dodać logowanie (Supabase Auth) i zawęzić reguły.
+
+## Skrypty
+
+| Polecenie | Efekt |
+| --- | --- |
+| `npm run dev` | Serwer deweloperski z podglądem na żywo |
+| `npm run build` | Wersja produkcyjna do katalogu `dist` |
+| `npm run preview` | Podgląd zbudowanej wersji |
+| `npm run lint` | Sprawdzenie kodu (oxlint) |
