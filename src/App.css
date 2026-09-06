@@ -1350,3 +1350,135 @@ body {
     flex: 0 0 68px;
   }
 }
+
+/* --- Ekran "Tablica" --- */
+
+.tablica {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formularz-notatki {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formularz-notatki label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tekst-drugi);
+}
+
+.formularz-notatki textarea {
+  padding: 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  color: var(--tekst);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.formularz-notatki textarea:focus {
+  outline: 2px solid var(--akcent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.formularz-notatki button {
+  align-self: flex-start;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background: var(--akcent);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.formularz-notatki button:disabled {
+  background: #c9c5d2;
+  cursor: not-allowed;
+}
+
+/* Karteczki układają się w kolumny jak na korkowej tablicy */
+.karteczki {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.karteczka {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--kreska);
+  border-top: 3px solid var(--kreska);
+  border-radius: 12px;
+  background: var(--karta);
+  box-shadow: var(--cien);
+}
+
+/* Przypięta wyróżnia się barwą autora i lekkim uniesieniem */
+.karteczka.przypieta {
+  box-shadow: 0 2px 4px rgba(16, 12, 30, 0.08), 0 10px 28px rgba(16, 12, 30, 0.1);
+}
+
+.znacznik-przypiecia {
+  align-self: flex-start;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tresc-karteczki {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.stopka-karteczki {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.autor-karteczki {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--tekst-drugi);
+}
+
+.karteczka.przypieta .autor-karteczki {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.stopka-karteczki .drobny {
+  padding: 4px 10px;
+  font-size: 12px;
+}

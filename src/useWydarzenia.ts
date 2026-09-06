@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase, type WydarzenieDb } from './lib/supabase'
 import { naTimestamp, seria, zTimestampu, type Powtarzanie, type Przedzial } from './czas'
+import { useNaZywo } from './useNaZywo'
 
 /**
  * Wydarzenie w postaci, z którą pracuje reszta aplikacji: daty jako `Date`,
@@ -95,6 +96,9 @@ export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) =
     const lista = await pobierz()
     if (lista) setWydarzenia(lista)
   }, [pobierz])
+
+  // Wpisy innych domowników pojawiają się bez odświeżania strony.
+  useNaZywo('kalendarz-na-zywo', ['events', 'event_members'], () => void odswiez())
 
   /** Zapisuje przypisania osób do wskazanych wydarzeń. */
   const przypisz = useCallback(

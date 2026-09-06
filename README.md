@@ -69,6 +69,10 @@ wciągnąć do nowo założonego domu.
 | `src/Zakupy.tsx` | Ekran „Zakupy": listy i pozycje |
 | `src/useZakupy.ts` | Dane zakupów, podgląd na żywo, operacje |
 | `src/pozycje.ts` | Porządek i liczenie pozycji |
+| `src/Tablica.tsx` | Ekran „Tablica": karteczki i przypinanie |
+| `src/useTablica.ts` | Dane tablicy i operacje |
+| `src/notatki.ts` | Porządek notatek i opis czasu |
+| `src/useNaZywo.ts` | Wspólna subskrypcja zmian (Realtime) |
 | `src/useWydarzenia.ts` | Pobieranie i zapis wydarzeń |
 | `src/MojDom.tsx` | Ekran „Mój dom": domownicy, role, konta |
 | `src/useDomownicy.ts` | Wczytywanie i zmiany listy domowników |
@@ -122,6 +126,28 @@ natychmiast, nie czeka na serwer.
 
 Listy zakłada i usuwa rodzic. Pozycje dopisuje i odhacza każdy domownik;
 usunąć pozycję może jej autor albo rodzic.
+
+## Tablica
+
+Zakładka **Tablica** to rodzinne ogłoszenia na widoku — karteczki z treścią,
+autorem i czasem dodania („przed chwilą", „wczoraj", „3 dni temu", potem data).
+
+Ważne rzeczy przypina się na górę; przypięta karteczka bierze barwę autora, żeby
+dało się ją wyłowić wzrokiem. Przypiąć może każdy domownik — to porządkowanie
+wspólnej tablicy, nie ingerencja w cudzą treść. Usunąć notatkę może jej autor
+albo rodzic.
+
+Notatki nie znikają same. Wiszą, dopóki ktoś ich nie zdejmie.
+
+## Podgląd na żywo
+
+Kalendarz, domownicy, zakupy i tablica odświeżają się **bez przeładowania
+strony** — aplikacja słucha zmian przez Supabase Realtime. Dopisanie czegoś na
+jednym urządzeniu pojawia się na pozostałych w kilka sekund.
+
+Obsługuje to jeden wspólny hook [`src/useNaZywo.ts`](src/useNaZywo.ts). Realtime
+respektuje reguły RLS, więc subskrypcja nie jest obejściem uprawnień — kanał nie
+przyniesie danych z cudzego domu.
 
 ## Role i dostęp
 

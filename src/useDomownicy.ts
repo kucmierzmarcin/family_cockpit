@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase, type DomownikDb, type Rola } from './lib/supabase'
+import { useNaZywo } from './useNaZywo'
 import { wolnyKolor } from './kolory'
 
 /** Dane nowej osoby. Dom ustawia baza (domyślna wartość household_id). */
@@ -42,6 +43,15 @@ export function useDomownicy(onBlad: (tekst: string) => void) {
     }
     // `onBlad` musi być stabilne (w App.tsx to `setBlad` z useState).
   }, [onBlad])
+
+  const odswiez = useCallback(async () => {
+    const { data, error } = await supabase.from('members').select('*').order('created_at')
+    if (error) onBlad(`Nie udało się wczytać domowników: ${error.message}`)
+    else setDomownicy(data ?? [])
+  }, [onBlad])
+
+  // Zmiany w składzie domu widać u wszystkich bez odświeżania.
+  useNaZywo('domownicy-na-zywo', ['members'], () => void odswiez())
 
   /** Propozycja koloru dla kolejnej osoby - pierwszy jeszcze niezajęty. */
   const proponowanyKolor = useCallback(

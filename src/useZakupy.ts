@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase, type ListaDb, type PozycjaDb } from './lib/supabase'
+import { useNaZywo } from './useNaZywo'
 import type { Lista, Pozycja } from './pozycje'
 
 function listaZBazy(l: ListaDb): Lista {
@@ -73,32 +74,7 @@ export function useZakupy(onBlad: (tekst: string) => void) {
     }
   }, [wczytaj, onBlad])
 
-  // Kanał otwieramy raz i trzymamy przez całe życie ekranu. Gdyby zależał od
-  // `wczytaj`, każda zmiana danych zrywałaby i odtwarzała połączenie.
-  const wczytajRef = useRef(wczytaj)
-  useEffect(() => {
-    wczytajRef.current = wczytaj
-  }, [wczytaj])
-
-  useEffect(() => {
-    const kanal = supabase
-      .channel('zakupy-na-zywo')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'shopping_items' },
-        () => void wczytajRef.current(),
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'shopping_lists' },
-        () => void wczytajRef.current(),
-      )
-      .subscribe()
-
-    return () => {
-      void supabase.removeChannel(kanal)
-    }
-  }, [])
+  useNaZywo('zakupy-na-zywo', ['shopping_lists', 'shopping_items'], () => void wczytaj())
 
   const dodajPozycje = useCallback(
     async (listaId: string, nazwa: string, ilosc: string): Promise<boolean> => {

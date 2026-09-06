@@ -75,6 +75,16 @@ export type PozycjaDb = {
   created_at: string
 }
 
+/** Notatka na tablicy rodzinnej. */
+export type NotatkaDb = {
+  id: string
+  household_id: string
+  content: string
+  pinned: boolean
+  created_by: string | null
+  created_at: string
+}
+
 /** Gospodarstwo domowe - wszystkie dane należą do dokładnie jednego. */
 export type DomDb = {
   id: string

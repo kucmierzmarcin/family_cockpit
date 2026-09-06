@@ -11,6 +11,7 @@ import {
 import { nastepnyDzien, opisCzasu, poczatekDnia } from './czas'
 import { MojDom } from './MojDom'
 import { Zakupy } from './Zakupy'
+import { Tablica } from './Tablica'
 import { Miesiac } from './widoki/Miesiac'
 import { Tydzien } from './widoki/Tydzien'
 import { Dzien } from './widoki/Dzien'
@@ -23,7 +24,7 @@ import { kolor } from './kolory'
 import './App.css'
 
 type Widok = 'miesiac' | 'tydzien' | 'dzien'
-type Ekran = 'kalendarz' | 'dom' | 'zakupy'
+type Ekran = 'kalendarz' | 'dom' | 'zakupy' | 'tablica'
 
 const NAZWY_WIDOKOW: Record<Widok, string> = {
   miesiac: 'Miesiąc',
@@ -157,6 +158,14 @@ function App({ profil, email }: Props) {
             </button>
             <button
               type="button"
+              className={`zakladka${ekran === 'tablica' ? ' aktywna' : ''}`}
+              aria-pressed={ekran === 'tablica'}
+              onClick={() => setEkran('tablica')}
+            >
+              Tablica
+            </button>
+            <button
+              type="button"
               className={`zakladka${ekran === 'dom' ? ' aktywna' : ''}`}
               aria-pressed={ekran === 'dom'}
               onClick={() => setEkran('dom')}
@@ -193,6 +202,13 @@ function App({ profil, email }: Props) {
 
       {ekran === 'zakupy' ? (
         <Zakupy jestemRodzicem={jestemRodzicem} mojeId={profil.id} onBlad={setBlad} />
+      ) : ekran === 'tablica' ? (
+        <Tablica
+          jestemRodzicem={jestemRodzicem}
+          mojeId={profil.id}
+          osobaPoId={osobaPoId}
+          onBlad={setBlad}
+        />
       ) : ekran === 'dom' ? (
         <MojDom
           domownicy={osoby.domownicy}

@@ -438,7 +438,71 @@ create policy "Pozycje - usuwanie" on public.shopping_items
     and (public.moja_pozycja(id) or public.jestem_rodzicem())
   );
 
--- Podgląd na żywo. Bez tego zmiany innych domowników nie docierają.
+-- ============================================================
+--  12. Tablica - notatki rodzinne
+-- ============================================================
+
+create table if not exists public.notes (
+  id           uuid        primary key default gen_random_uuid(),
+  household_id uuid        references public.households(id) on delete cascade,
+  content      text        not null,
+  pinned       boolean     not null default false,
+  created_by   uuid        references public.members(id) on delete set null,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists notes_household_idx on public.notes (household_id);
+
+alter table public.notes alter column household_id set default public.moj_dom();
+alter table public.notes alter column created_by   set default public.ja_jako_member();
+
+create or replace function public.moja_notatka(p_notatka uuid) returns boolean
+  language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.notes n
+     where n.id = p_notatka and n.created_by = public.ja_jako_member()
+  )
+$$;
+
+grant execute on function public.moja_notatka(uuid) to authenticated;
+
+alter table public.notes enable row level security;
+
+-- Notatki widzi i dopisuje cały dom. Przypinać może każdy - to porządkowanie
+-- wspólnej tablicy, nie ingerencja w cudzą treść. Usuwa autor albo rodzic.
+drop policy if exists "Notatki - odczyt" on public.notes;
+create policy "Notatki - odczyt" on public.notes
+  for select to authenticated
+  using (household_id = public.moj_dom());
+
+drop policy if exists "Notatki - dodawanie" on public.notes;
+create policy "Notatki - dodawanie" on public.notes
+  for insert to authenticated
+  with check (household_id = public.moj_dom());
+
+drop policy if exists "Notatki - zmiana" on public.notes;
+create policy "Notatki - zmiana" on public.notes
+  for update to authenticated
+  using (household_id = public.moj_dom())
+  with check (household_id = public.moj_dom());
+
+drop policy if exists "Notatki - usuwanie" on public.notes;
+create policy "Notatki - usuwanie" on public.notes
+  for delete to authenticated
+  using (
+    household_id = public.moj_dom()
+    and (public.moja_notatka(id) or public.jestem_rodzicem())
+  );
+
+-- ============================================================
+--  13. Podgląd na żywo
+-- ============================================================
+-- Bez tego zmiany innych domowników nie docierają bez odświeżenia strony.
 -- Uruchom tylko raz - powtórne dodanie tabeli do publikacji zgłosi błąd.
 alter publication supabase_realtime add table public.shopping_lists;
 alter publication supabase_realtime add table public.shopping_items;
+alter publication supabase_realtime add table public.notes;
+alter publication supabase_realtime add table public.events;
+alter publication supabase_realtime add table public.event_members;
+alter publication supabase_realtime add table public.members;
