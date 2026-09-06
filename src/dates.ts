@@ -21,6 +21,24 @@ function dzienTygodniaOdPon(data: Date): number {
   return (data.getDay() + 6) % 7
 }
 
+/** Poniedziałek tygodnia, w którym leży podana data. */
+export function poczatekTygodnia(data: Date): Date {
+  return new Date(
+    data.getFullYear(),
+    data.getMonth(),
+    data.getDate() - dzienTygodniaOdPon(data),
+  )
+}
+
+/** Siedem kolejnych dni począwszy od poniedziałku danego tygodnia. */
+export function tydzienOd(data: Date): Date[] {
+  const start = poczatekTygodnia(data)
+  return Array.from(
+    { length: 7 },
+    (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i),
+  )
+}
+
 /**
  * Buduje siatkę kalendarza: pełne tygodnie obejmujące cały miesiąc.
  * Dni z sąsiednich miesięcy są oznaczone `wTymMiesiacu: false`.

@@ -762,3 +762,324 @@ body {
 .brama-karta b {
   overflow-wrap: anywhere;
 }
+
+/* --- Przełącznik zakresu widoku (miesiąc/tydzień/dzień) --- */
+
+.zakladki.widoki {
+  display: inline-flex;
+  margin-bottom: 16px;
+}
+
+/* --- Siatka godzin: wspólna dla widoku tygodnia i dnia --- */
+
+.siatka-godzin {
+  --kolumna-godzin: 56px;
+  border: 1px solid var(--kreska);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.sg-naglowek {
+  display: grid;
+  grid-template-columns: var(--kolumna-godzin) 1fr;
+  border-bottom: 1px solid var(--kreska);
+  background: var(--karta);
+}
+
+.sg-naglowek > .sg-rog {
+  border-right: 1px solid var(--kreska);
+}
+
+.sg-naglowek {
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+
+.sg-dzien-naglowek {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border: none;
+  border-left: 1px solid var(--kreska);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sg-dzien-naglowek:disabled {
+  cursor: default;
+}
+
+.sg-dzien-naglowek:not(:disabled):hover {
+  background: var(--akcent-jasny);
+}
+
+.sg-nazwa-dnia {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--tekst-drugi);
+}
+
+.sg-numer-dnia {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.sg-dzien-naglowek.dzisiaj .sg-numer-dnia {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--akcent);
+  color: #fff;
+}
+
+/* Pas wydarzeń całodniowych i wielodniowych nad siatką */
+
+.sg-calodniowe {
+  display: grid;
+  grid-template-columns: var(--kolumna-godzin) 1fr;
+  gap: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--kreska);
+  background: #fbfafd;
+}
+
+.sg-etykieta-pasa {
+  padding: 0 6px;
+  border-right: 1px solid var(--kreska);
+  font-size: 11px;
+  color: var(--tekst-drugi);
+  text-align: right;
+  align-self: center;
+}
+
+.sg-pasy {
+  display: grid;
+  gap: 3px;
+  padding: 0 4px;
+}
+
+.sg-pas {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.sg-pas:hover {
+  filter: brightness(0.95);
+}
+
+/* Przewijana część z godzinami */
+
+.sg-przewijane {
+  max-height: 62vh;
+  overflow-y: auto;
+  background: var(--karta);
+}
+
+.sg-tresc {
+  display: grid;
+  grid-template-columns: var(--kolumna-godzin) 1fr;
+  position: relative;
+}
+
+.sg-godzina {
+  position: relative;
+  border-right: 1px solid var(--kreska);
+}
+
+.sg-godzina span {
+  position: absolute;
+  top: -7px;
+  right: 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--tekst-drugi);
+  background: var(--karta);
+  padding: 0 2px;
+}
+
+.sg-godzina:first-child span {
+  top: 2px;
+}
+
+.sg-kolumny {
+  display: grid;
+}
+
+.sg-kolumna {
+  position: relative;
+  border-left: 1px solid var(--kreska);
+}
+
+.sg-kratka {
+  border-bottom: 1px solid #f0eef4;
+}
+
+.sg-blok {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-left: 2px;
+  padding: 3px 6px;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: 5px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  transition: filter 0.12s;
+}
+
+.sg-blok:hover {
+  filter: brightness(0.95);
+}
+
+.sg-blok-godzina {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sg-blok-tytul {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Formularz wydarzenia --- */
+
+.formularz-wydarzenia {
+  border-top: none;
+  padding-top: 0;
+}
+
+.formularz-wydarzenia .panel-tytul {
+  margin-bottom: 14px;
+}
+
+.para-pol {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.para-pol input {
+  flex: 1;
+  min-width: 0;
+}
+
+.formularz .przelacznik {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tekst);
+  cursor: pointer;
+}
+
+.formularz .przelacznik input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--akcent);
+  cursor: pointer;
+}
+
+.wybor-zakresu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: #fbfafd;
+}
+
+.wybor-zakresu .przelacznik {
+  margin: 0;
+  font-weight: 400;
+}
+
+.formularz button.usuwanie {
+  color: var(--blad);
+  border-color: #fda29b;
+}
+
+.formularz button.usuwanie:hover:not(:disabled) {
+  background: var(--blad-tlo);
+}
+
+/* --- Wpis na liście dnia jest klikalny --- */
+
+.lista .wpis {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lista li:has(.wpis) {
+  padding: 0;
+  border: none;
+}
+
+.lista .wpis {
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+}
+
+.lista .wpis:hover {
+  border-color: var(--akcent);
+}
+
+.lista .wpis .czas {
+  min-width: 78px;
+  font-size: 12px;
+}
+
+/* Pigułka wydarzenia ciągłego w siatce miesiąca */
+
+.pigulka.ciagle {
+  font-style: normal;
+  border-left: 3px solid rgba(0, 0, 0, 0.18);
+  border-radius: 3px 6px 6px 3px;
+}
+
+@media (max-width: 900px) {
+  .siatka-godzin {
+    --kolumna-godzin: 44px;
+  }
+
+  .sg-przewijane {
+    max-height: 55vh;
+  }
+}

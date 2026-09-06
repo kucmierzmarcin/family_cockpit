@@ -21,12 +21,18 @@ export const OPISY_ROL: Record<Rola, string> = {
   dziecko: 'Dziecko',
 }
 
-/** Jedno wydarzenie w kalendarzu, tak jak leży w tabeli `events`. */
+/**
+ * Jedno wydarzenie tak, jak leży w tabeli `events`.
+ * `starts_at` i `ends_at` to kolumny `timestamp` bez strefy - czytaj je
+ * przez `zTimestampu` z src/czas.ts, nigdy przez `new Date(...)` wprost.
+ */
 export type WydarzenieDb = {
   id: string
   title: string
-  event_date: string // 'RRRR-MM-DD'
-  event_time: string | null // 'GG:MM:SS'
+  starts_at: string // 'RRRR-MM-DDTGG:MM:SS'
+  ends_at: string // wyłączny - wydarzenie trwa do tej chwili, ale jej nie obejmuje
+  all_day: boolean
+  series_id: string | null // wspólne dla wystąpień jednej serii
   member_id: string | null // kto z domowników; null = wydarzenie wspólne
   household_id: string
   created_by: string | null // kto dodał wpis

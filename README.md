@@ -1,8 +1,9 @@
 # Kokpit Rodzinny
 
-Wspólny kalendarz rodzinny — widok miesiąca, dodawanie wydarzeń (tytuł + godzina),
-przełączanie miesięcy. Wydarzenia zapisują się w bazie Supabase, więc widzi je
-każdy zalogowany domownik.
+Wspólny kalendarz rodzinny w trzech widokach — miesiąc, tydzień i dzień.
+Wydarzenie ma początek i koniec, może trwać cały dzień albo ciągnąć się przez
+kilka dni, i może się powtarzać. Wszystko zapisuje się w bazie Supabase, więc
+widzi to każdy zalogowany domownik.
 
 Dostęp wymaga logowania. Dane należą do gospodarstwa domowego — zalogowany widzi
 wyłącznie kalendarz swojego domu.
@@ -57,7 +58,14 @@ wciągnąć do nowo założonego domu.
 | `src/auth/Bramka.tsx` | Wpuszcza do aplikacji: sesja, powiązanie konta, profil |
 | `src/auth/Logowanie.tsx` | Formularz e-mail + hasło |
 | `src/auth/useSesja.ts` | Sesja Supabase Auth, logowanie, wylogowanie |
-| `src/App.tsx` | Kalendarz: siatka miesiąca, panel dnia, formularz, filtry osób |
+| `src/App.tsx` | Spina kalendarz: wybór widoku, filtry osób, nagłówek |
+| `src/widoki/Miesiac.tsx` | Siatka miesiąca |
+| `src/widoki/Tydzien.tsx` | Tydzień — siedem kolumn siatki godzin |
+| `src/widoki/Dzien.tsx` | Dzień — jedna kolumna siatki godzin |
+| `src/widoki/SiatkaGodzin.tsx` | Wspólny silnik tygodnia i dnia |
+| `src/FormularzWydarzenia.tsx` | Dodawanie i edycja wydarzeń |
+| `src/czas.ts` | Przedziały czasu, serie, układanie nakładek |
+| `src/useWydarzenia.ts` | Pobieranie i zapis wydarzeń |
 | `src/MojDom.tsx` | Ekran „Mój dom": domownicy, role, konta |
 | `src/useDomownicy.ts` | Wczytywanie i zmiany listy domowników |
 | `src/kolory.ts` | Paleta kolorów domowników |
@@ -65,6 +73,24 @@ wciągnąć do nowo założonego domu.
 | `src/lib/supabase.ts` | Połączenie z bazą i typy danych |
 | `supabase/schema.sql` | Pełny schemat: tabele, funkcje i reguły dostępu |
 | `supabase/start.sql` | Skrypt uruchamiany raz — zakłada pierwszy dom |
+
+## Jak działa czas w wydarzeniach
+
+Wydarzenie ma `starts_at` i `ends_at` — kolumny `timestamp` **bez strefy
+czasowej**. Aplikacja działa w jednej strefie, więc strefy byłyby tu tylko
+źródłem błędów w rodzaju „wakacje zaczynają się 9 lipca o 23:00".
+
+Koniec jest **wyłączny**: wydarzenie trwa do tej chwili, ale jej nie obejmuje.
+Dzięki temu spotkanie kończące się o 24:00 nie zajmuje dnia następnego,
+a wyjazd 9–11 września zapisuje się jako `09-09 00:00 → 09-12 00:00`.
+
+Czytaj te kolumny przez `zTimestampu()` z `src/czas.ts`, a zapisuj przez
+`naTimestamp()` — `new Date(...)` i `toISOString()` przesunęłyby godziny.
+
+Wydarzenia cykliczne powstają jako osobne wpisy ze wspólnym `series_id`.
+Każde da się zmienić lub usunąć osobno albo razem z kolejnymi. Seria kończy
+się na dacie wybranej w polu „powtarzaj do" — po jej upływie trzeba założyć
+nową.
 
 ## Role i dostęp
 
@@ -100,3 +126,5 @@ Usunięcie domownika nie kasuje jego wydarzeń — tracą tylko przypisanie do o
 | `npm run build` | Wersja produkcyjna do katalogu `dist` |
 | `npm run preview` | Podgląd zbudowanej wersji |
 | `npm run lint` | Sprawdzenie kodu (oxlint) |
+| `npm test` | Testy logiki czasu (vitest) |
+| `npm run test:watch` | Testy w trybie ciągłym |
