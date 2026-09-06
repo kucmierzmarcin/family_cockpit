@@ -302,3 +302,143 @@ create policy "Przypisania - usuwanie" on public.event_members
     public.wydarzenie_z_mojego_domu(event_id)
     and (public.jestem_autorem(event_id) or public.jestem_rodzicem())
   );
+
+-- ============================================================
+--  11. Listy zakupów
+-- ============================================================
+
+create table if not exists public.shopping_lists (
+  id           uuid        primary key default gen_random_uuid(),
+  household_id uuid        references public.households(id) on delete cascade,
+  name         text        not null,
+  created_at   timestamptz not null default now()
+);
+
+-- Usunięcie listy kasuje jej pozycje - pozycja bez listy nie ma sensu.
+create table if not exists public.shopping_items (
+  id         uuid        primary key default gen_random_uuid(),
+  list_id    uuid        not null references public.shopping_lists(id) on delete cascade,
+  name       text        not null,
+  quantity   text,                        -- tekst: "2 l", "10 szt.", "pół kg"
+  done       boolean     not null default false,
+  created_by uuid        references public.members(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists shopping_lists_household_idx on public.shopping_lists (household_id);
+create index if not exists shopping_items_list_idx      on public.shopping_items (list_id);
+
+-- Dwie listy o tej samej nazwie w jednym domu to zawsze pomyłka.
+create unique index if not exists shopping_lists_nazwa_key
+  on public.shopping_lists (household_id, lower(name));
+
+alter table public.shopping_lists alter column household_id set default public.moj_dom();
+alter table public.shopping_items alter column created_by   set default public.ja_jako_member();
+
+-- Pozycje należą do domu przez swoją listę, więc polityka musi sięgnąć poziom
+-- wyżej. SECURITY DEFINER - ten sam wzorzec co przy members i event_members.
+create or replace function public.lista_z_mojego_domu(p_lista uuid) returns boolean
+  language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.shopping_lists l
+     where l.id = p_lista and l.household_id = public.moj_dom()
+  )
+$$;
+
+create or replace function public.moja_pozycja(p_pozycja uuid) returns boolean
+  language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.shopping_items i
+     where i.id = p_pozycja and i.created_by = public.ja_jako_member()
+  )
+$$;
+
+-- Zakłada domyślne listy, jeśli dom nie ma jeszcze żadnej.
+-- SECURITY DEFINER, bo wstawianie list wymaga roli rodzica, a pierwsze wejście
+-- na ekran może wykonać dziecko.
+-- Blokada doradcza szereguje równoległe wywołania: bez niej dwa naraz (React
+-- w trybie deweloperskim montuje efekty dwukrotnie) zobaczą pustą tabelę
+-- i założą listy podwójnie.
+create or replace function public.zapewnij_listy_zakupow() returns void
+  language plpgsql volatile security definer set search_path = public
+as $$
+declare
+  dom uuid;
+begin
+  dom := public.moj_dom();
+  if dom is null then
+    return;
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext('listy_zakupow:' || dom::text));
+
+  if exists (select 1 from public.shopping_lists where household_id = dom) then
+    return;
+  end if;
+
+  insert into public.shopping_lists (household_id, name)
+  values (dom, 'Spożywcze'), (dom, 'Apteka'), (dom, 'Dom')
+  on conflict do nothing;
+end
+$$;
+
+grant execute on function public.lista_z_mojego_domu(uuid)   to authenticated;
+grant execute on function public.moja_pozycja(uuid)          to authenticated;
+grant execute on function public.zapewnij_listy_zakupow()    to authenticated;
+
+alter table public.shopping_lists enable row level security;
+alter table public.shopping_items enable row level security;
+
+-- Listy: widzi cały dom, zarządza rodzic.
+drop policy if exists "Listy - odczyt" on public.shopping_lists;
+create policy "Listy - odczyt" on public.shopping_lists
+  for select to authenticated
+  using (household_id = public.moj_dom());
+
+drop policy if exists "Listy - dodawanie" on public.shopping_lists;
+create policy "Listy - dodawanie" on public.shopping_lists
+  for insert to authenticated
+  with check (household_id = public.moj_dom() and public.jestem_rodzicem());
+
+drop policy if exists "Listy - zmiana" on public.shopping_lists;
+create policy "Listy - zmiana" on public.shopping_lists
+  for update to authenticated
+  using (household_id = public.moj_dom() and public.jestem_rodzicem())
+  with check (household_id = public.moj_dom());
+
+drop policy if exists "Listy - usuwanie" on public.shopping_lists;
+create policy "Listy - usuwanie" on public.shopping_lists
+  for delete to authenticated
+  using (household_id = public.moj_dom() and public.jestem_rodzicem());
+
+-- Pozycje: każdy z domu dopisuje i odhacza; usuwa autor albo rodzic.
+drop policy if exists "Pozycje - odczyt" on public.shopping_items;
+create policy "Pozycje - odczyt" on public.shopping_items
+  for select to authenticated
+  using (public.lista_z_mojego_domu(list_id));
+
+drop policy if exists "Pozycje - dodawanie" on public.shopping_items;
+create policy "Pozycje - dodawanie" on public.shopping_items
+  for insert to authenticated
+  with check (public.lista_z_mojego_domu(list_id));
+
+drop policy if exists "Pozycje - zmiana" on public.shopping_items;
+create policy "Pozycje - zmiana" on public.shopping_items
+  for update to authenticated
+  using (public.lista_z_mojego_domu(list_id))
+  with check (public.lista_z_mojego_domu(list_id));
+
+drop policy if exists "Pozycje - usuwanie" on public.shopping_items;
+create policy "Pozycje - usuwanie" on public.shopping_items
+  for delete to authenticated
+  using (
+    public.lista_z_mojego_domu(list_id)
+    and (public.moja_pozycja(id) or public.jestem_rodzicem())
+  );
+
+-- Podgląd na żywo. Bez tego zmiany innych domowników nie docierają.
+-- Uruchom tylko raz - powtórne dodanie tabeli do publikacji zgłosi błąd.
+alter publication supabase_realtime add table public.shopping_lists;
+alter publication supabase_realtime add table public.shopping_items;

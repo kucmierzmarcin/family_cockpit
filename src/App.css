@@ -1153,3 +1153,200 @@ body {
   background: var(--akcent-jasny);
   border-color: var(--akcent);
 }
+
+/* --- Ekran "Zakupy" --- */
+
+.zakupy {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.listy-pasek {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--kreska);
+  border-radius: 12px;
+  background: var(--karta);
+}
+
+.listy-pasek .zakladka {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* Ile rzeczy zostalo do kupienia na danej liscie */
+.licznik {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--akcent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.zakladka.aktywna .licznik {
+  background: var(--akcent);
+}
+
+.formularz-listy,
+.formularz-pozycji {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.formularz-pozycji {
+  padding-top: 16px;
+  margin-top: 4px;
+  border-top: 1px solid var(--kreska);
+}
+
+.formularz-listy input,
+.formularz-pozycji input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  color: var(--tekst);
+  font: inherit;
+  font-size: 15px;
+}
+
+.formularz-listy input:focus,
+.formularz-pozycji input:focus {
+  outline: 2px solid var(--akcent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+/* Ilosc jest krotka - nie zabiera miejsca nazwie */
+.pole-ilosci {
+  flex: 0 0 88px;
+  text-align: center;
+}
+
+.formularz-listy button[type='submit'],
+.formularz-pozycji button[type='submit'] {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  background: var(--akcent);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.formularz-listy button[type='submit']:disabled,
+.formularz-pozycji button[type='submit']:disabled {
+  background: #c9c5d2;
+  cursor: not-allowed;
+}
+
+.naglowek-listy {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.naglowek-listy .panel-tytul {
+  margin-right: auto;
+}
+
+.naglowek-listy .meta {
+  display: inline;
+}
+
+/* --- Pozycje na liscie --- */
+
+.pozycje {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pozycje li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 10px;
+  transition: background 0.12s;
+}
+
+.pozycje li:hover {
+  background: var(--tlo);
+}
+
+.pozycja-tresc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 0;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.pozycja-tresc input[type='checkbox'] {
+  flex-shrink: 0;
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  accent-color: var(--akcent);
+  cursor: pointer;
+}
+
+.pozycja-nazwa {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pozycja-ilosc {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--tlo);
+  color: var(--tekst-drugi);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Kupione schodza na dol listy i sa przekreslone */
+.pozycje li.kupione .pozycja-nazwa {
+  text-decoration: line-through;
+  color: var(--tekst-drugi);
+}
+
+.pozycje li.kupione {
+  opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .pole-ilosci {
+    flex: 0 0 68px;
+  }
+}

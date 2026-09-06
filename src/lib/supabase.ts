@@ -56,6 +56,25 @@ export type DomownikDb = {
   created_at: string
 }
 
+/** Lista zakupów w tabeli `shopping_lists`. */
+export type ListaDb = {
+  id: string
+  household_id: string
+  name: string
+  created_at: string
+}
+
+/** Pozycja listy zakupów. `quantity` to tekst: "2 l", "10 szt.", "pół kg". */
+export type PozycjaDb = {
+  id: string
+  list_id: string
+  name: string
+  quantity: string | null
+  done: boolean
+  created_by: string | null
+  created_at: string
+}
+
 /** Gospodarstwo domowe - wszystkie dane należą do dokładnie jednego. */
 export type DomDb = {
   id: string

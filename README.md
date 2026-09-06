@@ -66,6 +66,9 @@ wciągnąć do nowo założonego domu.
 | `src/FormularzWydarzenia.tsx` | Dodawanie i edycja wydarzeń |
 | `src/czas.ts` | Przedziały czasu, serie, układanie nakładek |
 | `src/osoby.ts` | Uczestnicy wydarzenia: kolejność, barwy, filtr |
+| `src/Zakupy.tsx` | Ekran „Zakupy": listy i pozycje |
+| `src/useZakupy.ts` | Dane zakupów, podgląd na żywo, operacje |
+| `src/pozycje.ts` | Porządek i liczenie pozycji |
 | `src/useWydarzenia.ts` | Pobieranie i zapis wydarzeń |
 | `src/MojDom.tsx` | Ekran „Mój dom": domownicy, role, konta |
 | `src/useDomownicy.ts` | Wczytywanie i zmiany listy domowników |
@@ -105,6 +108,20 @@ Wydarzenia cykliczne powstają jako osobne wpisy ze wspólnym `series_id`.
 Każde da się zmienić lub usunąć osobno albo razem z kolejnymi. Seria kończy
 się na dacie wybranej w polu „powtarzaj do" — po jej upływie trzeba założyć
 nową.
+
+## Listy zakupów
+
+Zakładka **Zakupy** trzyma listy domu (domyślnie Spożywcze, Apteka, Dom).
+Pozycja to nazwa i opcjonalna ilość jako tekst — „2 l" czy „10 szt." nie mieszczą
+się w liczbie, a nikt tego nie sumuje.
+
+Zmiany widać **na żywo** u wszystkich domowników: aplikacja słucha zmian przez
+Supabase Realtime, więc dopisanie mleka w domu pojawia się od razu u osoby
+stojącej w sklepie. Odhaczenie zapisuje się optymistycznie — checkbox reaguje
+natychmiast, nie czeka na serwer.
+
+Listy zakłada i usuwa rodzic. Pozycje dopisuje i odhacza każdy domownik;
+usunąć pozycję może jej autor albo rodzic.
 
 ## Role i dostęp
 
