@@ -107,4 +107,11 @@ describe('waliduj', () => {
     })
     expect(waliduj([calodniowe], domownicy, dzisiaj)).toBeNull()
   })
+
+  it('odrzuca nieprawidłową datę w wystąpieniu', () => {
+    const zlaData = pozycja({
+      wystapienia: [{ data: 'nie-data', start: '08:00', koniec: '08:45', calodniowe: false }],
+    })
+    expect(waliduj([zlaData], domownicy, dzisiaj)).not.toBeNull()
+  })
 })

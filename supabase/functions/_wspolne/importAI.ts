@@ -157,7 +157,11 @@ export function waliduj(pozycje: Pozycja[], domownicy: string[], dzisiaj: Date):
       return `Pozycja "${pozycja.tytul}" nie ma żadnego wystąpienia.`
     }
     for (const w of pozycja.wystapienia) {
-      if (new Date(w.data) > limitHoryzontu) {
+      const dataDate = new Date(w.data)
+      if (Number.isNaN(dataDate.getTime())) {
+        return `Pozycja "${pozycja.tytul}" ma nieprawidłową datę: "${w.data}".`
+      }
+      if (dataDate > limitHoryzontu) {
         return 'Rozpoznano zbyt odległy termin - zawęź zakres albo podziel import.'
       }
       if (!w.calodniowe && w.koniec <= w.start) {
