@@ -506,3 +506,34 @@ alter publication supabase_realtime add table public.notes;
 alter publication supabase_realtime add table public.events;
 alter publication supabase_realtime add table public.event_members;
 alter publication supabase_realtime add table public.members;
+
+-- ============================================================
+--  14. Poranne podsumowanie - ustawienia domownika
+-- ============================================================
+
+alter table public.members
+  add column if not exists digest_enabled boolean not null default false,
+  add column if not exists digest_at      time    not null default '07:00';
+
+-- Zapis przez funkcję, nie przez update. Polityka "Domownicy - zmiana" pozwala
+-- zmieniać wiersze tylko rodzicowi, a dopisanie "każdy zmienia swój wiersz"
+-- dałoby dziecku prawo przestawić sobie `role` na 'rodzic' - RLS filtruje
+-- wiersze, nie kolumny. Kolumny ogranicza więc ta funkcja.
+create or replace function public.ustaw_powiadomienia(p_wlaczone boolean, p_godzina time)
+  returns void
+  language plpgsql volatile security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Trzeba być zalogowanym.';
+  end if;
+
+  update public.members
+     set digest_enabled = p_wlaczone,
+         digest_at      = p_godzina
+   where user_id = auth.uid();
+end
+$$;
+
+revoke execute on function public.ustaw_powiadomienia(boolean, time) from public, anon;
+grant  execute on function public.ustaw_powiadomienia(boolean, time) to authenticated;
