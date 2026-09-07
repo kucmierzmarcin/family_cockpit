@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase, type WydarzenieDb } from './lib/supabase'
-import { naTimestamp, seria, zTimestampu, type Powtarzanie, type Przedzial } from './czas'
+import { naTimestamp, nastepnyDzien, seria, zTimestampu, zloz, type Powtarzanie, type Przedzial } from './czas'
 import { useNaZywo } from './useNaZywo'
 
 /**
@@ -26,11 +26,55 @@ export type DaneWydarzenia = {
   osobyId: string[]
 }
 
+/** Jedno wystąpienie z podglądu importu AI. */
+export type WystapienieImportu = {
+  data: string // 'RRRR-MM-DD'
+  start: string // 'GG:MM' - ignorowane, gdy calodniowe === true
+  koniec: string // 'GG:MM' - ignorowane, gdy calodniowe === true
+  calodniowe: boolean
+}
+
+/** Pozycja z podglądu importu AI, po ewentualnej korekcie osoby przez użytkownika. */
+export type PozycjaImportu = {
+  tytul: string
+  /** `null` = wydarzenie wspólne. */
+  czlonekId: string | null
+  wystapienia: WystapienieImportu[]
+}
+
 /** Czego dotyczy zmiana wydarzenia należącego do serii. */
 export type ZakresZmiany = 'tylko-to' | 'to-i-kolejne'
 
 /** Pobieramy wydarzenie razem z przypisaniami - jednym zapytaniem. */
 const KOLUMNY = '*, event_members(member_id)'
+
+/**
+ * Zamienia jedną pozycję importu na wiersze gotowe do wstawienia do `events`.
+ * Wystąpienie całodniowe zajmuje dokładnie jedną dobę - koniec wyłączny, tak
+ * jak wszędzie indziej w aplikacji (patrz komentarz przy tabeli `events`).
+ */
+export function wierszeZPozycji(pozycja: PozycjaImportu, seriaId: string | null) {
+  return pozycja.wystapienia.map((w) => {
+    if (w.calodniowe) {
+      const start = zloz(w.data, '00:00')
+      return {
+        title: pozycja.tytul,
+        starts_at: naTimestamp(start),
+        ends_at: naTimestamp(nastepnyDzien(start)),
+        all_day: true,
+        series_id: seriaId,
+      }
+    }
+
+    return {
+      title: pozycja.tytul,
+      starts_at: naTimestamp(zloz(w.data, w.start)),
+      ends_at: naTimestamp(zloz(w.data, w.koniec)),
+      all_day: false,
+      series_id: seriaId,
+    }
+  })
+}
 
 function zBazy(w: WydarzenieDb): Wydarzenie {
   return {
@@ -152,6 +196,40 @@ export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) =
       return true
     },
     [odswiez, onBlad, przypisz],
+  )
+
+  /**
+   * Zapisuje wiele pozycji naraz - tak jak z importu AI. Każda pozycja dostaje
+   * własny `series_id` (albo `null`, gdy ma jedno wystąpienie), więc później da
+   * się ją zmienić czy skasować jako całość - dokładnie tak samo jak ręcznie
+   * dodaną serię.
+   */
+  const dodajWiele = useCallback(
+    async (pozycje: PozycjaImportu[]): Promise<string | null> => {
+      for (const pozycja of pozycje) {
+        const seriaId = pozycja.wystapienia.length > 1 ? crypto.randomUUID() : null
+        const wiersze = wierszeZPozycji(pozycja, seriaId)
+
+        const { data, error } = await supabase.from('events').insert(wiersze).select('id')
+        if (error || !data) {
+          return `Nie udało się zapisać "${pozycja.tytul}": ${error?.message ?? 'brak odpowiedzi'}`
+        }
+
+        if (pozycja.czlonekId) {
+          const problem = await przypisz(
+            data.map((w) => w.id),
+            [pozycja.czlonekId],
+          )
+          if (problem) {
+            return `"${pozycja.tytul}" zapisane, ale nie udało się przypisać osoby: ${problem}`
+          }
+        }
+      }
+
+      await odswiez()
+      return null
+    },
+    [odswiez, przypisz],
   )
 
   /** Podmienia komplet przypisań: najpierw czyścimy, potem wstawiamy nowe. */
@@ -282,5 +360,5 @@ export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) =
     [wydarzenia, onBlad],
   )
 
-  return { wydarzenia, ladowanie, dodaj, zmien, usun }
+  return { wydarzenia, ladowanie, dodaj, dodajWiele, zmien, usun }
 }
