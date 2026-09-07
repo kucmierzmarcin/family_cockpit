@@ -5,10 +5,10 @@ import type { Pozycja } from './importAI'
 describe('budujZapytanie', () => {
   it('wymusza enum imion domowników plus "Wspólne" w schemacie narzędzia', () => {
     const zapytanie = budujZapytanie(new Date('2026-09-07'), ['Zuzia', 'Ola'], { prompt: 'test' })
-    const schemat = zapytanie.tools[0] as {
-      input_schema: { properties: { pozycje: { items: { properties: { czlonek: { enum: string[] } } } } } }
+    const deklaracja = zapytanie.tools[0].function_declarations[0] as {
+      parameters: { properties: { pozycje: { items: { properties: { czlonek: { enum: string[] } } } } } }
     }
-    expect(schemat.input_schema.properties.pozycje.items.properties.czlonek.enum).toEqual([
+    expect(deklaracja.parameters.properties.pozycje.items.properties.czlonek.enum).toEqual([
       'Zuzia',
       'Ola',
       WSPOLNE,
@@ -17,31 +17,45 @@ describe('budujZapytanie', () => {
 
   it('wpisuje dzisiejszą datę do promptu systemowego', () => {
     const zapytanie = budujZapytanie(new Date('2026-09-07'), [], { prompt: 'test' })
-    expect(zapytanie.system).toContain('2026-09-07')
+    expect(zapytanie.system_instruction.parts[0].text).toContain('2026-09-07')
   })
 
-  it('dokłada blok obrazu przed tekstem, gdy plik jest zdjęciem', () => {
+  it('dokłada blok pliku przed tekstem, gdy plik jest zdjęciem', () => {
     const zapytanie = budujZapytanie(new Date('2026-09-07'), [], {
       plik: { dane_base64: 'AAAA', typ_mime: 'image/png' },
     })
-    expect(zapytanie.messages[0].content[0]).toMatchObject({ type: 'image' })
+    expect(zapytanie.contents[0].parts[0]).toEqual({
+      inline_data: { mime_type: 'image/png', data: 'AAAA' },
+    })
   })
 
-  it('plik PDF trafia jako blok "document", nie "image"', () => {
+  it('plik PDF trafia tym samym blokiem inline_data co obraz', () => {
     const zapytanie = budujZapytanie(new Date('2026-09-07'), [], {
       plik: { dane_base64: 'AAAA', typ_mime: 'application/pdf' },
     })
-    expect(zapytanie.messages[0].content[0]).toMatchObject({ type: 'document' })
+    expect(zapytanie.contents[0].parts[0]).toEqual({
+      inline_data: { mime_type: 'application/pdf', data: 'AAAA' },
+    })
   })
 
   it('sam prompt, bez pliku, to jeden blok tekstu', () => {
     const zapytanie = budujZapytanie(new Date('2026-09-07'), [], { prompt: 'plan lekcji Zuzi' })
-    expect(zapytanie.messages[0].content).toEqual([{ type: 'text', text: 'plan lekcji Zuzi' }])
+    expect(zapytanie.contents[0].parts).toEqual([{ text: 'plan lekcji Zuzi' }])
   })
 
-  it('wymusza narzędzie przez tool_choice', () => {
+  it('wymusza narzędzie przez tool_config', () => {
     const zapytanie = budujZapytanie(new Date('2026-09-07'), [], { prompt: 'test' })
-    expect(zapytanie.tool_choice).toEqual({ type: 'tool', name: 'zwroc_pozycje' })
+    expect(zapytanie.tool_config).toEqual({
+      function_calling_config: { mode: 'ANY', allowed_function_names: ['zwroc_pozycje'] },
+    })
+  })
+
+  it('ogranicza maxOutputTokens i wyłącza myślenie', () => {
+    const zapytanie = budujZapytanie(new Date('2026-09-07'), [], { prompt: 'test' })
+    expect(zapytanie.generationConfig).toEqual({
+      maxOutputTokens: 16000,
+      thinkingConfig: { thinkingBudget: 0 },
+    })
   })
 })
 

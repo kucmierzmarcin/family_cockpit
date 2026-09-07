@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { budujZapytanie, waliduj, type ZapytanieWejscie } from '../_wspolne/importAI.ts'
-import { zapytajClaude } from '../_wspolne/claude.ts'
+import { zapytajGemini } from '../_wspolne/gemini.ts'
 
 const MAKS_ROZMIAR_PLIKU = 8 * 1024 * 1024 // bajtów po zdekodowaniu base64
 const DOZWOLONE_TYPY = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
@@ -63,8 +63,8 @@ Deno.serve(async (req) => {
     return bladJson(`Nie udało się wczytać domowników: ${bladDomownikow.message}`, 500)
   }
 
-  const kluczApi = Deno.env.get('ANTHROPIC_API_KEY')
-  if (!kluczApi) return bladJson('Brak konfiguracji ANTHROPIC_API_KEY.', 500)
+  const kluczApi = Deno.env.get('GEMINI_API_KEY')
+  if (!kluczApi) return bladJson('Brak konfiguracji GEMINI_API_KEY.', 500)
 
   const domownicy = (domownicyDb ?? []).map((d) => d.name)
   const dzisiaj = new Date()
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
 
   let pozycje
   try {
-    pozycje = await zapytajClaude(zapytanie, kluczApi)
+    pozycje = await zapytajGemini(zapytanie, kluczApi)
     const bladWalidacji = waliduj(pozycje, domownicy, dzisiaj)
     if (bladWalidacji) return bladJson(bladWalidacji, 502)
   } catch (e) {

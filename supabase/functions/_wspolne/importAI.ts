@@ -1,5 +1,5 @@
 /**
- * Budowa zapytania do Claude i walidacja jego odpowiedzi. Czyste funkcje -
+ * Budowa zapytania do Gemini i walidacja jego odpowiedzi. Czyste funkcje -
  * bez importu Deno ani klienta Supabase, żeby dało się je testować zwykłym
  * vitestem, tak jak `src/czas.ts` czy `src/notatki.ts`.
  */
@@ -23,13 +23,13 @@ export type ZapytanieWejscie = {
   plik?: { dane_base64: string; typ_mime: string }
 }
 
-export type ZapytanieClaude = {
+export type ZapytanieGemini = {
   model: string
-  max_tokens: number
-  system: string
-  messages: { role: 'user'; content: Record<string, unknown>[] }[]
-  tools: Record<string, unknown>[]
-  tool_choice: { type: 'tool'; name: string }
+  system_instruction: { parts: { text: string }[] }
+  contents: { role: 'user'; parts: Record<string, unknown>[] }[]
+  tools: { function_declarations: Record<string, unknown>[] }[]
+  tool_config: { function_calling_config: { mode: 'ANY'; allowed_function_names: string[] } }
+  generationConfig: { maxOutputTokens: number; thinkingConfig: { thinkingBudget: number } }
 }
 
 export const WSPOLNE = 'Wspólne'
@@ -37,7 +37,7 @@ export const MAKS_WYSTAPIEN_LACZNIE = 150
 export const MAKS_MIESIECY_HORYZONTU = 12
 
 const NAZWA_NARZEDZIA = 'zwroc_pozycje'
-const MODEL = 'claude-sonnet-5'
+const MODEL = 'gemini-2.5-flash'
 
 function danaDzien(d: Date): string {
   return d.toISOString().slice(0, 10)
@@ -49,31 +49,31 @@ function schematNarzedzia(domownicy: string[]) {
     description:
       'Zwraca listę pozycji kalendarza rozpoznanych z tekstu albo pliku - każda pozycja to jedno ' +
       'powtarzające się albo jednorazowe wydarzenie z konkretnymi wystąpieniami.',
-    input_schema: {
-      type: 'object',
+    parameters: {
+      type: 'OBJECT',
       properties: {
         pozycje: {
-          type: 'array',
+          type: 'ARRAY',
           items: {
-            type: 'object',
+            type: 'OBJECT',
             properties: {
-              tytul: { type: 'string' },
-              czlonek: { type: 'string', enum: [...domownicy, WSPOLNE] },
+              tytul: { type: 'STRING' },
+              czlonek: { type: 'STRING', enum: [...domownicy, WSPOLNE] },
               opis_wzorca: {
-                type: 'string',
+                type: 'STRING',
                 description:
                   'Krótki, czytelny opis wzorca do pokazania człowiekowi, np. ' +
                   '"poniedziałki 8:00–8:45, do 19 grudnia".',
               },
               wystapienia: {
-                type: 'array',
+                type: 'ARRAY',
                 items: {
-                  type: 'object',
+                  type: 'OBJECT',
                   properties: {
-                    data: { type: 'string', description: 'RRRR-MM-DD' },
-                    start: { type: 'string', description: 'GG:MM, dowolne przy calodniowe=true' },
-                    koniec: { type: 'string', description: 'GG:MM, dowolne przy calodniowe=true' },
-                    calodniowe: { type: 'boolean' },
+                    data: { type: 'STRING', description: 'RRRR-MM-DD' },
+                    start: { type: 'STRING', description: 'GG:MM, dowolne przy calodniowe=true' },
+                    koniec: { type: 'STRING', description: 'GG:MM, dowolne przy calodniowe=true' },
+                    calodniowe: { type: 'BOOLEAN' },
                   },
                   required: ['data', 'start', 'koniec', 'calodniowe'],
                 },
@@ -89,51 +89,51 @@ function schematNarzedzia(domownicy: string[]) {
 }
 
 /**
- * Buduje treść zapytania do Claude Messages API. Czysta funkcja - nie robi
- * żadnego IO.
+ * Buduje treść zapytania do Gemini generateContent. Czysta funkcja - nie
+ * robi żadnego IO. Obraz i PDF trafiają tym samym blokiem `inline_data` -
+ * Gemini, w przeciwieństwie do Anthropic, nie rozróżnia ich typem bloku.
  */
 export function budujZapytanie(
   dzisiaj: Date,
   domownicy: string[],
   wejscie: ZapytanieWejscie,
-): ZapytanieClaude {
-  const tresc: Record<string, unknown>[] = []
+): ZapytanieGemini {
+  const parts: Record<string, unknown>[] = []
 
   if (wejscie.plik) {
-    tresc.push(
-      wejscie.plik.typ_mime === 'application/pdf'
-        ? {
-            type: 'document',
-            source: { type: 'base64', media_type: wejscie.plik.typ_mime, data: wejscie.plik.dane_base64 },
-          }
-        : {
-            type: 'image',
-            source: { type: 'base64', media_type: wejscie.plik.typ_mime, data: wejscie.plik.dane_base64 },
-          },
-    )
+    parts.push({
+      inline_data: { mime_type: wejscie.plik.typ_mime, data: wejscie.plik.dane_base64 },
+    })
   }
 
-  tresc.push({
-    type: 'text',
+  parts.push({
     text: wejscie.prompt?.trim() || 'Rozpoznaj wydarzenia kalendarza z załączonego pliku.',
   })
 
   return {
     model: MODEL,
-    max_tokens: 16000,
-    system:
-      `Jesteś asystentem kalendarza rodzinnego. Dzisiaj jest ${danaDzien(dzisiaj)}. ` +
-      `Domownicy w tym domu: ${domownicy.length > 0 ? domownicy.join(', ') : '(brak - wszystko będzie wspólne)'}. ` +
-      'Rozpoznaj z tekstu i/albo pliku listę wydarzeń kalendarza (np. plan lekcji, harmonogram odbioru ' +
-      'śmieci, plan zajęć pozalekcyjnych) i zwróć je narzędziem zwroc_pozycje. Zasady: (1) pole "czlonek" ' +
-      'musi być dokładnie jednym z podanych imion domowników albo "Wspólne" - nie wolno wpisać innej ' +
-      'wartości; (2) jeśli plik/prompt podaje konkretne daty, użyj ich dokładnie; jeśli to wzorzec cykliczny ' +
-      'bez podanego końca (np. plan lekcji), przyjmij rozsądny domyślny horyzont, nie dłuższy niż kilka ' +
-      'miesięcy; (3) każda pozycja musi mieć co najmniej jedno wystąpienie; (4) jeśli nic sensownego nie da ' +
-      'się rozpoznać, zwróć pustą listę pozycji zamiast zgadywać.',
-    messages: [{ role: 'user', content: tresc }],
-    tools: [schematNarzedzia(domownicy)],
-    tool_choice: { type: 'tool', name: NAZWA_NARZEDZIA },
+    system_instruction: {
+      parts: [
+        {
+          text:
+            `Jesteś asystentem kalendarza rodzinnego. Dzisiaj jest ${danaDzien(dzisiaj)}. ` +
+            `Domownicy w tym domu: ${domownicy.length > 0 ? domownicy.join(', ') : '(brak - wszystko będzie wspólne)'}. ` +
+            'Rozpoznaj z tekstu i/albo pliku listę wydarzeń kalendarza (np. plan lekcji, harmonogram odbioru ' +
+            'śmieci, plan zajęć pozalekcyjnych) i zwróć je narzędziem zwroc_pozycje. Zasady: (1) pole "czlonek" ' +
+            'musi być dokładnie jednym z podanych imion domowników albo "Wspólne" - nie wolno wpisać innej ' +
+            'wartości; (2) jeśli plik/prompt podaje konkretne daty, użyj ich dokładnie; jeśli to wzorzec cykliczny ' +
+            'bez podanego końca (np. plan lekcji), przyjmij rozsądny domyślny horyzont, nie dłuższy niż kilka ' +
+            'miesięcy; (3) każda pozycja musi mieć co najmniej jedno wystąpienie; (4) jeśli nic sensownego nie da ' +
+            'się rozpoznać, zwróć pustą listę pozycji zamiast zgadywać.',
+        },
+      ],
+    },
+    contents: [{ role: 'user', parts }],
+    tools: [{ function_declarations: [schematNarzedzia(domownicy)] }],
+    tool_config: {
+      function_calling_config: { mode: 'ANY', allowed_function_names: [NAZWA_NARZEDZIA] },
+    },
+    generationConfig: { maxOutputTokens: 16000, thinkingConfig: { thinkingBudget: 0 } },
   }
 }
 
