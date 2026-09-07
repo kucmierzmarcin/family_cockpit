@@ -3,20 +3,20 @@ import type { DomownikDb } from './lib/supabase'
 import { useTablica } from './useTablica'
 import { kiedy, posortujNotatki, type Notatka } from './notatki'
 import { kolor } from './kolory'
+import { Arkusz } from './uklad/Arkusz'
+import type { TrybDodawania } from './uklad/nawigacja'
 
 type Props = {
   jestemRodzicem: boolean
   mojeId: string
   osobaPoId: Map<string, DomownikDb>
   onBlad: (tekst: string) => void
+  dodawanie: TrybDodawania
 }
 
 /** Ekran „Tablica": rodzinne ogłoszenia na widoku. */
-export function Tablica({ jestemRodzicem, mojeId, osobaPoId, onBlad }: Props) {
+export function Tablica({ jestemRodzicem, mojeId, osobaPoId, onBlad, dodawanie }: Props) {
   const dane = useTablica(onBlad)
-  const [tresc, setTresc] = useState('')
-  const [zapisywanie, setZapisywanie] = useState(false)
-  const pole = useRef<HTMLTextAreaElement>(null)
 
   // Jeden znacznik czasu na render: inaczej każda karteczka wołałaby `new Date()`
   // osobno i sąsiednie notatki mogłyby pokazać różny czas dla tej samej chwili.
@@ -24,38 +24,15 @@ export function Tablica({ jestemRodzicem, mojeId, osobaPoId, onBlad }: Props) {
 
   const uporzadkowane = useMemo(() => posortujNotatki(dane.notatki), [dane.notatki])
 
-  async function dodaj(e: React.FormEvent) {
-    e.preventDefault()
-    const tekst = tresc.trim()
-    if (!tekst) return
-
-    setZapisywanie(true)
-    const udalo = await dane.dodaj(tekst)
-    setZapisywanie(false)
-
-    if (udalo) {
-      setTresc('')
-      pole.current?.focus()
-    }
-  }
-
   return (
     <div className="tablica">
-      <form className="karta formularz-notatki" onSubmit={(e) => void dodaj(e)}>
-        <label htmlFor="tresc-notatki">Nowa notatka</label>
-        <textarea
-          id="tresc-notatki"
-          ref={pole}
-          value={tresc}
-          onChange={(e) => setTresc(e.target.value)}
-          placeholder="np. W piątek nie ma szkoły"
-          maxLength={500}
-          rows={3}
-        />
-        <button type="submit" disabled={zapisywanie || !tresc.trim()}>
-          {zapisywanie ? 'Przypinam…' : 'Powieś na tablicy'}
-        </button>
-      </form>
+      {dodawanie === null ? (
+        <FormularzNotatki onDodaj={dane.dodaj} />
+      ) : (
+        <Arkusz otwarty={dodawanie.otwarte} tytul="Nowa notatka" onZamknij={dodawanie.onZamknij}>
+          <FormularzNotatki onDodaj={dane.dodaj} onDodano={dodawanie.onZamknij} />
+        </Arkusz>
+      )}
 
       {dane.ladowanie ? (
         <p className="pusto">Wczytuję…</p>
@@ -146,5 +123,51 @@ function Karteczka({
         )}
       </div>
     </li>
+  )
+}
+
+type FormularzNotatkiProps = {
+  onDodaj: (tresc: string) => Promise<boolean>
+  onDodano?: () => void
+}
+
+/** Pole nowej notatki. Osobny komponent, bo raz siedzi w stronie, a raz w arkuszu. */
+function FormularzNotatki({ onDodaj, onDodano }: FormularzNotatkiProps) {
+  const [tresc, setTresc] = useState('')
+  const [zapisywanie, setZapisywanie] = useState(false)
+  const pole = useRef<HTMLTextAreaElement>(null)
+
+  async function wyslij(e: React.FormEvent) {
+    e.preventDefault()
+    const tekst = tresc.trim()
+    if (!tekst) return
+
+    setZapisywanie(true)
+    const udalo = await onDodaj(tekst)
+    setZapisywanie(false)
+
+    if (udalo) {
+      setTresc('')
+      pole.current?.focus()
+      onDodano?.()
+    }
+  }
+
+  return (
+    <form className="karta formularz-notatki" onSubmit={(e) => void wyslij(e)}>
+      <label htmlFor="tresc-notatki">Nowa notatka</label>
+      <textarea
+        id="tresc-notatki"
+        ref={pole}
+        value={tresc}
+        onChange={(e) => setTresc(e.target.value)}
+        placeholder="np. W piątek nie ma szkoły"
+        maxLength={500}
+        rows={3}
+      />
+      <button type="submit" disabled={zapisywanie || !tresc.trim()}>
+        {zapisywanie ? 'Przypinam…' : 'Powieś na tablicy'}
+      </button>
+    </form>
   )
 }

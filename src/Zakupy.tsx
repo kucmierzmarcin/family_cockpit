@@ -1,15 +1,18 @@
 import { useMemo, useRef, useState } from 'react'
 import { useZakupy } from './useZakupy'
 import { policzPozostale, posortujPozycje, saOdhaczone, type Pozycja } from './pozycje'
+import { Arkusz } from './uklad/Arkusz'
+import type { TrybDodawania } from './uklad/nawigacja'
 
 type Props = {
   jestemRodzicem: boolean
   mojeId: string
   onBlad: (tekst: string) => void
+  dodawanie: TrybDodawania
 }
 
 /** Ekran „Zakupy": listy domu i ich pozycje, odświeżane na żywo. */
-export function Zakupy({ jestemRodzicem, mojeId, onBlad }: Props) {
+export function Zakupy({ jestemRodzicem, mojeId, onBlad, dodawanie }: Props) {
   const dane = useZakupy(onBlad)
   const [klikniete, setKlikniete] = useState<string | null>(null)
   const [nowaLista, setNowaLista] = useState('')
@@ -163,10 +166,17 @@ export function Zakupy({ jestemRodzicem, mojeId, onBlad }: Props) {
             </ul>
           )}
 
-          <FormularzPozycji
-            listaId={wybranaLista.id}
-            onDodaj={dane.dodajPozycje}
-          />
+          {dodawanie === null ? (
+            <FormularzPozycji listaId={wybranaLista.id} onDodaj={dane.dodajPozycje} />
+          ) : (
+            <Arkusz
+              otwarty={dodawanie.otwarte}
+              tytul={`Dodaj do listy: ${wybranaLista.nazwa}`}
+              onZamknij={dodawanie.onZamknij}
+            >
+              <FormularzPozycji listaId={wybranaLista.id} onDodaj={dane.dodajPozycje} />
+            </Arkusz>
+          )}
         </section>
       )}
     </div>

@@ -7,6 +7,8 @@ import {
 } from './lib/supabase'
 import type { NowyDomownik, ZmianaDomownika } from './useDomownicy'
 import { PALETA, kolor } from './kolory'
+import { Arkusz } from './uklad/Arkusz'
+import type { TrybDodawania } from './uklad/nawigacja'
 
 const ROLE: Rola[] = ['rodzic', 'domownik', 'dziecko']
 
@@ -25,6 +27,7 @@ type Props = {
   onDodaj: (nowy: NowyDomownik) => Promise<boolean>
   onZmien: (id: string, zmiany: ZmianaDomownika) => Promise<boolean>
   onUsun: (id: string) => void
+  dodawanie: TrybDodawania
 }
 
 /** Ekran "Mój dom": kto należy do domu, z jaką rolą i jakim kontem. */
@@ -37,8 +40,22 @@ export function MojDom({
   onDodaj,
   onZmien,
   onUsun,
+  dodawanie,
 }: Props) {
   const [edytowany, setEdytowany] = useState<string | null>(null)
+
+  const formularzOsoby = (
+    <FormularzOsoby
+      key={domownicy.length} /* po dodaniu zaczynamy od czystego formularza */
+      poczatkowe={{ name: '', color: proponowanyKolor(), role: 'domownik', email: '' }}
+      etykietaZapisu="Dodaj domownika"
+      onZapisz={async (dane) => {
+        const ok = await onDodaj(dane)
+        if (ok) dodawanie?.onZamknij()
+        return ok
+      }}
+    />
+  )
 
   return (
     <div className="dom">
@@ -120,26 +137,25 @@ export function MojDom({
         )}
       </section>
 
-      {jestemRodzicem && (
-        <section className="karta">
-          <h2 className="panel-tytul">Dodaj domownika</h2>
-          <p className="panel-dzien">
-            Osoba bez adresu e-mail nie loguje się, ale ma swój kolor i wydarzenia.
-            Żeby dać jej dostęp, załóż konto w panelu Supabase i wpisz tu ten sam adres.
-          </p>
-          <FormularzOsoby
-            key={domownicy.length} /* po dodaniu zaczynamy od czystego formularza */
-            poczatkowe={{
-              name: '',
-              color: proponowanyKolor(),
-              role: 'domownik',
-              email: '',
-            }}
-            etykietaZapisu="Dodaj domownika"
-            onZapisz={(dane) => onDodaj(dane)}
-          />
-        </section>
-      )}
+      {jestemRodzicem &&
+        (dodawanie === null ? (
+          <section className="karta">
+            <h2 className="panel-tytul">Dodaj domownika</h2>
+            <p className="panel-dzien">
+              Osoba bez adresu e-mail nie loguje się, ale ma swój kolor i wydarzenia.
+              Żeby dać jej dostęp, załóż konto w panelu Supabase i wpisz tu ten sam adres.
+            </p>
+            {formularzOsoby}
+          </section>
+        ) : (
+          <Arkusz
+            otwarty={dodawanie.otwarte}
+            tytul="Dodaj domownika"
+            onZamknij={dodawanie.onZamknij}
+          >
+            {formularzOsoby}
+          </Arkusz>
+        ))}
     </div>
   )
 }

@@ -20,11 +20,12 @@ import { useDomownicy } from './useDomownicy'
 import { useWydarzenia, type Wydarzenie } from './useWydarzenia'
 import { BEZ_OSOBY, osobyWydarzenia, widocznePrzyFiltrze } from './osoby'
 import { kolor } from './kolory'
-import { TYTULY, type Ekran } from './uklad/nawigacja'
+import { TYTULY, type Ekran, type TrybDodawania } from './uklad/nawigacja'
 import { useTelefon } from './uklad/useTelefon'
 import { UkladBiurko } from './uklad/UkladBiurko'
 import { UkladTelefon } from './uklad/UkladTelefon'
 import { KontoKarta } from './uklad/KontoKarta'
+import { Arkusz } from './uklad/Arkusz'
 import { SterowanieKalendarza, type Widok } from './widoki/SterowanieKalendarza'
 import './style/index.css'
 
@@ -56,6 +57,11 @@ function App({ profil, email }: Props) {
   const osoby = useDomownicy(setBlad)
   const telefon = useTelefon()
   const [dodawanie, setDodawanie] = useState<Ekran | null>(null)
+
+  // Na telefonie formularz danego ekranu siedzi w arkuszu sterowanym stąd; na
+  // komputerze zawsze `null`, czyli wbudowany wprost w stronę jak dziś.
+  const trybDodawania = (dla: Ekran): TrybDodawania =>
+    telefon ? { otwarte: dodawanie === dla, onZamknij: () => setDodawanie(null) } : null
 
   const dniMiesiaca = useMemo(
     () => siatkaMiesiaca(kotwica.getFullYear(), kotwica.getMonth()),
@@ -133,6 +139,25 @@ function App({ profil, email }: Props) {
     return `${dlugaData(pierwszy)} – ${dlugaData(ostatni)}`
   }, [widok, kotwica, dniTygodnia])
 
+  const formularzWydarzenia = (
+    <FormularzWydarzenia
+      key={`${edytowane?.id ?? klucz(kotwica)}-${licznikZapisow}`}
+      domownicy={osoby.domownicy}
+      wydarzenie={edytowane ?? undefined}
+      domyslnyDzien={kotwica}
+      mogeUsunac={edytowane ? mogeUsunac(edytowane) : false}
+      onZapisz={async (daneWyd, powtarzanie, powtarzajDo, zakres) => {
+        const udalo = edytowane
+          ? await dane.zmien(edytowane, daneWyd, zakres)
+          : await dane.dodaj(daneWyd, powtarzanie, powtarzajDo)
+        if (udalo) setLicznikZapisow((n) => n + 1)
+        return udalo
+      }}
+      onUsun={edytowane ? (zakres) => void dane.usun(edytowane, zakres) : undefined}
+      onZamknij={() => setEdytowane(null)}
+    />
+  )
+
   const tresc = (
     <>
       {blad && (
@@ -144,13 +169,19 @@ function App({ profil, email }: Props) {
       {ekran === 'dom' && telefon && <KontoKarta profil={profil} email={email} />}
 
       {ekran === 'zakupy' ? (
-        <Zakupy jestemRodzicem={jestemRodzicem} mojeId={profil.id} onBlad={setBlad} />
+        <Zakupy
+          jestemRodzicem={jestemRodzicem}
+          mojeId={profil.id}
+          onBlad={setBlad}
+          dodawanie={trybDodawania('zakupy')}
+        />
       ) : ekran === 'tablica' ? (
         <Tablica
           jestemRodzicem={jestemRodzicem}
           mojeId={profil.id}
           osobaPoId={osobaPoId}
           onBlad={setBlad}
+          dodawanie={trybDodawania('tablica')}
         />
       ) : ekran === 'dom' ? (
         <MojDom
@@ -162,6 +193,7 @@ function App({ profil, email }: Props) {
           onDodaj={osoby.dodaj}
           onZmien={osoby.zmien}
           onUsun={usunDomownika}
+          dodawanie={trybDodawania('dom')}
         />
       ) : (
         <div className="uklad">
@@ -259,24 +291,20 @@ function App({ profil, email }: Props) {
               />
             )}
 
-            <FormularzWydarzenia
-              key={`${edytowane?.id ?? klucz(kotwica)}-${licznikZapisow}`}
-              domownicy={osoby.domownicy}
-              wydarzenie={edytowane ?? undefined}
-              domyslnyDzien={kotwica}
-              mogeUsunac={edytowane ? mogeUsunac(edytowane) : false}
-              onZapisz={async (daneWyd, powtarzanie, powtarzajDo, zakres) => {
-                const udalo = edytowane
-                  ? await dane.zmien(edytowane, daneWyd, zakres)
-                  : await dane.dodaj(daneWyd, powtarzanie, powtarzajDo)
-                if (udalo) setLicznikZapisow((n) => n + 1)
-                return udalo
-              }}
-              onUsun={
-                edytowane ? (zakres) => void dane.usun(edytowane, zakres) : undefined
-              }
-              onZamknij={() => setEdytowane(null)}
-            />
+            {telefon ? (
+              <Arkusz
+                otwarty={dodawanie === 'kalendarz' || edytowane !== null}
+                tytul={edytowane ? 'Wydarzenie' : 'Nowe wydarzenie'}
+                onZamknij={() => {
+                  setDodawanie(null)
+                  setEdytowane(null)
+                }}
+              >
+                {formularzWydarzenia}
+              </Arkusz>
+            ) : (
+              formularzWydarzenia
+            )}
           </aside>
         </div>
       )}
