@@ -1,4 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase, type DomownikDb } from './lib/supabase'
 import type { PozycjaImportu, WystapienieImportu } from './useWydarzenia'
 
@@ -64,29 +65,44 @@ export function ImportAI({ domownicy, onZapisz, onZamknij, pokazTytul = true }: 
     setRozpoznawanie(true)
     setBladRozpoznania(null)
 
-    const cialo: { prompt?: string; plik?: { dane_base64: string; typ_mime: string } } = {}
-    if (prompt.trim()) cialo.prompt = prompt.trim()
-    if (plik) cialo.plik = { dane_base64: await plikDoBase64(plik), typ_mime: plik.type }
+    try {
+      const cialo: { prompt?: string; plik?: { dane_base64: string; typ_mime: string } } = {}
+      if (prompt.trim()) cialo.prompt = prompt.trim()
+      if (plik) cialo.plik = { dane_base64: await plikDoBase64(plik), typ_mime: plik.type }
 
-    const { data, error } = await supabase.functions.invoke<{ pozycje: PozycjaAI[] }>('import-ai', {
-      body: cialo,
-    })
+      const { data, error } = await supabase.functions.invoke<{ pozycje: PozycjaAI[] }>('import-ai', {
+        body: cialo,
+      })
 
-    setRozpoznawanie(false)
-    if (error || !data) {
-      setBladRozpoznania(`Nie udało się rozpoznać treści: ${error?.message ?? 'brak odpowiedzi'}`)
-      return
+      if (error || !data) {
+        let komunikat = error?.message ?? 'brak odpowiedzi'
+        if (error instanceof FunctionsHttpError) {
+          try {
+            const cialoBledu = await error.context.json()
+            if (typeof cialoBledu?.blad === 'string') komunikat = cialoBledu.blad
+          } catch {
+            // odpowiedź błędu nie była JSON-em - zostajemy przy komunikacie domyślnym
+          }
+        }
+        setBladRozpoznania(`Nie udało się rozpoznać treści: ${komunikat}`)
+        return
+      }
+
+      setWynik(
+        data.pozycje.map((p) => ({
+          tytul: p.tytul,
+          opisWzorca: p.opis_wzorca,
+          wystapienia: p.wystapienia,
+          zaznaczona: true,
+          czlonekId: p.czlonek === WSPOLNE ? null : (idPoImieniu.get(p.czlonek) ?? null),
+        })),
+      )
+    } catch (e) {
+      const komunikat = e instanceof Error ? e.message : 'Nieznany błąd'
+      setBladRozpoznania(`Nie udało się rozpoznać treści: ${komunikat}`)
+    } finally {
+      setRozpoznawanie(false)
     }
-
-    setWynik(
-      data.pozycje.map((p) => ({
-        tytul: p.tytul,
-        opisWzorca: p.opis_wzorca,
-        wystapienia: p.wystapienia,
-        zaznaczona: true,
-        czlonekId: p.czlonek === WSPOLNE ? null : (idPoImieniu.get(p.czlonek) ?? null),
-      })),
-    )
   }
 
   function przelaczZaznaczenie(i: number) {
