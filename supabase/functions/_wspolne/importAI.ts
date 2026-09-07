@@ -25,11 +25,11 @@ export type ZapytanieWejscie = {
 
 export type ZapytanieGemini = {
   model: string
-  system_instruction: { parts: { text: string }[] }
+  systemInstruction: { parts: { text: string }[] }
   contents: { role: 'user'; parts: Record<string, unknown>[] }[]
-  tools: { function_declarations: Record<string, unknown>[] }[]
-  tool_config: { function_calling_config: { mode: 'ANY'; allowed_function_names: string[] } }
-  generationConfig: { maxOutputTokens: number; thinkingConfig: { thinkingBudget: number } }
+  tools: { functionDeclarations: Record<string, unknown>[] }[]
+  toolConfig: { functionCallingConfig: { mode: 'ANY'; allowedFunctionNames: string[] } }
+  generationConfig: { maxOutputTokens: number; thinkingConfig: { thinkingLevel: string } }
 }
 
 export const WSPOLNE = 'Wspólne'
@@ -37,7 +37,7 @@ export const MAKS_WYSTAPIEN_LACZNIE = 150
 export const MAKS_MIESIECY_HORYZONTU = 12
 
 const NAZWA_NARZEDZIA = 'zwroc_pozycje'
-const MODEL = 'gemini-2.5-flash'
+const MODEL = 'gemini-3.6-flash'
 
 function danaDzien(d: Date): string {
   return d.toISOString().slice(0, 10)
@@ -50,30 +50,30 @@ function schematNarzedzia(domownicy: string[]) {
       'Zwraca listę pozycji kalendarza rozpoznanych z tekstu albo pliku - każda pozycja to jedno ' +
       'powtarzające się albo jednorazowe wydarzenie z konkretnymi wystąpieniami.',
     parameters: {
-      type: 'OBJECT',
+      type: 'object',
       properties: {
         pozycje: {
-          type: 'ARRAY',
+          type: 'array',
           items: {
-            type: 'OBJECT',
+            type: 'object',
             properties: {
-              tytul: { type: 'STRING' },
-              czlonek: { type: 'STRING', enum: [...domownicy, WSPOLNE] },
+              tytul: { type: 'string' },
+              czlonek: { type: 'string', enum: [...domownicy, WSPOLNE] },
               opis_wzorca: {
-                type: 'STRING',
+                type: 'string',
                 description:
                   'Krótki, czytelny opis wzorca do pokazania człowiekowi, np. ' +
                   '"poniedziałki 8:00–8:45, do 19 grudnia".',
               },
               wystapienia: {
-                type: 'ARRAY',
+                type: 'array',
                 items: {
-                  type: 'OBJECT',
+                  type: 'object',
                   properties: {
-                    data: { type: 'STRING', description: 'RRRR-MM-DD' },
-                    start: { type: 'STRING', description: 'GG:MM, dowolne przy calodniowe=true' },
-                    koniec: { type: 'STRING', description: 'GG:MM, dowolne przy calodniowe=true' },
-                    calodniowe: { type: 'BOOLEAN' },
+                    data: { type: 'string', description: 'RRRR-MM-DD' },
+                    start: { type: 'string', description: 'GG:MM, dowolne przy calodniowe=true' },
+                    koniec: { type: 'string', description: 'GG:MM, dowolne przy calodniowe=true' },
+                    calodniowe: { type: 'boolean' },
                   },
                   required: ['data', 'start', 'koniec', 'calodniowe'],
                 },
@@ -102,7 +102,7 @@ export function budujZapytanie(
 
   if (wejscie.plik) {
     parts.push({
-      inline_data: { mime_type: wejscie.plik.typ_mime, data: wejscie.plik.dane_base64 },
+      inlineData: { mimeType: wejscie.plik.typ_mime, data: wejscie.plik.dane_base64 },
     })
   }
 
@@ -112,7 +112,7 @@ export function budujZapytanie(
 
   return {
     model: MODEL,
-    system_instruction: {
+    systemInstruction: {
       parts: [
         {
           text:
@@ -129,11 +129,11 @@ export function budujZapytanie(
       ],
     },
     contents: [{ role: 'user', parts }],
-    tools: [{ function_declarations: [schematNarzedzia(domownicy)] }],
-    tool_config: {
-      function_calling_config: { mode: 'ANY', allowed_function_names: [NAZWA_NARZEDZIA] },
+    tools: [{ functionDeclarations: [schematNarzedzia(domownicy)] }],
+    toolConfig: {
+      functionCallingConfig: { mode: 'ANY', allowedFunctionNames: [NAZWA_NARZEDZIA] },
     },
-    generationConfig: { maxOutputTokens: 16000, thinkingConfig: { thinkingBudget: 0 } },
+    generationConfig: { maxOutputTokens: 16000, thinkingConfig: { thinkingLevel: 'minimal' } },
   }
 }
 

@@ -5,7 +5,7 @@ import type { Pozycja } from './importAI'
 describe('budujZapytanie', () => {
   it('wymusza enum imion domowników plus "Wspólne" w schemacie narzędzia', () => {
     const zapytanie = budujZapytanie(new Date('2026-09-07'), ['Zuzia', 'Ola'], { prompt: 'test' })
-    const deklaracja = zapytanie.tools[0].function_declarations[0] as {
+    const deklaracja = zapytanie.tools[0].functionDeclarations[0] as {
       parameters: { properties: { pozycje: { items: { properties: { czlonek: { enum: string[] } } } } } }
     }
     expect(deklaracja.parameters.properties.pozycje.items.properties.czlonek.enum).toEqual([
@@ -17,7 +17,7 @@ describe('budujZapytanie', () => {
 
   it('wpisuje dzisiejszą datę do promptu systemowego', () => {
     const zapytanie = budujZapytanie(new Date('2026-09-07'), [], { prompt: 'test' })
-    expect(zapytanie.system_instruction.parts[0].text).toContain('2026-09-07')
+    expect(zapytanie.systemInstruction.parts[0].text).toContain('2026-09-07')
   })
 
   it('dokłada blok pliku przed tekstem, gdy plik jest zdjęciem', () => {
@@ -25,16 +25,16 @@ describe('budujZapytanie', () => {
       plik: { dane_base64: 'AAAA', typ_mime: 'image/png' },
     })
     expect(zapytanie.contents[0].parts[0]).toEqual({
-      inline_data: { mime_type: 'image/png', data: 'AAAA' },
+      inlineData: { mimeType: 'image/png', data: 'AAAA' },
     })
   })
 
-  it('plik PDF trafia tym samym blokiem inline_data co obraz', () => {
+  it('plik PDF trafia tym samym blokiem inlineData co obraz', () => {
     const zapytanie = budujZapytanie(new Date('2026-09-07'), [], {
       plik: { dane_base64: 'AAAA', typ_mime: 'application/pdf' },
     })
     expect(zapytanie.contents[0].parts[0]).toEqual({
-      inline_data: { mime_type: 'application/pdf', data: 'AAAA' },
+      inlineData: { mimeType: 'application/pdf', data: 'AAAA' },
     })
   })
 
@@ -43,18 +43,18 @@ describe('budujZapytanie', () => {
     expect(zapytanie.contents[0].parts).toEqual([{ text: 'plan lekcji Zuzi' }])
   })
 
-  it('wymusza narzędzie przez tool_config', () => {
+  it('wymusza narzędzie przez toolConfig', () => {
     const zapytanie = budujZapytanie(new Date('2026-09-07'), [], { prompt: 'test' })
-    expect(zapytanie.tool_config).toEqual({
-      function_calling_config: { mode: 'ANY', allowed_function_names: ['zwroc_pozycje'] },
+    expect(zapytanie.toolConfig).toEqual({
+      functionCallingConfig: { mode: 'ANY', allowedFunctionNames: ['zwroc_pozycje'] },
     })
   })
 
-  it('ogranicza maxOutputTokens i wyłącza myślenie', () => {
+  it('ogranicza maxOutputTokens i minimalizuje myślenie', () => {
     const zapytanie = budujZapytanie(new Date('2026-09-07'), [], { prompt: 'test' })
     expect(zapytanie.generationConfig).toEqual({
       maxOutputTokens: 16000,
-      thinkingConfig: { thinkingBudget: 0 },
+      thinkingConfig: { thinkingLevel: 'minimal' },
     })
   })
 })

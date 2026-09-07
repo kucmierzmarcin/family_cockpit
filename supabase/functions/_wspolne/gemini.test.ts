@@ -3,7 +3,7 @@ import { zapytajGemini } from './gemini'
 import type { ZapytanieGemini } from './importAI'
 
 const ZAPYTANIE: ZapytanieGemini = {
-  model: 'gemini-2.5-flash',
+  model: 'gemini-3.6-flash',
   system_instruction: { parts: [{ text: 'test' }] },
   contents: [{ role: 'user', parts: [{ text: 'test' }] }],
   tools: [{ function_declarations: [] }],
@@ -36,7 +36,7 @@ describe('zapytajGemini', () => {
     await expect(zapytajGemini(ZAPYTANIE, 'klucz')).resolves.toEqual(pozycje)
 
     expect(fetch).toHaveBeenCalledWith(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({ 'x-goog-api-key': 'klucz' }),
