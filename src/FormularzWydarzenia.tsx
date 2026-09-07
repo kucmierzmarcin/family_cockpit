@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { DomownikDb } from './lib/supabase'
 import type { DaneWydarzenia, Wydarzenie, ZakresZmiany } from './useWydarzenia'
-import { OPISY_POWTARZANIA, godzinaHM, type Powtarzanie } from './czas'
+import { OPISY_POWTARZANIA, godzinaHM, zloz, type Powtarzanie } from './czas'
 import { klucz } from './dates'
 import { kolor } from './kolory'
 
@@ -35,13 +35,6 @@ type Props = {
 /** Rozbija chwilę na parę pól formularza: datę i godzinę. */
 function rozbij(d: Date) {
   return { data: klucz(d), godzina: godzinaHM(d) }
-}
-
-/** Skleja parę pól z powrotem w chwilę. */
-function zloz(data: string, godzina: string): Date {
-  const [rok, miesiac, dzien] = data.split('-').map(Number)
-  const [g, m] = godzina.split(':').map(Number)
-  return new Date(rok, miesiac - 1, dzien, g || 0, m || 0)
 }
 
 /** Dzień o jeden wcześniej - koniec całodniowego jest wyłączny. */
