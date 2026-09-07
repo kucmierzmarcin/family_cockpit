@@ -177,3 +177,58 @@
     justify-content: center;
   }
 }
+
+/* Arkusz pokazuje się wyłącznie na telefonie - na biurku formularze zostają
+   wbudowane w stronę, więc Arkusz w ogóle się tam nie renderuje. */
+.arkusz-tlo {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 12, 30, 0.4);
+  z-index: var(--warstwa-arkusz);
+}
+
+.arkusz {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--warstwa-arkusz);
+  display: flex;
+  flex-direction: column;
+  /* dvh, nie vh: pasek adresu Safari zmienia vh i arkusz wystawałby poza ekran */
+  max-height: 90dvh;
+  padding: var(--odstep-2) var(--odstep-4)
+    calc(var(--odstep-4) + env(safe-area-inset-bottom));
+  background: var(--karta);
+  border-radius: var(--promien-l) var(--promien-l) 0 0;
+  box-shadow: var(--cien);
+}
+
+.arkusz-uchwyt {
+  width: 36px;
+  height: 4px;
+  margin: 0 auto var(--odstep-2);
+  border-radius: 999px;
+  background: var(--kreska);
+}
+
+.arkusz-pasek {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--odstep-3);
+  margin-bottom: var(--odstep-3);
+}
+
+.arkusz-zamknij {
+  min-width: var(--dotyk);
+  min-height: var(--dotyk);
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* Przewija się środek arkusza, nie strona pod nim. */
+.arkusz-tresc {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

@@ -11,6 +11,18 @@
   --blad: #b42318;
   --blad-tlo: #fef3f2;
   --cien: 0 1px 2px rgba(16, 12, 30, 0.06), 0 8px 24px rgba(16, 12, 30, 0.06);
+  --odstep-1: 4px;
+  --odstep-2: 8px;
+  --odstep-3: 12px;
+  --odstep-4: 16px;
+  --odstep-5: 24px;
+  --promien-s: 6px;
+  --promien-m: 10px;
+  --promien-l: 16px;
+  --dotyk: 44px;
+  --pasek: 56px;
+  --warstwa-pasek: 20;
+  --warstwa-arkusz: 30;
 }
 
 body {
