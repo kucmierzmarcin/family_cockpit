@@ -1,25 +1,15 @@
 import { useState } from 'react'
-import { zaloguj, zarejestruj } from './useSesja'
-
-type Tryb = 'logowanie' | 'rejestracja'
+import { zaloguj } from './useSesja'
 
 /**
- * Ekran wejściowy: logowanie albo zakładanie konta. Bez odzyskiwania hasła -
- * hasło resetuje rodzic w panelu Supabase.
+ * Ekran logowania. Konta zakłada się bezpośrednio w bazie Supabase, więc tu
+ * jest tylko logowanie - bez rejestracji i bez odzyskiwania hasła.
  */
 export function Logowanie() {
-  const [tryb, setTryb] = useState<Tryb>('logowanie')
   const [email, setEmail] = useState('')
   const [haslo, setHaslo] = useState('')
   const [blad, setBlad] = useState<string | null>(null)
   const [trwa, setTrwa] = useState(false)
-
-  const rejestracja = tryb === 'rejestracja'
-
-  function przelacz(nowy: Tryb) {
-    setTryb(nowy)
-    setBlad(null)
-  }
 
   async function wyslij(e: React.FormEvent) {
     e.preventDefault()
@@ -27,9 +17,7 @@ export function Logowanie() {
 
     setTrwa(true)
     setBlad(null)
-    const problem = rejestracja
-      ? await zarejestruj(email, haslo)
-      : await zaloguj(email, haslo)
+    const problem = await zaloguj(email, haslo)
 
     if (problem) {
       setBlad(problem)
@@ -40,32 +28,6 @@ export function Logowanie() {
   return (
     <div className="brama">
       <div className="brama-karta">
-        <h1>Kokpit Rodzinny</h1>
-        <p className="podtytul">
-          {rejestracja
-            ? 'Załóż konto, żeby dołączyć do rodziny albo utworzyć własny dom.'
-            : 'Zaloguj się, żeby zobaczyć kalendarz rodziny.'}
-        </p>
-
-        <div className="zakladki rowne" role="group" aria-label="Logowanie albo zakładanie konta">
-          <button
-            type="button"
-            className={`zakladka${!rejestracja ? ' aktywna' : ''}`}
-            aria-pressed={!rejestracja}
-            onClick={() => przelacz('logowanie')}
-          >
-            Mam konto
-          </button>
-          <button
-            type="button"
-            className={`zakladka${rejestracja ? ' aktywna' : ''}`}
-            aria-pressed={rejestracja}
-            onClick={() => przelacz('rejestracja')}
-          >
-            Załóż konto
-          </button>
-        </div>
-
         {blad && (
           <p className="blad" role="alert">
             {blad}
@@ -87,28 +49,15 @@ export function Logowanie() {
           <input
             id="haslo"
             type="password"
-            autoComplete={rejestracja ? 'new-password' : 'current-password'}
+            autoComplete="current-password"
             value={haslo}
             onChange={(e) => setHaslo(e.target.value)}
           />
-          {rejestracja && <span className="wskazowka">Co najmniej 6 znaków.</span>}
 
           <button type="submit" disabled={trwa || !email.trim() || !haslo}>
-            {trwa
-              ? rejestracja
-                ? 'Zakładam…'
-                : 'Loguję…'
-              : rejestracja
-                ? 'Załóż konto'
-                : 'Zaloguj się'}
+            {trwa ? 'Loguję…' : 'Zaloguj się'}
           </button>
         </form>
-
-        <p className="brama-stopka">
-          {rejestracja
-            ? 'Jeśli rodzic wpisał już Twój adres przy osobie w domu, po założeniu konta trafisz tam od razu.'
-            : 'Nie masz konta? Przełącz się na „Załóż konto”.'}
-        </p>
       </div>
     </div>
   )

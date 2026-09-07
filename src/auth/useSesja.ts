@@ -53,38 +53,6 @@ export async function zaloguj(email: string, haslo: string): Promise<string | nu
   return `Nie udało się zalogować: ${error.message}`
 }
 
-/**
- * Zakłada konto. Przy wyłączonym "Confirm email" Supabase od razu zwraca sesję,
- * więc rejestracja od razu wpuszcza do aplikacji.
- */
-export async function zarejestruj(email: string, haslo: string): Promise<string | null> {
-  const { data, error } = await supabase.auth.signUp({
-    email: email.trim(),
-    password: haslo,
-  })
-
-  if (error) {
-    if (error.message.includes('already registered')) {
-      return 'Konto z tym adresem już istnieje. Zaloguj się.'
-    }
-    if (error.message.includes('Signups not allowed')) {
-      return 'Zakładanie kont jest wyłączone. Włącz "Allow new users to sign up" w panelu Supabase.'
-    }
-    if (error.message.toLowerCase().includes('password')) {
-      return 'Hasło jest za krótkie - potrzeba co najmniej 6 znaków.'
-    }
-    return `Nie udało się założyć konta: ${error.message}`
-  }
-
-  // Konto powstało, ale bez sesji - to znaczy, że Supabase czeka na potwierdzenie
-  // adresu mailem. Poczty nie mamy, więc trzeba wyłączyć tę opcję w panelu.
-  if (!data.session) {
-    return 'Konto założone, ale wymaga potwierdzenia mailem. Wyłącz "Confirm email" w panelu Supabase.'
-  }
-
-  return null
-}
-
 export async function wyloguj() {
   await supabase.auth.signOut()
 }
