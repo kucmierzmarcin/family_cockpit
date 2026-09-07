@@ -538,6 +538,14 @@ $$;
 revoke execute on function public.ustaw_powiadomienia(boolean, time) from public, anon;
 grant  execute on function public.ustaw_powiadomienia(boolean, time) to authenticated;
 
+-- Godziny wysyłki tylko 05:00-10:00 (patrz ograniczenia globalne planu). Bez tego
+-- `do_wyslania` zawija się przy północy dla digest_at w ostatnich 2h doby - ten
+-- constraint czyni to niemożliwe na poziomie danych, nie tylko przez UI (które i tak
+-- jeszcze nie istnieje).
+alter table public.members
+  add constraint members_digest_at_zakres
+  check (digest_at >= '05:00' and digest_at <= '10:00');
+
 -- ============================================================
 --  15. Poranne podsumowanie - dziennik wysyłek
 -- ============================================================
