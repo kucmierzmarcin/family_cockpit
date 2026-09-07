@@ -1,0 +1,256 @@
+/* --- Ekran "Mój dom" --- */
+
+.dom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+.lista-osob {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lista-osob li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+/* Wiersz osoby w trybie edycji rozwija się na cały formularz. */
+.lista-osob li.osoba-edycja {
+  display: block;
+  padding: 16px;
+  border-color: var(--akcent);
+}
+
+/* --- Ekran "Zakupy" --- */
+
+.zakupy {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.listy-pasek {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--kreska);
+  border-radius: 12px;
+  background: var(--karta);
+}
+
+.listy-pasek .zakladka {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* Ile rzeczy zostalo do kupienia na danej liscie */
+.licznik {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--akcent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.zakladka.aktywna .licznik {
+  background: var(--akcent);
+}
+
+.naglowek-listy {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.naglowek-listy .panel-tytul {
+  margin-right: auto;
+}
+
+.naglowek-listy .meta {
+  display: inline;
+}
+
+/* --- Pozycje na liscie --- */
+
+.pozycje {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pozycje li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 10px;
+  transition: background 0.12s;
+}
+
+.pozycje li:hover {
+  background: var(--tlo);
+}
+
+.pozycja-tresc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 0;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.pozycja-tresc input[type='checkbox'] {
+  flex-shrink: 0;
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  accent-color: var(--akcent);
+  cursor: pointer;
+}
+
+.pozycja-nazwa {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pozycja-ilosc {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--tlo);
+  color: var(--tekst-drugi);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Kupione schodza na dol listy i sa przekreslone */
+.pozycje li.kupione .pozycja-nazwa {
+  text-decoration: line-through;
+  color: var(--tekst-drugi);
+}
+
+.pozycje li.kupione {
+  opacity: 0.6;
+}
+
+/* --- Ekran "Tablica" --- */
+
+.tablica {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Karteczki układają się w kolumny jak na korkowej tablicy */
+.karteczki {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.karteczka {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--kreska);
+  border-top: 3px solid var(--kreska);
+  border-radius: 12px;
+  background: var(--karta);
+  box-shadow: var(--cien);
+}
+
+/* Przypięta wyróżnia się barwą autora i lekkim uniesieniem */
+.karteczka.przypieta {
+  box-shadow: 0 2px 4px rgba(16, 12, 30, 0.08), 0 10px 28px rgba(16, 12, 30, 0.1);
+}
+
+.znacznik-przypiecia {
+  align-self: flex-start;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tresc-karteczki {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.stopka-karteczki {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.autor-karteczki {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--tekst-drugi);
+}
+
+.karteczka.przypieta .autor-karteczki {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.stopka-karteczki .drobny {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .dom {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

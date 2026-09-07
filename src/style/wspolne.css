@@ -1,0 +1,219 @@
+.blad {
+  max-width: 720px;
+  margin: 0 auto 20px;
+  padding: 12px 16px;
+  border: 1px solid #fda29b;
+  border-radius: 10px;
+  background: var(--blad-tlo);
+  color: var(--blad);
+  font-size: 15px;
+}
+
+/* --- Panel boczny --- */
+
+.panel {
+  padding: 20px;
+  position: sticky;
+  top: 24px;
+}
+
+.panel-tytul {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.panel-dzien {
+  margin: 2px 0 18px;
+  color: var(--tekst-drugi);
+  font-size: 14px;
+  text-transform: capitalize;
+}
+
+.pusto {
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px dashed var(--kreska);
+  border-radius: 10px;
+  color: var(--tekst-drugi);
+  font-size: 14px;
+  text-align: center;
+}
+
+.lista {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lista li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+.czas {
+  flex-shrink: 0;
+  min-width: 44px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--akcent);
+}
+
+.nazwa {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.usun {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tekst-drugi);
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.usun:hover {
+  background: var(--blad-tlo);
+  color: var(--blad);
+}
+
+/* --- Kropka koloru domownika --- */
+
+.kropka {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.kropka-pusta {
+  background: #cfcbd6;
+}
+
+.karta {
+  padding: 20px;
+  background: var(--karta);
+  border: 1px solid var(--kreska);
+  border-radius: 16px;
+  box-shadow: var(--cien);
+}
+
+/* --- Podpis osoby przy wydarzeniu w panelu dnia --- */
+
+.autor {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--tekst-drugi);
+  white-space: nowrap;
+}
+
+.meta {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--tekst-drugi);
+}
+
+.to-ja {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--akcent-jasny);
+  color: #4c1d95;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* --- Drobne przyciski --- */
+
+.drobny {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 8px;
+  background: var(--karta);
+  color: var(--tekst-drugi);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.drobny:hover {
+  border-color: var(--akcent);
+  color: var(--tekst);
+}
+
+.usun:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* --- Wpis na liście dnia jest klikalny --- */
+
+.lista .wpis {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lista li:has(.wpis) {
+  padding: 0;
+  border: none;
+}
+
+.lista .wpis {
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+}
+
+.kropka.mala {
+  width: 6px;
+  height: 6px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+/* Imiona uczestników pod tytułem w panelu dnia */
+
+.uczestnicy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.uczestnicy .autor {
+  margin-left: 0;
+}
+
+@media (max-width: 900px) {
+  .panel {
+    position: static;
+  }
+}

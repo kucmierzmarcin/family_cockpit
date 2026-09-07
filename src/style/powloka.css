@@ -1,0 +1,179 @@
+.kokpit {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+/* --- Nagłówek --- */
+
+.naglowek {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.naglowek h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--tekst);
+}
+
+.podtytul {
+  margin: 6px 0 0;
+  color: var(--tekst-drugi);
+  font-size: 16px;
+}
+
+/* --- Układ: kalendarz + panel boczny --- */
+
+.uklad {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+  align-items: start;
+}
+
+/* --- Ekran logowania i komunikaty bramy --- */
+
+.brama {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.brama-karta {
+  width: 100%;
+  max-width: 380px;
+  padding: 28px;
+  background: var(--karta);
+  border: 1px solid var(--kreska);
+  border-radius: 16px;
+  box-shadow: var(--cien);
+  text-align: center;
+}
+
+.brama-karta h1 {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.brama-karta .podtytul {
+  margin: 0 0 20px;
+  font-size: 15px;
+}
+
+.brama-karta .formularz {
+  text-align: left;
+  border-top: none;
+  padding-top: 0;
+}
+
+.brama-stopka {
+  margin: 18px 0 0;
+  font-size: 13px;
+  color: var(--tekst-drugi);
+}
+
+/* --- Pasek nad nagłówkiem: zakładki i zalogowany użytkownik --- */
+
+.pasek {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+  text-align: left;
+}
+
+.zakladki {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--kreska);
+  border-radius: 12px;
+  background: var(--karta);
+}
+
+.zakladka {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tekst-drugi);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.zakladka:hover {
+  color: var(--tekst);
+}
+
+.zakladka.aktywna {
+  background: var(--akcent-jasny);
+  color: #4c1d95;
+  font-weight: 600;
+}
+
+.konto {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.konto-kto {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.konto-kto .meta {
+  display: inline;
+  margin-left: 4px;
+}
+
+/* --- Przełącznik "Mam konto / Załóż konto" na ekranie wejściowym --- */
+
+.zakladki.rowne {
+  margin-bottom: 18px;
+}
+
+.zakladki.rowne .zakladka {
+  flex: 1;
+  text-align: center;
+}
+
+.brama-karta .blad {
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.wskazowka {
+  margin: -2px 0 8px;
+  font-size: 12px;
+  color: var(--tekst-drugi);
+}
+
+.brama-karta b {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .uklad {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pasek {
+    justify-content: center;
+  }
+}

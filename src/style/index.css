@@ -1,0 +1,8 @@
+/* Kolejność ma znaczenie: tokeny muszą być pierwsze, a prymitywy przed tym,
+   co je nadpisuje. Ekrany na końcu, bo najbardziej szczegółowe. */
+@import './tokeny.css';
+@import './wspolne.css';
+@import './powloka.css';
+@import './kalendarz.css';
+@import './listy.css';
+@import './formularze.css';

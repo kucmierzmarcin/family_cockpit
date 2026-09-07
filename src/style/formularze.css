@@ -1,0 +1,344 @@
+/* --- Formularz --- */
+
+.formularz {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 18px;
+  border-top: 1px solid var(--kreska);
+}
+
+.formularz label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tekst-drugi);
+}
+
+.formularz label + input {
+  margin-bottom: 8px;
+}
+
+.formularz input {
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  color: var(--tekst);
+  font: inherit;
+  font-size: 15px;
+}
+
+.formularz input:focus {
+  outline: 2px solid var(--akcent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.formularz button {
+  margin-top: 6px;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--akcent);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.formularz button:hover:not(:disabled) {
+  background: #6b21d6;
+}
+
+.formularz button:disabled {
+  background: #c9c5d2;
+  cursor: not-allowed;
+}
+
+/* --- Wybór koloru w formularzu domownika --- */
+
+.etykieta-koloru {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tekst-drugi);
+}
+
+.paleta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.kolor {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--kreska);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+
+.kolor:hover {
+  transform: scale(1.12);
+}
+
+.kolor.aktywny {
+  border-color: var(--karta);
+  box-shadow: 0 0 0 2px var(--tekst);
+}
+
+/* --- Lista wyboru osoby w formularzu wydarzenia --- */
+
+.formularz select {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  color: var(--tekst);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.formularz select:focus {
+  outline: 2px solid var(--akcent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.formularz button.drugi {
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid var(--kreska);
+  color: var(--tekst-drugi);
+}
+
+.formularz button.drugi:hover:not(:disabled) {
+  background: var(--tlo);
+  border-color: var(--akcent);
+}
+
+.osoba-edycja .formularz {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* --- Formularz wydarzenia --- */
+
+.formularz-wydarzenia {
+  border-top: none;
+  padding-top: 0;
+}
+
+.formularz-wydarzenia .panel-tytul {
+  margin-bottom: 14px;
+}
+
+.para-pol {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.para-pol input {
+  flex: 1;
+  min-width: 0;
+}
+
+.formularz .przelacznik {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tekst);
+  cursor: pointer;
+}
+
+.formularz .przelacznik input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--akcent);
+  cursor: pointer;
+}
+
+.wybor-zakresu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: #fbfafd;
+}
+
+.wybor-zakresu .przelacznik {
+  margin: 0;
+  font-weight: 400;
+}
+
+.formularz button.usuwanie {
+  color: var(--blad);
+  border-color: #fda29b;
+}
+
+.formularz button.usuwanie:hover:not(:disabled) {
+  background: var(--blad-tlo);
+}
+
+/* Wybór uczestników w formularzu - te same pigułki co w filtrach.
+   Reguła `.formularz button` maluje przyciski na fioletowo, więc pigułki
+   muszą odzyskać swój wygląd wyższą specyficznością. */
+
+.wybor-osob {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.formularz .wybor-osob .filtr {
+  margin-top: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 999px;
+  background: var(--karta);
+  color: var(--tekst-drugi);
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.55;
+}
+
+.formularz .wybor-osob .filtr.wlaczony {
+  opacity: 1;
+  color: var(--tekst);
+  border-color: var(--akcent);
+  background: var(--akcent-jasny);
+}
+
+.formularz .wybor-osob .filtr:hover {
+  background: var(--akcent-jasny);
+  border-color: var(--akcent);
+}
+
+.formularz-listy,
+.formularz-pozycji {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.formularz-pozycji {
+  padding-top: 16px;
+  margin-top: 4px;
+  border-top: 1px solid var(--kreska);
+}
+
+.formularz-listy input,
+.formularz-pozycji input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  color: var(--tekst);
+  font: inherit;
+  font-size: 15px;
+}
+
+.formularz-listy input:focus,
+.formularz-pozycji input:focus {
+  outline: 2px solid var(--akcent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+/* Ilosc jest krotka - nie zabiera miejsca nazwie */
+.pole-ilosci {
+  flex: 0 0 88px;
+  text-align: center;
+}
+
+.formularz-listy button[type='submit'],
+.formularz-pozycji button[type='submit'] {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  background: var(--akcent);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.formularz-listy button[type='submit']:disabled,
+.formularz-pozycji button[type='submit']:disabled {
+  background: #c9c5d2;
+  cursor: not-allowed;
+}
+
+.formularz-notatki {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formularz-notatki label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tekst-drugi);
+}
+
+.formularz-notatki textarea {
+  padding: 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  color: var(--tekst);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.formularz-notatki textarea:focus {
+  outline: 2px solid var(--akcent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.formularz-notatki button {
+  align-self: flex-start;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background: var(--akcent);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.formularz-notatki button:disabled {
+  background: #c9c5d2;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .pole-ilosci {
+    flex: 0 0 68px;
+  }
+}

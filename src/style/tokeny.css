@@ -1,0 +1,20 @@
+:root {
+  --tlo: #f6f5f9;
+  --karta: #ffffff;
+  --tekst: #1d1b22;
+  --tekst-drugi: #6b6375;
+  --kreska: #e5e3ea;
+  --akcent: #7c3aed;
+  --akcent-jasny: #f1eafe;
+  --dzisiaj: #fff4e0;
+  --dzisiaj-kreska: #f0a500;
+  --blad: #b42318;
+  --blad-tlo: #fef3f2;
+  --cien: 0 1px 2px rgba(16, 12, 30, 0.06), 0 8px 24px rgba(16, 12, 30, 0.06);
+}
+
+body {
+  margin: 0;
+  background: var(--tlo);
+  color: var(--tekst);
+}
