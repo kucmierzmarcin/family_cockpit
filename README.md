@@ -225,5 +225,5 @@ Bez tego sekretu funkcja odpowiada błędem 500 zamiast wywoływać Claude.
 | `npm run build` | Wersja produkcyjna do katalogu `dist` |
 | `npm run preview` | Podgląd zbudowanej wersji |
 | `npm run lint` | Sprawdzenie kodu (oxlint) |
-| `npm test` | Testy logiki czasu (vitest) |
+| `npm test` | Testy logiki czasu, walidacji importu z AI, klienta Claude API i budowania wierszy wydarzeń z importu AI (vitest) |
 | `npm run test:watch` | Testy w trybie ciągłym |

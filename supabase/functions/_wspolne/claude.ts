@@ -25,6 +25,14 @@ export async function zapytajClaude(zapytanie: ZapytanieClaude, kluczApi: string
   }
 
   const dane = await odpowiedz.json()
+
+  if (dane.stop_reason === 'max_tokens') {
+    throw new Error('Odpowiedź została ucięta - zawęź zakres albo podziel import.')
+  }
+  if (dane.stop_reason === 'refusal') {
+    throw new Error('Claude odmówił rozpoznania tej treści.')
+  }
+
   const blokNarzedzia = (dane.content ?? []).find(
     (blok: { type: string }) => blok.type === 'tool_use',
   )

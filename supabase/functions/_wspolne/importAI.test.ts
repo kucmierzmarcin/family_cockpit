@@ -114,4 +114,46 @@ describe('waliduj', () => {
     })
     expect(waliduj([zlaData], domownicy, dzisiaj)).not.toBeNull()
   })
+
+  it('odrzuca termin z przeszłości', () => {
+    const zPrzeszlosci = pozycja({
+      wystapienia: [{ data: '2020-01-01', start: '08:00', koniec: '08:45', calodniowe: false }],
+    })
+    expect(waliduj([zPrzeszlosci], domownicy, dzisiaj)).not.toBeNull()
+  })
+
+  it('akceptuje termin datowany na dzisiaj', () => {
+    const naDzis = pozycja({
+      wystapienia: [{ data: '2026-09-07', start: '08:00', koniec: '08:45', calodniowe: false }],
+    })
+    expect(waliduj([naDzis], domownicy, dzisiaj)).toBeNull()
+  })
+
+  it(`akceptuje dokładnie ${MAKS_WYSTAPIEN_LACZNIE} wystąpień łącznie`, () => {
+    const dokladnieLimit = pozycja({
+      wystapienia: Array.from({ length: MAKS_WYSTAPIEN_LACZNIE }, () => ({
+        data: '2026-09-08',
+        start: '08:00',
+        koniec: '08:45',
+        calodniowe: false,
+      })),
+    })
+    expect(waliduj([dokladnieLimit], domownicy, dzisiaj)).toBeNull()
+  })
+
+  it('akceptuje termin ok. 11 miesięcy od dzisiaj (wewnątrz horyzontu)', () => {
+    const jedenascieMiesiecy = new Date(dzisiaj)
+    jedenascieMiesiecy.setMonth(jedenascieMiesiecy.getMonth() + 11)
+    const blisko = pozycja({
+      wystapienia: [
+        {
+          data: jedenascieMiesiecy.toISOString().slice(0, 10),
+          start: '08:00',
+          koniec: '08:45',
+          calodniowe: false,
+        },
+      ],
+    })
+    expect(waliduj([blisko], domownicy, dzisiaj)).toBeNull()
+  })
 })

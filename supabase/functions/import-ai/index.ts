@@ -3,13 +3,7 @@ import { budujZapytanie, waliduj, type ZapytanieWejscie } from '../_wspolne/impo
 import { zapytajClaude } from '../_wspolne/claude.ts'
 
 const MAKS_ROZMIAR_PLIKU = 8 * 1024 * 1024 // bajtów po zdekodowaniu base64
-const DOZWOLONE_TYPY = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/heic',
-  'application/pdf',
-])
+const DOZWOLONE_TYPY = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',

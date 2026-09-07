@@ -120,7 +120,7 @@ export function budujZapytanie(
 
   return {
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: 16000,
     system:
       `Jesteś asystentem kalendarza rodzinnego. Dzisiaj jest ${danaDzien(dzisiaj)}. ` +
       `Domownicy w tym domu: ${domownicy.length > 0 ? domownicy.join(', ') : '(brak - wszystko będzie wspólne)'}. ` +
@@ -146,6 +146,8 @@ export function waliduj(pozycje: Pozycja[], domownicy: string[], dzisiaj: Date):
   const dozwoleniCzlonkowie = new Set([...domownicy, WSPOLNE])
   const limitHoryzontu = new Date(dzisiaj)
   limitHoryzontu.setMonth(limitHoryzontu.getMonth() + MAKS_MIESIECY_HORYZONTU)
+  const dolnyLimit = new Date(dzisiaj)
+  dolnyLimit.setDate(dolnyLimit.getDate() - 1)
 
   let lacznieWystapien = 0
 
@@ -163,6 +165,9 @@ export function waliduj(pozycje: Pozycja[], domownicy: string[], dzisiaj: Date):
       }
       if (dataDate > limitHoryzontu) {
         return 'Rozpoznano zbyt odległy termin - zawęź zakres albo podziel import.'
+      }
+      if (dataDate < dolnyLimit) {
+        return `Pozycja "${pozycja.tytul}" ma termin z przeszłości: "${w.data}".`
       }
       if (!w.calodniowe && w.koniec <= w.start) {
         return `Pozycja "${pozycja.tytul}" ma wystąpienie, w którym koniec nie jest późniejszy niż początek.`

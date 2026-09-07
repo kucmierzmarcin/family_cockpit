@@ -150,7 +150,12 @@ export function ImportAI({ domownicy, onZapisz, onZamknij, pokazTytul = true }: 
           />
 
           <label htmlFor="import-plik">Albo wgraj plik</label>
-          <input id="import-plik" type="file" accept="image/*,application/pdf" onChange={zmienPlik} />
+          <input
+            id="import-plik"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            onChange={zmienPlik}
+          />
           <span className="wskazowka">Zdjęcie albo PDF, maks. 8 MB.</span>
 
           <button
