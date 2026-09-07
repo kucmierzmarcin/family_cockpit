@@ -435,6 +435,14 @@
   align-items: center;
 }
 
+/* Wrapper na przyciski dni w nagłówku - własna siatka, żeby dało się jej nadać
+   szerokość kolumn niezależną od .sg-rog. Kolumny muszą się zgadzać z
+   .sg-kolumny i .sg-pasy (patrz SiatkaGodzin.tsx), inaczej nagłówek przestaje
+   odpowiadać danym pod spodem przy przewijaniu w bok. */
+.sg-naglowek-dni {
+  display: grid;
+}
+
 @media (max-width: 900px) {
   .dzien {
     min-height: 78px;
@@ -523,6 +531,17 @@
   .filtr {
     flex: 0 0 auto;
     min-height: var(--dotyk);
+  }
+
+  /* Nagłówek dni i pasek całodniowych nie są potomkami .sg-przewijane, więc
+     same nie zsynchronizowałyby się z przewijaniem siatki godzin. Zamiast
+     tego mają ukryty własny scrollLeft, ustawiany programowo w
+     SiatkaGodzin.tsx w reakcji na przewinięcie .sg-przewijane. Ukryty
+     scrollbar nie przeszkadza w ustawianiu scrollLeft z JS - działa mimo
+     overflow: hidden. */
+  .sg-naglowek-dni,
+  .sg-pasy {
+    overflow-x: hidden;
   }
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type UIEvent } from 'react'
 import type { DomownikDb } from '../lib/supabase'
 import type { Wydarzenie } from '../useWydarzenia'
 import {
@@ -43,6 +43,19 @@ export function SiatkaGodzin({
   onKlikDzien,
 }: Props) {
   const przewijane = useRef<HTMLDivElement>(null)
+  const naglowekDni = useRef<HTMLDivElement>(null)
+  const pasyDni = useRef<HTMLDivElement>(null)
+
+  /**
+   * Nagłówek dni i pasek całodniowych leżą poza .sg-przewijane, więc same nie
+   * przewiną się razem z siatką godzin. Synchronizujemy je programowo:
+   * przewinięcie w bok siatki ustawia ten sam scrollLeft na obu.
+   */
+  function synchronizujPrzewijanie(e: UIEvent<HTMLDivElement>) {
+    const lewo = e.currentTarget.scrollLeft
+    if (naglowekDni.current) naglowekDni.current.scrollLeft = lewo
+    if (pasyDni.current) pasyDni.current.scrollLeft = lewo
+  }
 
   useEffect(() => {
     // Bez tego widok otwiera się na północy, gdzie zwykle nic nie ma.
@@ -68,29 +81,39 @@ export function SiatkaGodzin({
     <div className="siatka-godzin">
       <div className="sg-naglowek">
         <div className="sg-rog" />
-        {dni.map((d) => {
-          const dzis = klucz(d) === klucz(dzisiaj)
-          return (
-            <button
-              key={klucz(d)}
-              type="button"
-              className={`sg-dzien-naglowek${dzis ? ' dzisiaj' : ''}`}
-              onClick={() => onKlikDzien?.(d)}
-              disabled={!onKlikDzien}
-            >
-              <span className="sg-nazwa-dnia">
-                {d.toLocaleDateString('pl-PL', { weekday: 'short' })}
-              </span>
-              <span className="sg-numer-dnia">{d.getDate()}</span>
-            </button>
-          )
-        })}
+        <div
+          className="sg-naglowek-dni"
+          ref={naglowekDni}
+          style={{ gridTemplateColumns: `repeat(${dni.length}, minmax(88px, 1fr))` }}
+        >
+          {dni.map((d) => {
+            const dzis = klucz(d) === klucz(dzisiaj)
+            return (
+              <button
+                key={klucz(d)}
+                type="button"
+                className={`sg-dzien-naglowek${dzis ? ' dzisiaj' : ''}`}
+                onClick={() => onKlikDzien?.(d)}
+                disabled={!onKlikDzien}
+              >
+                <span className="sg-nazwa-dnia">
+                  {d.toLocaleDateString('pl-PL', { weekday: 'short' })}
+                </span>
+                <span className="sg-numer-dnia">{d.getDate()}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {paskowe.length > 0 && (
         <div className="sg-calodniowe">
           <div className="sg-etykieta-pasa">cały dzień</div>
-          <div className="sg-pasy" style={{ gridTemplateColumns: `repeat(${dni.length}, 1fr)` }}>
+          <div
+            className="sg-pasy"
+            ref={pasyDni}
+            style={{ gridTemplateColumns: `repeat(${dni.length}, minmax(88px, 1fr))` }}
+          >
             {paskowe.map((w) => {
               // Pasek zaczyna się w pierwszym widocznym dniu wydarzenia i kończy
               // w ostatnim - poza zakresem dostaje strzałkę zamiast ucięcia.
@@ -128,7 +151,7 @@ export function SiatkaGodzin({
         </div>
       )}
 
-      <div className="sg-przewijane" ref={przewijane}>
+      <div className="sg-przewijane" ref={przewijane} onScroll={synchronizujPrzewijanie}>
         <div className="sg-tresc" style={{ height: (MINUT_W_DOBIE / 60) * WYSOKOSC_GODZINY }}>
           <div className="sg-godziny">
             {Array.from({ length: 24 }, (_, g) => (
@@ -138,7 +161,10 @@ export function SiatkaGodzin({
             ))}
           </div>
 
-          <div className="sg-kolumny" style={{ gridTemplateColumns: `repeat(${dni.length}, 1fr)` }}>
+          <div
+            className="sg-kolumny"
+            style={{ gridTemplateColumns: `repeat(${dni.length}, minmax(88px, 1fr))` }}
+          >
             {dni.map((d) => {
               const poczatek = poczatekDnia(d)
               const koniecDnia = nastepnyDzien(d)
