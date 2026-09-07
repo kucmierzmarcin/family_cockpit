@@ -537,3 +537,89 @@ $$;
 
 revoke execute on function public.ustaw_powiadomienia(boolean, time) from public, anon;
 grant  execute on function public.ustaw_powiadomienia(boolean, time) to authenticated;
+
+-- ============================================================
+--  15. Poranne podsumowanie - dziennik wysyłek
+-- ============================================================
+
+-- Dziennik wysyłek. `unique (member_id, sent_for)` nie jest ozdobą: cron chodzi
+-- co 15 minut i dwa przebiegi, które się na siebie nałożą, muszą wysłać jeden
+-- mail, nie dwa. Drugi odbije się od tego indeksu.
+create table if not exists public.digest_log (
+  id         uuid primary key default gen_random_uuid(),
+  member_id  uuid not null references public.members(id) on delete cascade,
+  sent_for   date not null,
+  status     text not null default 'w_toku',
+  attempts   int  not null default 1,
+  error      text,
+  claimed_at timestamptz not null default now(),
+  sent_at    timestamptz,
+  constraint digest_log_status_check check (status in ('w_toku', 'wyslane', 'blad')),
+  unique (member_id, sent_for)
+);
+
+create index if not exists digest_log_dzien_idx on public.digest_log (sent_for);
+
+-- RLS włączone i ani jednej polityki: dziennik należy do klucza serwisowego,
+-- przeglądarka nie ma tu czego szukać. Klucz serwisowy omija RLS.
+alter table public.digest_log enable row level security;
+
+-- Wybór i zajęcie odbiorcy w JEDNYM zapytaniu. Rozbicie tego na "najpierw
+-- wybierz, potem oznacz" otwiera okno, w którym dwa przebiegi wezmą tę samą
+-- osobę. Kto wstawił wiersz, ten wysyła.
+--
+-- Okno `digest_at .. digest_at + 2h` zamiast punktu w czasie: zatkany cron albo
+-- chwilowa awaria nadrabiają zaległość, zamiast gubić dzień.
+--
+-- Nazwy kolumn wyniku celowo inne niż kolumny tabel - w funkcji `language sql`
+-- nazwy z RETURNS TABLE są widoczne jako zmienne i kolidowałyby z `member_id`
+-- czy `email`.
+create or replace function public.do_wyslania(p_teraz timestamptz default now())
+  returns table (log_id uuid, id_domownika uuid, id_domu uuid,
+                 adres text, imie text, dzien date)
+  language sql volatile security definer set search_path = public
+as $$
+  with chwila as (
+    select (p_teraz at time zone 'Europe/Warsaw') as lokalna
+  ),
+  kandydaci as (
+    select m.id, m.household_id, m.email, m.name, (c.lokalna)::date as dzien
+      from public.members m, chwila c
+     where m.digest_enabled
+       and m.user_id is not null
+       and m.email is not null
+       and (c.lokalna)::time >= m.digest_at
+       and (c.lokalna)::time <  m.digest_at + interval '2 hours'
+  ),
+  zajete as (
+    insert into public.digest_log as dl (member_id, sent_for)
+    select k.id, k.dzien from kandydaci k
+    on conflict (member_id, sent_for) do update
+       set status     = 'w_toku',
+           attempts   = dl.attempts + 1,
+           claimed_at = now(),
+           error      = null
+     where (dl.status = 'blad'   and dl.attempts < 3)
+        or (dl.status = 'w_toku' and dl.claimed_at < now() - interval '15 minutes')
+    returning dl.id, dl.member_id
+  )
+  select z.id, k.id, k.household_id, k.email, k.name, k.dzien
+    from zajete z
+    join kandydaci k on k.id = z.member_id
+$$;
+
+-- Jedna funkcja na oba wyjścia - sukces i porażka różnią się tu wyłącznie tym,
+-- czy jest treść błędu.
+create or replace function public.zamknij_wysylke(p_log uuid, p_blad text default null)
+  returns void
+  language sql volatile security definer set search_path = public
+as $$
+  update public.digest_log
+     set status  = case when p_blad is null then 'wyslane' else 'blad' end,
+         error   = p_blad,
+         sent_at = case when p_blad is null then now() else null end
+   where id = p_log
+$$;
+
+revoke execute on function public.do_wyslania(timestamptz)     from public, anon, authenticated;
+revoke execute on function public.zamknij_wysylke(uuid, text)  from public, anon, authenticated;
