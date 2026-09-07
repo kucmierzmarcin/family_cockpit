@@ -11,14 +11,24 @@ const DOZWOLONE_TYPY = new Set([
   'application/pdf',
 ])
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 function bladJson(tekst: string, status: number): Response {
   return new Response(JSON.stringify({ blad: tekst }), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   })
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: CORS_HEADERS })
+  }
+
   if (req.method !== 'POST') return bladJson('Tylko POST.', 405)
 
   let cialo: ZapytanieWejscie
@@ -69,15 +79,14 @@ Deno.serve(async (req) => {
   let pozycje
   try {
     pozycje = await zapytajClaude(zapytanie, kluczApi)
+    const bladWalidacji = waliduj(pozycje, domownicy, dzisiaj)
+    if (bladWalidacji) return bladJson(bladWalidacji, 502)
   } catch (e) {
     return bladJson(`Nie udało się rozpoznać treści: ${(e as Error).message}`, 502)
   }
 
-  const bladWalidacji = waliduj(pozycje, domownicy, dzisiaj)
-  if (bladWalidacji) return bladJson(bladWalidacji, 502)
-
   return new Response(JSON.stringify({ pozycje }), {
     status: 200,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   })
 })
