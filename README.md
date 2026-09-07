@@ -200,6 +200,23 @@ danych — dostaje tylko propozycję utworzenia własnego domu.
 Usunięcie domownika nie kasuje jego wydarzeń — tracą tylko przypisanie do osoby
 (w bazie odpowiada za to `on delete set null`).
 
+## Import wydarzeń z AI
+
+Ekran "Importuj z AI" obok ręcznego dodawania wydarzenia rozpoznaje listę
+wydarzeń z wpisanego opisu i/albo wgranego zdjęcia/PDF (np. plan lekcji,
+harmonogram odbioru śmieci) przez Claude API i pokazuje podgląd do
+zatwierdzenia, zanim cokolwiek trafi do kalendarza - patrz
+`docs/superpowers/specs/2026-09-07-import-ai-design.md`.
+
+Wymaga sekretu Edge Function:
+
+```bash
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxx
+supabase functions deploy import-ai
+```
+
+Bez tego sekretu funkcja odpowiada błędem 500 zamiast wywoływać Claude.
+
 ## Skrypty
 
 | Polecenie | Efekt |
