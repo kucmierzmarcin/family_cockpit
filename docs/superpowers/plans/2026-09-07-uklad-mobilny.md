@@ -1676,6 +1676,19 @@ Obróć telefon do poziomu na każdym z czterech ekranów. Przy 390 × 844 obró
 844 px szerokości, czyli **układ biurkowy** — to jest zamierzone. Sprawdź, że
 przejście w obie strony nie zostawia pustego paska ani nie gubi stanu ekranu.
 
+„Stan ekranu" znaczy tu: który ekran i widok jest otwarty, na którym dniu stoi
+kalendarz, które filtry osób są włączone. To żyje w `App` i przeżywa obrót —
+zweryfikowane w recenzji zadania 4. **Nie obejmuje** to niezapisanej treści
+formularza otwartego w danej chwili: obrót w trakcie wpisywania tytułu
+wydarzenia czyści pole, bo rama telefonu i biurka to różne komponenty
+najwyższego poziomu, więc React remontuje wszystko pod nimi przy przełączeniu.
+Rozstrzygnięcie z zadania 4: to świadomie zaakceptowane ograniczenie, nie błąd
+do naprawy w tym planie — obrót telefonu w trakcie pisania w otwartym
+formularzu to wąskie okno, a poprawne rozwiązanie (stan formularza podniesiony
+nad ramy albo wspólny, niezmienny węzeł nadrzędny dla treści i chrom) to
+przebudowa wykraczająca poza ten plan. Krok 3 sprawdza tylko stan ekranu
+w powyższym węższym znaczeniu.
+
 - [ ] **Krok 4: Opisz to w README**
 
 W `README.md`, po sekcji „Struktura", dodaj:
