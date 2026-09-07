@@ -76,11 +76,36 @@ wciągnąć do nowo założonego domu.
 | `src/useWydarzenia.ts` | Pobieranie i zapis wydarzeń |
 | `src/MojDom.tsx` | Ekran „Mój dom": domownicy, role, konta |
 | `src/useDomownicy.ts` | Wczytywanie i zmiany listy domowników |
+| `src/uklad/nawigacja.ts` | Ekrany, tytuły i to, co dodaje przycisk „+" |
+| `src/uklad/useTelefon.ts` | Czy ekran jest wąski |
+| `src/uklad/UkladTelefon.tsx` | Rama telefonu: górny pasek, dolne zakładki, „+" |
+| `src/uklad/UkladBiurko.tsx` | Rama komputera: nagłówek i zakładki u góry |
+| `src/uklad/Arkusz.tsx` | Formularz wysuwany z dołu |
+| `src/uklad/KontoKarta.tsx` | Konto i wylogowanie na ekranie „Mój dom" |
+| `src/style/` | Style rozbite na tokeny, wspólne, powłokę, kalendarz, listy i formularze |
 | `src/kolory.ts` | Paleta kolorów domowników |
 | `src/dates.ts` | Polskie nazwy miesięcy i dni, budowanie siatki kalendarza |
 | `src/lib/supabase.ts` | Połączenie z bazą i typy danych |
 | `supabase/schema.sql` | Pełny schemat: tabele, funkcje i reguły dostępu |
 | `supabase/start.sql` | Skrypt uruchamiany raz — zakłada pierwszy dom |
+
+## Układ na telefonie
+
+Poniżej 768 px aplikacja przełącza się na osobny układ: cztery zakładki na
+dolnym pasku, okrągły przycisk „+" nad nimi i formularze w arkuszu wysuwanym
+z dołu. Powyżej tego progu — a więc na tablecie w pionie i na komputerze —
+wygląda i działa dokładnie tak, jak wyglądała zawsze.
+
+Nie są to dwie aplikacje. Ekrany (kalendarz, zakupy, tablica, mój dom) to te
+same komponenty w obu układach; różni się tylko rama wokół nich —
+[`src/uklad/UkladTelefon.tsx`](src/uklad/UkladTelefon.tsx) albo
+[`src/uklad/UkladBiurko.tsx`](src/uklad/UkladBiurko.tsx). O tym, co robi „+" na
+danym ekranie, rozstrzyga jedno miejsce:
+[`src/uklad/nawigacja.ts`](src/uklad/nawigacja.ts).
+
+Kalendarz zachowuje na telefonie wszystkie trzy widoki. Miesiąc pokazuje
+w komórce dwie pigułki zamiast trzech, tydzień przewija się w bok z przyklejoną
+kolumną godzin.
 
 ## Jak działa czas w wydarzeniach
 
