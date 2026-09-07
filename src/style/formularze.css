@@ -372,3 +372,53 @@
     height: var(--dotyk);
   }
 }
+
+/* --- Podgląd importu AI --- */
+
+.formularz-import-ai textarea {
+  padding: 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  color: var(--tekst);
+  font: inherit;
+  font-size: 15px;
+  resize: vertical;
+  margin-bottom: 8px;
+}
+
+.formularz-import-ai input[type='file'] {
+  margin-bottom: 4px;
+}
+
+.podglad-pozycje {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.wiersz-pozycji {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+}
+
+.wiersz-pozycji .przelacznik {
+  margin: 0;
+  align-items: flex-start;
+}
+
+.wiersz-pozycji-opis {
+  font-size: 14px;
+  color: var(--tekst);
+}
+
+.przelacznik-importu {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
