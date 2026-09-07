@@ -212,6 +212,7 @@ export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) =
 
         const { data, error } = await supabase.from('events').insert(wiersze).select('id')
         if (error || !data) {
+          await odswiez()
           return `Nie udało się zapisać "${pozycja.tytul}": ${error?.message ?? 'brak odpowiedzi'}`
         }
 
@@ -221,6 +222,7 @@ export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) =
             [pozycja.czlonekId],
           )
           if (problem) {
+            await odswiez()
             return `"${pozycja.tytul}" zapisane, ale nie udało się przypisać osoby: ${problem}`
           }
         }
