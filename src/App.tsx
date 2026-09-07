@@ -21,10 +21,10 @@ import { useWydarzenia, type Wydarzenie } from './useWydarzenia'
 import { wyloguj } from './auth/useSesja'
 import { BEZ_OSOBY, osobyWydarzenia, widocznePrzyFiltrze } from './osoby'
 import { kolor } from './kolory'
+import type { Ekran } from './uklad/nawigacja'
 import './style/index.css'
 
 type Widok = 'miesiac' | 'tydzien' | 'dzien'
-type Ekran = 'kalendarz' | 'dom' | 'zakupy' | 'tablica'
 
 const NAZWY_WIDOKOW: Record<Widok, string> = {
   miesiac: 'Miesiąc',
