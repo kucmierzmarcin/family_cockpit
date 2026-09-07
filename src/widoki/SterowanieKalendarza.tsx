@@ -1,6 +1,6 @@
 export type Widok = 'miesiac' | 'tydzien' | 'dzien'
 
-export const NAZWY_WIDOKOW: Record<Widok, string> = {
+const NAZWY_WIDOKOW: Record<Widok, string> = {
   miesiac: 'Miesiąc',
   tydzien: 'Tydzień',
   dzien: 'Dzień',

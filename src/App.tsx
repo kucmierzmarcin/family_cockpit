@@ -105,6 +105,11 @@ function App({ profil, email }: Props) {
     })
   }
 
+  function przelaczEkran(nowy: Ekran) {
+    setEkran(nowy)
+    setDodawanie(null)
+  }
+
   function przelaczFiltr(id: string) {
     setUkryci((stare) => {
       const nowe = new Set(stare)
@@ -286,20 +291,21 @@ function App({ profil, email }: Props) {
             )}
           </section>
 
-          <aside className="panel" aria-label="Szczegóły dnia">
-            {widok === 'miesiac' && !edytowane && (
-              <ListaDnia
-                dzien={kotwica}
-                wydarzenia={widoczne}
-                osobaPoId={osobaPoId}
-                onKlik={setEdytowane}
-              />
-            )}
-
-            {telefon ? (
+          {telefon ? (
+            <>
+              {widok === 'miesiac' && !edytowane && (
+                <aside className="panel" aria-label="Szczegóły dnia">
+                  <ListaDnia
+                    dzien={kotwica}
+                    wydarzenia={widoczne}
+                    osobaPoId={osobaPoId}
+                    onKlik={setEdytowane}
+                  />
+                </aside>
+              )}
               <Arkusz
                 otwarty={dodawanie === 'kalendarz' || edytowane !== null}
-                tytul={edytowane ? 'Wydarzenie' : 'Nowe wydarzenie'}
+                tytul={edytowane ? 'Zmień wydarzenie' : 'Nowe wydarzenie'}
                 onZamknij={() => {
                   setDodawanie(null)
                   setEdytowane(null)
@@ -307,10 +313,20 @@ function App({ profil, email }: Props) {
               >
                 {formularzWydarzenia}
               </Arkusz>
-            ) : (
-              formularzWydarzenia
-            )}
-          </aside>
+            </>
+          ) : (
+            <aside className="panel" aria-label="Szczegóły dnia">
+              {widok === 'miesiac' && !edytowane && (
+                <ListaDnia
+                  dzien={kotwica}
+                  wydarzenia={widoczne}
+                  osobaPoId={osobaPoId}
+                  onKlik={setEdytowane}
+                />
+              )}
+              {formularzWydarzenia}
+            </aside>
+          )}
         </div>
       )}
     </>
@@ -320,7 +336,7 @@ function App({ profil, email }: Props) {
     return (
       <UkladTelefon
         ekran={ekran}
-        onEkran={setEkran}
+        onEkran={przelaczEkran}
         jestemRodzicem={jestemRodzicem}
         gorny={
           ekran === 'kalendarz' ? (
@@ -336,7 +352,7 @@ function App({ profil, email }: Props) {
           )
         }
         onDodaj={() => setDodawanie(ekran)}
-        dodawanieOtwarte={dodawanie !== null}
+        dodawanieOtwarte={dodawanie !== null || (ekran === 'kalendarz' && edytowane !== null)}
       >
         {tresc}
       </UkladTelefon>
@@ -344,7 +360,7 @@ function App({ profil, email }: Props) {
   }
 
   return (
-    <UkladBiurko profil={profil} email={email} ekran={ekran} onEkran={setEkran}>
+    <UkladBiurko profil={profil} email={email} ekran={ekran} onEkran={przelaczEkran}>
       {tresc}
     </UkladBiurko>
   )

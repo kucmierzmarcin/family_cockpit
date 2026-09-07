@@ -1,4 +1,4 @@
-import { useEffect, useRef, type UIEvent } from 'react'
+import { useEffect, useRef, type CSSProperties, type UIEvent } from 'react'
 import type { DomownikDb } from '../lib/supabase'
 import type { Wydarzenie } from '../useWydarzenia'
 import {
@@ -84,7 +84,7 @@ export function SiatkaGodzin({
         <div
           className="sg-naglowek-dni"
           ref={naglowekDni}
-          style={{ gridTemplateColumns: `repeat(${dni.length}, minmax(88px, 1fr))` }}
+          style={{ '--dni': dni.length } as CSSProperties}
         >
           {dni.map((d) => {
             const dzis = klucz(d) === klucz(dzisiaj)
@@ -112,7 +112,7 @@ export function SiatkaGodzin({
           <div
             className="sg-pasy"
             ref={pasyDni}
-            style={{ gridTemplateColumns: `repeat(${dni.length}, minmax(88px, 1fr))` }}
+            style={{ '--dni': dni.length } as CSSProperties}
           >
             {paskowe.map((w) => {
               // Pasek zaczyna się w pierwszym widocznym dniu wydarzenia i kończy
@@ -163,7 +163,7 @@ export function SiatkaGodzin({
 
           <div
             className="sg-kolumny"
-            style={{ gridTemplateColumns: `repeat(${dni.length}, minmax(88px, 1fr))` }}
+            style={{ '--dni': dni.length } as CSSProperties}
           >
             {dni.map((d) => {
               const poczatek = poczatekDnia(d)

@@ -439,6 +439,12 @@
    szerokość kolumn niezależną od .sg-rog. Kolumny muszą się zgadzać z
    .sg-kolumny i .sg-pasy (patrz SiatkaGodzin.tsx), inaczej nagłówek przestaje
    odpowiadać danym pod spodem przy przewijaniu w bok. */
+.sg-naglowek-dni,
+.sg-pasy,
+.sg-kolumny {
+  grid-template-columns: repeat(var(--dni), 1fr);
+}
+
 .sg-naglowek-dni {
   display: grid;
 }
@@ -494,8 +500,10 @@
     overscroll-behavior-x: contain;
   }
 
-  .sg-kolumna {
-    min-width: 88px;
+  .sg-naglowek-dni,
+  .sg-pasy,
+  .sg-kolumny {
+    grid-template-columns: repeat(var(--dni), minmax(88px, 1fr));
   }
 
   .sg-etykieta-pasa,

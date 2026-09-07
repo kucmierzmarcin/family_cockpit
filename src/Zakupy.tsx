@@ -46,6 +46,7 @@ export function Zakupy({ jestemRodzicem, mojeId, onBlad, dodawanie }: Props) {
     if (await dane.dodajListe(nazwa)) {
       setNowaLista('')
       setPokazFormularzListy(false)
+      dodawanie?.onZamknij()
     }
   }
 
@@ -118,6 +119,26 @@ export function Zakupy({ jestemRodzicem, mojeId, onBlad, dodawanie }: Props) {
       {!wybranaLista ? (
         <div className="karta">
           <p className="pusto">Nie ma jeszcze żadnej listy.</p>
+          {dodawanie !== null && (
+            <Arkusz otwarty={dodawanie.otwarte} tytul="Nowa lista" onZamknij={dodawanie.onZamknij}>
+              {jestemRodzicem ? (
+                <form className="formularz-listy" onSubmit={(e) => void dodajListe(e)}>
+                  <input
+                    value={nowaLista}
+                    onChange={(e) => setNowaLista(e.target.value)}
+                    placeholder="np. Ogród"
+                    maxLength={40}
+                    aria-label="Nazwa nowej listy"
+                  />
+                  <button type="submit" disabled={!nowaLista.trim()}>
+                    Dodaj
+                  </button>
+                </form>
+              ) : (
+                <p className="pusto">Poczekaj, aż rodzic założy pierwszą listę.</p>
+              )}
+            </Arkusz>
+          )}
         </div>
       ) : (
         <section className="karta">
@@ -166,6 +187,8 @@ export function Zakupy({ jestemRodzicem, mojeId, onBlad, dodawanie }: Props) {
             </ul>
           )}
 
+          {/* Ten arkusz celowo się nie zamyka po zapisie - dopisywanie kilku pozycji
+              z rzędu ma być szybkie, tak jak przy wpisywaniu ich inline na komputerze. */}
           {dodawanie === null ? (
             <FormularzPozycji listaId={wybranaLista.id} onDodaj={dane.dodajPozycje} />
           ) : (
