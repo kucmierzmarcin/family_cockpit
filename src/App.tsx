@@ -18,19 +18,15 @@ import { Dzien } from './widoki/Dzien'
 import { FormularzWydarzenia } from './FormularzWydarzenia'
 import { useDomownicy } from './useDomownicy'
 import { useWydarzenia, type Wydarzenie } from './useWydarzenia'
-import { wyloguj } from './auth/useSesja'
 import { BEZ_OSOBY, osobyWydarzenia, widocznePrzyFiltrze } from './osoby'
 import { kolor } from './kolory'
-import type { Ekran } from './uklad/nawigacja'
+import { TYTULY, type Ekran } from './uklad/nawigacja'
+import { useTelefon } from './uklad/useTelefon'
+import { UkladBiurko } from './uklad/UkladBiurko'
+import { UkladTelefon } from './uklad/UkladTelefon'
+import { KontoKarta } from './uklad/KontoKarta'
+import { SterowanieKalendarza, type Widok } from './widoki/SterowanieKalendarza'
 import './style/index.css'
-
-type Widok = 'miesiac' | 'tydzien' | 'dzien'
-
-const NAZWY_WIDOKOW: Record<Widok, string> = {
-  miesiac: 'Miesiąc',
-  tydzien: 'Tydzień',
-  dzien: 'Dzień',
-}
 
 type Props = {
   /** Profil zalogowanego domownika - z niego biorą się uprawnienia. */
@@ -58,6 +54,8 @@ function App({ profil, email }: Props) {
   const [licznikZapisow, setLicznikZapisow] = useState(0)
 
   const osoby = useDomownicy(setBlad)
+  const telefon = useTelefon()
+  const [dodawanie, setDodawanie] = useState<Ekran | null>(null)
 
   const dniMiesiaca = useMemo(
     () => siatkaMiesiaca(kotwica.getFullYear(), kotwica.getMonth()),
@@ -135,70 +133,15 @@ function App({ profil, email }: Props) {
     return `${dlugaData(pierwszy)} – ${dlugaData(ostatni)}`
   }, [widok, kotwica, dniTygodnia])
 
-  return (
-    <div className="kokpit">
-      <header className="naglowek">
-        <div className="pasek">
-          <nav className="zakladki" aria-label="Ekran">
-            <button
-              type="button"
-              className={`zakladka${ekran === 'kalendarz' ? ' aktywna' : ''}`}
-              aria-pressed={ekran === 'kalendarz'}
-              onClick={() => setEkran('kalendarz')}
-            >
-              Kalendarz
-            </button>
-            <button
-              type="button"
-              className={`zakladka${ekran === 'zakupy' ? ' aktywna' : ''}`}
-              aria-pressed={ekran === 'zakupy'}
-              onClick={() => setEkran('zakupy')}
-            >
-              Zakupy
-            </button>
-            <button
-              type="button"
-              className={`zakladka${ekran === 'tablica' ? ' aktywna' : ''}`}
-              aria-pressed={ekran === 'tablica'}
-              onClick={() => setEkran('tablica')}
-            >
-              Tablica
-            </button>
-            <button
-              type="button"
-              className={`zakladka${ekran === 'dom' ? ' aktywna' : ''}`}
-              aria-pressed={ekran === 'dom'}
-              onClick={() => setEkran('dom')}
-            >
-              Mój dom
-            </button>
-          </nav>
-
-          <div className="konto">
-            <span className="konto-kto">
-              <span
-                className="kropka"
-                style={{ background: kolor(profil.color).kropka }}
-                aria-hidden="true"
-              />
-              {profil.name}
-              <span className="meta">{email}</span>
-            </span>
-            <button type="button" className="drobny" onClick={() => void wyloguj()}>
-              Wyloguj
-            </button>
-          </div>
-        </div>
-
-        <h1>Kokpit Rodzinny</h1>
-        <p className="podtytul">Wspólny kalendarz całej rodziny</p>
-      </header>
-
+  const tresc = (
+    <>
       {blad && (
         <p className="blad" role="alert">
           {blad}
         </p>
       )}
+
+      {ekran === 'dom' && telefon && <KontoKarta profil={profil} email={email} />}
 
       {ekran === 'zakupy' ? (
         <Zakupy jestemRodzicem={jestemRodzicem} mojeId={profil.id} onBlad={setBlad} />
@@ -223,42 +166,15 @@ function App({ profil, email }: Props) {
       ) : (
         <div className="uklad">
           <section className="kalendarz" aria-label="Kalendarz">
-            <div className="sterowanie">
-              <button
-                type="button"
-                className="strzalka"
-                onClick={() => przesun(-1)}
-                aria-label="Wstecz"
-              >
-                ‹
-              </button>
-              <h2 className="miesiac">{naglowek}</h2>
-              <button
-                type="button"
-                className="strzalka"
-                onClick={() => przesun(1)}
-                aria-label="Dalej"
-              >
-                ›
-              </button>
-              <button type="button" className="dzis" onClick={() => setKotwica(new Date())}>
-                Dziś
-              </button>
-            </div>
-
-            <div className="zakladki widoki" role="group" aria-label="Zakres widoku">
-              {(Object.keys(NAZWY_WIDOKOW) as Widok[]).map((w) => (
-                <button
-                  key={w}
-                  type="button"
-                  className={`zakladka${widok === w ? ' aktywna' : ''}`}
-                  aria-pressed={widok === w}
-                  onClick={() => setWidok(w)}
-                >
-                  {NAZWY_WIDOKOW[w]}
-                </button>
-              ))}
-            </div>
+            {!telefon && (
+              <SterowanieKalendarza
+                naglowek={naglowek}
+                widok={widok}
+                onWidok={setWidok}
+                onPrzesun={przesun}
+                onDzis={() => setKotwica(new Date())}
+              />
+            )}
 
             {osoby.domownicy.length > 0 && (
               <div className="filtry" role="group" aria-label="Pokaż wydarzenia osób">
@@ -364,7 +280,40 @@ function App({ profil, email }: Props) {
           </aside>
         </div>
       )}
-    </div>
+    </>
+  )
+
+  if (telefon) {
+    return (
+      <UkladTelefon
+        ekran={ekran}
+        onEkran={setEkran}
+        jestemRodzicem={jestemRodzicem}
+        gorny={
+          ekran === 'kalendarz' ? (
+            <SterowanieKalendarza
+              naglowek={naglowek}
+              widok={widok}
+              onWidok={setWidok}
+              onPrzesun={przesun}
+              onDzis={() => setKotwica(new Date())}
+            />
+          ) : (
+            <h1 className="tytul-ekranu">{TYTULY[ekran]}</h1>
+          )
+        }
+        onDodaj={() => setDodawanie(ekran)}
+        dodawanieOtwarte={dodawanie !== null}
+      >
+        {tresc}
+      </UkladTelefon>
+    )
+  }
+
+  return (
+    <UkladBiurko profil={profil} email={email} ekran={ekran} onEkran={setEkran}>
+      {tresc}
+    </UkladBiurko>
   )
 }
 

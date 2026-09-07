@@ -232,3 +232,81 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
+/* ===== Uklad telefonu ===== */
+
+.kokpit-telefon {
+  display: flex;
+  flex-direction: column;
+  /* dvh zamiast vh - pasek adresu Safari zmienia vh w trakcie przewijania */
+  min-height: 100dvh;
+  padding: 0;
+}
+
+.pasek-gorny {
+  position: sticky;
+  top: 0;
+  z-index: var(--warstwa-pasek);
+  padding: calc(var(--odstep-2) + env(safe-area-inset-top)) var(--odstep-4)
+    var(--odstep-2);
+  background: var(--tlo);
+  border-bottom: 1px solid var(--kreska);
+}
+
+.tytul-ekranu {
+  margin: 0;
+  font-size: 20px;
+  line-height: var(--dotyk);
+}
+
+.tresc-telefonu {
+  flex: 1;
+  /* Miejsce na dolny pasek i przycisk „+", zeby nie zaslanialy tresci. */
+  padding: var(--odstep-4) var(--odstep-4)
+    calc(var(--pasek) + var(--odstep-5) * 2 + env(safe-area-inset-bottom));
+}
+
+.dodaj {
+  position: fixed;
+  right: var(--odstep-4);
+  bottom: calc(var(--pasek) + var(--odstep-4) + env(safe-area-inset-bottom));
+  z-index: var(--warstwa-pasek);
+  width: 56px;
+  height: 56px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--akcent);
+  color: #fff;
+  font-size: 28px;
+  line-height: 1;
+  box-shadow: var(--cien);
+  cursor: pointer;
+}
+
+.pasek-dolny {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--warstwa-pasek);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--karta);
+  border-top: 1px solid var(--kreska);
+}
+
+.zakladka-dolna {
+  min-height: var(--pasek);
+  border: 0;
+  background: none;
+  color: var(--tekst-drugi);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.zakladka-dolna.aktywna {
+  color: var(--akcent);
+  font-weight: 600;
+  box-shadow: inset 0 2px 0 var(--akcent);
+}
