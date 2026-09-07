@@ -154,7 +154,11 @@ function App({ profil, email }: Props) {
         return udalo
       }}
       onUsun={edytowane ? (zakres) => void dane.usun(edytowane, zakres) : undefined}
-      onZamknij={() => setEdytowane(null)}
+      onZamknij={() => {
+        setEdytowane(null)
+        setDodawanie(null)
+      }}
+      pokazTytul={!telefon}
     />
   )
 
