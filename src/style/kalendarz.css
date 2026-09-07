@@ -461,3 +461,71 @@
     max-height: 55vh;
   }
 }
+
+@media (max-width: 767px) {
+  /* Komórka dnia: numer i najwyżej dwie pigułki. Wyżej robi się nieczytelnie. */
+  .dzien {
+    min-height: 64px;
+    padding: var(--odstep-1);
+  }
+
+  .pigulka {
+    font-size: 11px;
+    padding: 1px var(--odstep-1);
+  }
+
+  .wiecej {
+    font-size: 10px;
+  }
+
+  /* Tydzień przewijany w bok zamiast ściskany do siedmiu wąskich kolumn.
+     Kolumna godzin i nazwy dni zostają w miejscu, żeby dało się wiedzieć,
+     na co się patrzy. */
+  .sg-przewijane {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .sg-kolumna {
+    min-width: 88px;
+  }
+
+  .sg-etykieta-pasa,
+  .sg-godzina {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--karta);
+  }
+
+  .sg-naglowek {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--karta);
+  }
+
+  /* Filtr osób jako pasek chipów przewijany poziomo - inaczej pięcioro
+     domowników łamie się na trzy linie i zjada pół ekranu. */
+  .filtry,
+  .zakladki.widoki {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .filtry::-webkit-scrollbar,
+  .zakladki.widoki::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filtr {
+    flex: 0 0 auto;
+    min-height: var(--dotyk);
+  }
+}
+
+/* Panel z listą dnia schodzi pod siatkę już dziś: blok `@media (max-width: 900px)`
+   przełącza `.uklad` na jedną kolumnę, a `.panel` stoi w drzewie za sekcją
+   kalendarza. Nic tu nie dokładamy - sprawdź tylko w kroku 3, że tak jest. */

@@ -253,6 +253,7 @@ function App({ profil, email }: Props) {
                 dzisiaj={dzisiaj}
                 wybranyDzien={klucz(kotwica)}
                 ladowanie={dane.ladowanie}
+                maksPigulek={telefon ? 2 : 3}
                 onWybierzDzien={(k) => {
                   setKotwica(new Date(`${k}T12:00:00`))
                   setEdytowane(null)

@@ -6,9 +6,6 @@ import { DNI_TYGODNIA, klucz } from '../dates'
 import { barwyWydarzenia } from '../osoby'
 import { KropkiOsob } from './KropkiOsob'
 
-/** Ile pigułek mieści się w komórce dnia, zanim zaczniemy zwijać w "+N więcej". */
-const PIGULEK_W_DNIU = 3
-
 type Props = {
   dni: { data: Date; wTymMiesiacu: boolean }[]
   wydarzenia: Wydarzenie[]
@@ -17,6 +14,8 @@ type Props = {
   wybranyDzien: string
   ladowanie: boolean
   onWybierzDzien: (klucz: string) => void
+  /** Ile pigułek mieści się w komórce, zanim zwiniemy resztę w „+N więcej". */
+  maksPigulek: number
 }
 
 /** Siatka miesiąca. Wydarzenie wielodniowe pojawia się w każdym zajętym dniu. */
@@ -28,6 +27,7 @@ export function Miesiac({
   wybranyDzien,
   ladowanie,
   onWybierzDzien,
+  maksPigulek,
 }: Props) {
   // Wydarzenie trwające tydzień musi trafić do siedmiu komórek, więc grupujemy
   // po wszystkich zajętych dniach, nie po samej dacie rozpoczęcia.
@@ -80,7 +80,7 @@ export function Miesiac({
             >
               <span className="numer">{data.getDate()}</span>
               <span className="wydarzenia">
-                {lista.slice(0, PIGULEK_W_DNIU).map((w) => (
+                {lista.slice(0, maksPigulek).map((w) => (
                   <span
                     key={w.id}
                     className={`pigulka${w.calodniowe || !wJednymDniu(w) ? ' ciagle' : ''}`}
@@ -92,8 +92,8 @@ export function Miesiac({
                     <KropkiOsob osobyId={w.osobyId} osobaPoId={osobaPoId} />
                   </span>
                 ))}
-                {lista.length > PIGULEK_W_DNIU && (
-                  <span className="wiecej">+{lista.length - PIGULEK_W_DNIU} więcej</span>
+                {lista.length > maksPigulek && (
+                  <span className="wiecej">+{lista.length - maksPigulek} więcej</span>
                 )}
               </span>
             </button>
