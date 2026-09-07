@@ -342,3 +342,33 @@
     flex: 0 0 68px;
   }
 }
+
+@media (max-width: 767px) {
+  /* iOS przybliża stronę przy fokusie na polu mniejszym niż 16px. */
+  .formularz input,
+  .formularz select,
+  .formularz textarea,
+  .formularz-listy input,
+  .formularz-pozycji input,
+  .formularz-notatki textarea {
+    font-size: 16px;
+    min-height: var(--dotyk);
+  }
+
+  .formularz button,
+  .formularz-listy button,
+  .formularz-pozycji button,
+  .formularz-notatki button {
+    min-height: var(--dotyk);
+  }
+
+  /* Para pól (od - do) jedno pod drugim; obok siebie każde ma po 40 px. */
+  .para-pol {
+    grid-template-columns: 1fr;
+  }
+
+  .kolor {
+    width: var(--dotyk);
+    height: var(--dotyk);
+  }
+}

@@ -254,3 +254,47 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+@media (max-width: 767px) {
+  /* Wybór listy jak filtr osób - pasek chipów, nie łamiący się rząd. */
+  .listy-pasek {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .listy-pasek::-webkit-scrollbar {
+    display: none;
+  }
+
+  .listy-pasek .zakladka {
+    flex: 0 0 auto;
+    min-height: var(--dotyk);
+  }
+
+  /* Odhaczanie jedną ręką w sklepie: całe pole pozycji jest celem, nie sam
+     glif checkboksa. */
+  .pozycje li {
+    min-height: var(--dotyk);
+  }
+
+  .pozycja-tresc {
+    min-height: var(--dotyk);
+    align-items: center;
+  }
+
+  .pozycja-tresc input[type='checkbox'] {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* Jedna kolumna: karteczki i domownicy na pełną szerokość. */
+  .karteczki {
+    grid-template-columns: 1fr;
+  }
+
+  .lista-osob li {
+    flex-wrap: wrap;
+  }
+}

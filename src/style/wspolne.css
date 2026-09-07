@@ -217,3 +217,24 @@
     position: static;
   }
 }
+
+@media (max-width: 767px) {
+  /* Karty bez marginesu bocznego - odstęp daje już `.tresc-telefonu`. */
+  .karta {
+    padding: var(--odstep-4);
+  }
+
+  /* Każdy przycisk tekstowy musi dać się trafić kciukiem. */
+  .drobny,
+  .usun {
+    min-width: var(--dotyk);
+    min-height: var(--dotyk);
+  }
+
+  .konto-karta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--odstep-3);
+  }
+}
