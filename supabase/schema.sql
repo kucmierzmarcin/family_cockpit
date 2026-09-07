@@ -631,3 +631,67 @@ $$;
 
 revoke execute on function public.do_wyslania(timestamptz)     from public, anon, authenticated;
 revoke execute on function public.zamknij_wysylke(uuid, text)  from public, anon, authenticated;
+
+-- ============================================================
+--  16. Poranne podsumowanie - dane dla domu
+-- ============================================================
+
+-- Komplet "co dziś w tym domu", liczony RAZ NA DOM, nie raz na osobę.
+-- Ta funkcja nie wie, że istnieje poczta - i o to chodzi. Bot na komunikatorze
+-- ma sięgnąć po nią, a nie napisać tego samego drugi raz.
+create or replace function public.podsumowanie_domu(p_dom uuid, p_dzien date)
+  returns jsonb
+  language sql stable security definer set search_path = public
+as $$
+  select jsonb_build_object(
+    'dzien', p_dzien,
+
+    -- Wydarzenia przecinające dobę, więc wyjazd 9-11 września wchodzi także
+    -- 10-go. Koniec wyłączny, tak jak wszędzie w tej aplikacji.
+    'wydarzenia', coalesce((
+      select jsonb_agg(to_jsonb(w) order by w.all_day desc, w.starts_at)
+        from (
+          select e.id, e.title, e.starts_at, e.ends_at, e.all_day,
+                 coalesce((
+                   select jsonb_agg(jsonb_build_object('id', m.id, 'name', m.name)
+                                    order by m.created_at)
+                     from public.event_members em
+                     join public.members m on m.id = em.member_id
+                    where em.event_id = e.id
+                 ), '[]'::jsonb) as osoby
+            from public.events e
+           where e.household_id = p_dom
+             and e.starts_at < (p_dzien + 1)::timestamp
+             and e.ends_at   > p_dzien::timestamp
+        ) w
+    ), '[]'::jsonb),
+
+    -- Przypięte zawsze, reszta z ostatniej doby.
+    'notatki', coalesce((
+      select jsonb_agg(to_jsonb(n) order by n.pinned desc, n.created_at desc)
+        from (
+          select nt.id, nt.content, nt.pinned, nt.created_at,
+                 coalesce(a.name, 'ktoś') as autor
+            from public.notes nt
+            left join public.members a on a.id = nt.created_by
+           where nt.household_id = p_dom
+             and (nt.pinned or nt.created_at > now() - interval '24 hours')
+        ) n
+    ), '[]'::jsonb),
+
+    -- Sama liczba nieodhaczonych. Pełna lista mleka i chleba o 7 rano to szum.
+    'listy', coalesce((
+      select jsonb_agg(to_jsonb(l) order by l.name)
+        from (
+          select sl.id, sl.name,
+                 (select count(*) from public.shopping_items si
+                   where si.list_id = sl.id and not si.done) as pozostalo
+            from public.shopping_lists sl
+           where sl.household_id = p_dom
+        ) l
+       where l.pozostalo > 0
+    ), '[]'::jsonb)
+  )
+$$;
+
+revoke execute on function public.podsumowanie_domu(uuid, date) from public, anon, authenticated;
