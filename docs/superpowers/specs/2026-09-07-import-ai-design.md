@@ -21,11 +21,11 @@ kalendarza rodziny.
 | Zakres dat cyklu | AI dostaje dzisiejszą datę i samo dobiera rozsądny horyzont (dokładne daty z pliku, jeśli są podane; w innym razie rozsądny domyślny zakres) - z twardym limitem bezpieczeństwa po stronie serwera |
 | Format odpowiedzi AI | structured output (tool-use) wymuszony schematem - bez parsowania wolnego tekstu |
 | Zapis do bazy | dopiero po akceptacji w podglądzie, wprost z klienta (ta sama ścieżka i RLS co ręczne dodawanie wydarzenia) - Edge Function tylko rozpoznaje, nic nie zapisuje |
-| Silnik AI | Claude API (Anthropic) - natywna obsługa obrazu i PDF w jednym zapytaniu |
+| Silnik AI | Gemini API (Google, darmowy limit zapytań) - natywna obsługa obrazu i PDF w jednym zapytaniu |
 | Plik oryginalny | nie jest zapisywany (brak bucketu Storage) - używany tylko do rozpoznania i odrzucany |
 
 Odrzucone: zapis od razu z Edge Function przez klucz serwisowy (omija RLS,
-brak podglądu przed zapisem), osobne API do OCR (Claude czyta obraz/PDF
+brak podglądu przed zapisem), osobne API do OCR (Gemini czyta obraz/PDF
 bezpośrednio), pole "powtarzaj do" wpisywane ręcznie (user wybrał, żeby AI
 samo zgadywało zakres - patrz limity bezpieczeństwa niżej), edycja
 pojedynczych wystąpień w podglądzie (za dużo UI jak na MVP).
@@ -58,7 +58,7 @@ Wejście (`POST`, JWT zalogowanego użytkownika w `Authorization`):
 
 Wymaga co najmniej jednego z `prompt`/`plik`. Odrzuca żądanie bez ważnego
 JWT (401) i plik spoza `image/*`/`application/pdf` albo większy niż 8 MB
-(400) - zanim cokolwiek trafi do Claude.
+(400) - zanim cokolwiek trafi do Gemini.
 
 Kroki:
 
@@ -66,13 +66,13 @@ Kroki:
 2. Pobierz listę domowników wywołującego (`members` z jego `household_id` -
    działa na jego własnym JWT, te same reguły RLS co gdziekolwiek indziej).
 3. `zbudujZapytanie(dzisiaj, domownicy, prompt, plik)` → treść żądania do
-   Claude wraz ze schematem narzędzia (patrz niżej) - czysta funkcja.
-4. `zapytajClaude(zapytanie)` → jedyne miejsce z HTTP do Anthropic API.
+   Gemini wraz ze schematem narzędzia (patrz niżej) - czysta funkcja.
+4. `zapytajGemini(zapytanie)` → jedyne miejsce z HTTP do Gemini API.
 5. Zwaliduj limity bezpieczeństwa na wyniku (patrz niżej); po przekroczeniu
    zwróć błąd zamiast ciąć dane po cichu.
 6. Zwróć klientowi surowy wynik narzędzia (pozycje) - `200`.
 
-Wyjście (schemat narzędzia, wymuszony `tool_choice`):
+Wyjście (schemat narzędzia, wymuszony `tool_config.function_calling_config.mode: "ANY"`):
 
 ```json
 {
@@ -90,7 +90,7 @@ Wyjście (schemat narzędzia, wymuszony `tool_choice`):
 ```
 
 `czlonek` to **enum** w schemacie narzędzia zbudowany z prawdziwych imion
-domowników plus `"Wspólne"` - Claude fizycznie nie może wpisać tam nic
+domowników plus `"Wspólne"` - Gemini fizycznie nie może wpisać tam nic
 innego, więc "AI samo rozpoznaje osobę" nie oznacza dowolnego zgadywania
 tekstu.
 
@@ -112,7 +112,7 @@ zamiast ucinać dane po cichu i pokazywać niepełny wynik jako komplet.
 | Plik | Rola | Zależy od |
 | --- | --- | --- |
 | `_wspolne/importAI.ts` | buduje zapytanie i schemat narzędzia z (dzisiaj, domownicy, prompt, plik); waliduje limity na wyniku | niczego - czyste funkcje |
-| `_wspolne/claude.ts` | jedyne miejsce z HTTP do Anthropic API | klucza `ANTHROPIC_API_KEY` |
+| `_wspolne/gemini.ts` | jedyne miejsce z HTTP do Gemini API | klucza `GEMINI_API_KEY` |
 | `import-ai/index.ts` | spina auth, pobranie domowników, oba powyższe | obu, Supabase |
 
 `importAI.ts` testuje się zwykłym vitestem (jak `podsumowanie.ts`) - nie
@@ -143,7 +143,7 @@ Nowy przycisk „Importuj z AI" obok istniejącego „Dodaj wydarzenie".
 
 ## Konfiguracja po stronie usług
 
-Sekret Edge Function: `ANTHROPIC_API_KEY`.
+Sekret Edge Function: `GEMINI_API_KEY`.
 
 ## Pliki
 
@@ -152,11 +152,11 @@ Sekret Edge Function: `ANTHROPIC_API_KEY`.
 | `supabase/functions/import-ai/index.ts` | nowy - auth, domownicy, spięcie rozpoznawania |
 | `supabase/functions/_wspolne/importAI.ts` | nowy - budowa zapytania, schemat narzędzia, walidacja limitów |
 | `supabase/functions/_wspolne/importAI.test.ts` | nowy - testy budowy zapytania i limitów |
-| `supabase/functions/_wspolne/claude.ts` | nowy - jedyne miejsce z HTTP do Anthropic API |
+| `supabase/functions/_wspolne/gemini.ts` | nowy - jedyne miejsce z HTTP do Gemini API |
 | `src/ImportAI.tsx` | nowy - formularz, podgląd, zapis |
 | `src/useWydarzenia.ts` | nowa funkcja `dodajWiele` |
 | miejsce z przyciskiem „Dodaj wydarzenie" | nowy przycisk „Importuj z AI" otwierający `ImportAI` |
-| `README.md` | konfiguracja `ANTHROPIC_API_KEY` |
+| `README.md` | konfiguracja `GEMINI_API_KEY` |
 
 ## Świadomie pomijam
 
@@ -171,7 +171,7 @@ import z linku/adresu URL zamiast pliku.
   domowników, wymuszenie enuma `czlonek`, walidacja limitu 150 wystąpień
   i 12 miesięcy (za i pod limitem), błąd przy braku promptu i pliku
   jednocześnie.
-- Edge Function z podstawionym `zapytajClaude`: odrzuca żądanie bez JWT,
+- Edge Function z podstawionym `zapytajGemini`: odrzuca żądanie bez JWT,
   odrzuca plik złego typu/rozmiaru, zwraca błąd czytelny dla użytkownika
   po przekroczeniu limitów zamiast ucinać dane.
 - `dodajWiele` w `useWydarzenia.ts`: pozycja z jednym wystąpieniem dostaje

@@ -200,6 +200,23 @@ danych — dostaje tylko propozycję utworzenia własnego domu.
 Usunięcie domownika nie kasuje jego wydarzeń — tracą tylko przypisanie do osoby
 (w bazie odpowiada za to `on delete set null`).
 
+## Import wydarzeń z AI
+
+Ekran "Importuj z AI" obok ręcznego dodawania wydarzenia rozpoznaje listę
+wydarzeń z wpisanego opisu i/albo wgranego zdjęcia/PDF (np. plan lekcji,
+harmonogram odbioru śmieci) przez Gemini API i pokazuje podgląd do
+zatwierdzenia, zanim cokolwiek trafi do kalendarza - patrz
+`docs/superpowers/specs/2026-09-07-import-ai-design.md`.
+
+Wymaga sekretu Edge Function (klucz z [Google AI Studio](https://aistudio.google.com/apikey) - darmowy limit zapytań):
+
+```bash
+supabase secrets set GEMINI_API_KEY=twoj-klucz-gemini
+supabase functions deploy import-ai
+```
+
+Bez tego sekretu funkcja odpowiada błędem 500 zamiast wywoływać Gemini.
+
 ## Skrypty
 
 | Polecenie | Efekt |
@@ -208,5 +225,5 @@ Usunięcie domownika nie kasuje jego wydarzeń — tracą tylko przypisanie do o
 | `npm run build` | Wersja produkcyjna do katalogu `dist` |
 | `npm run preview` | Podgląd zbudowanej wersji |
 | `npm run lint` | Sprawdzenie kodu (oxlint) |
-| `npm test` | Testy logiki czasu (vitest) |
+| `npm test` | Testy logiki czasu, walidacji importu z AI, klienta Gemini API i budowania wierszy wydarzeń z importu AI (vitest) |
 | `npm run test:watch` | Testy w trybie ciągłym |

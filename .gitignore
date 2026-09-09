@@ -30,3 +30,6 @@ dist-ssr
 
 # Robocze worktree do wdrażania planów (superpowers)
 .worktrees/
+
+# Cache Supabase CLI
+supabase/.temp/

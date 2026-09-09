@@ -16,6 +16,7 @@ import { Miesiac } from './widoki/Miesiac'
 import { Tydzien } from './widoki/Tydzien'
 import { Dzien } from './widoki/Dzien'
 import { FormularzWydarzenia } from './FormularzWydarzenia'
+import { ImportAI } from './ImportAI'
 import { useDomownicy } from './useDomownicy'
 import { useWydarzenia, type Wydarzenie } from './useWydarzenia'
 import { BEZ_OSOBY, osobyWydarzenia, widocznePrzyFiltrze } from './osoby'
@@ -53,6 +54,7 @@ function App({ profil, email }: Props) {
   // pustych pól zamiast zostawiać poprzednie wydarzenie do przypadkowego
   // dodania drugi raz.
   const [licznikZapisow, setLicznikZapisow] = useState(0)
+  const [pokazImportAI, setPokazImportAI] = useState(false)
 
   const osoby = useDomownicy(setBlad)
   const telefon = useTelefon()
@@ -162,10 +164,45 @@ function App({ profil, email }: Props) {
       onZamknij={() => {
         setEdytowane(null)
         setDodawanie(null)
+        setPokazImportAI(false)
       }}
       pokazTytul={!telefon}
     />
   )
+
+  const przelacznikImportu = !edytowane && (
+    <div className="przelacznik-importu" role="group" aria-label="Sposób dodawania">
+      <button
+        type="button"
+        className={`filtr${!pokazImportAI ? ' wlaczony' : ''}`}
+        onClick={() => setPokazImportAI(false)}
+      >
+        Ręcznie
+      </button>
+      <button
+        type="button"
+        className={`filtr${pokazImportAI ? ' wlaczony' : ''}`}
+        onClick={() => setPokazImportAI(true)}
+      >
+        Importuj z AI
+      </button>
+    </div>
+  )
+
+  const panelDodawania =
+    edytowane || !pokazImportAI ? (
+      formularzWydarzenia
+    ) : (
+      <ImportAI
+        domownicy={osoby.domownicy}
+        onZapisz={dane.dodajWiele}
+        onZamknij={() => {
+          setPokazImportAI(false)
+          setDodawanie(null)
+        }}
+        pokazTytul={!telefon}
+      />
+    )
 
   const tresc = (
     <>
@@ -305,13 +342,15 @@ function App({ profil, email }: Props) {
               )}
               <Arkusz
                 otwarty={dodawanie === 'kalendarz' || edytowane !== null}
-                tytul={edytowane ? 'Zmień wydarzenie' : 'Nowe wydarzenie'}
+                tytul={edytowane ? 'Zmień wydarzenie' : pokazImportAI ? 'Importuj z AI' : 'Nowe wydarzenie'}
                 onZamknij={() => {
                   setDodawanie(null)
                   setEdytowane(null)
+                  setPokazImportAI(false)
                 }}
               >
-                {formularzWydarzenia}
+                {przelacznikImportu}
+                {panelDodawania}
               </Arkusz>
             </>
           ) : (
@@ -324,7 +363,8 @@ function App({ profil, email }: Props) {
                   onKlik={setEdytowane}
                 />
               )}
-              {formularzWydarzenia}
+              {przelacznikImportu}
+              {panelDodawania}
             </aside>
           )}
         </div>

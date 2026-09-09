@@ -83,6 +83,13 @@ export function zTimestampu(wartosc: string): Date {
   return new Date(bezStrefy)
 }
 
+/** Skleja datę 'RRRR-MM-DD' i godzinę 'GG:MM' w jedną chwilę czasu lokalnego. */
+export function zloz(data: string, godzina: string): Date {
+  const [rok, miesiac, dzien] = data.split('-').map(Number)
+  const [g, m] = godzina.split(':').map(Number)
+  return new Date(rok, miesiac - 1, dzien, g || 0, m || 0)
+}
+
 /** Minuty od północy - do pozycjonowania bloku w siatce godzin. */
 export function minutyOdPolnocy(d: Date): number {
   return d.getHours() * 60 + d.getMinutes()

@@ -10,6 +10,7 @@ import {
   ukladajKolumny,
   wJednymDniu,
   zTimestampu,
+  zloz,
 } from './czas'
 
 /** Skrót do czytelnego zapisu dat w testach. */
@@ -240,5 +241,15 @@ describe('naTimestamp i zTimestampu', () => {
   it('zapis i odczyt dają tę samą chwilę', () => {
     const oryginal = d('2026-12-31T23:45:00')
     expect(zTimestampu(naTimestamp(oryginal)).getTime()).toBe(oryginal.getTime())
+  })
+})
+
+describe('zloz', () => {
+  it('składa datę i godzinę w jedną chwilę czasu lokalnego', () => {
+    expect(zloz('2026-09-08', '08:45')).toEqual(new Date(2026, 8, 8, 8, 45))
+  })
+
+  it('brakująca godzina/minuta liczy się jako zero', () => {
+    expect(zloz('2026-01-01', '')).toEqual(new Date(2026, 0, 1, 0, 0))
   })
 })
