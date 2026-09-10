@@ -58,7 +58,8 @@ Deno.serve(async () => {
       )
 
       await wyslij({ do: o.adres, temat: mail.temat, html: mail.html, tekst: mail.tekst })
-      await baza.rpc('zamknij_wysylke', { p_log: o.log_id })
+      const zamkniecie = await baza.rpc('zamknij_wysylke', { p_log: o.log_id })
+      if (zamkniecie.error) throw new Error(zamkniecie.error.message)
       wyslane++
     } catch (e) {
       // Porażka jednej osoby nie może zatrzymać reszty domu.
