@@ -6,6 +6,8 @@ import {
   naglowekDnia,
   odmienWydarzenia,
   temat,
+  zbudujPodsumowanie,
+  type DanePodsumowania,
 } from './podsumowanie'
 
 function dane(ile: number) {
@@ -125,5 +127,100 @@ describe('liniaListy', () => {
 
   it('więcej rzeczy', () => {
     expect(liniaListy({ id: 'l', name: 'Spożywcze', pozostalo: 4 })).toBe('Spożywcze — 4 rzeczy')
+  })
+})
+
+const ODBIORCA = { memberId: 'ja', imie: 'Ola', email: 'ola@dom.pl' }
+
+const PELNE: DanePodsumowania = {
+  dzien: '2026-09-09',
+  // Kolejność jak z bazy: całodniowe przed godzinowym.
+  wydarzenia: [
+    {
+      id: 'w2',
+      title: 'Wakacje',
+      starts_at: '2026-09-09T00:00:00',
+      ends_at: '2026-09-12T00:00:00',
+      all_day: true,
+      osoby: [{ id: 'inny', name: 'Kuba' }],
+    },
+    {
+      id: 'w1',
+      title: 'Trening',
+      starts_at: '2026-09-09T18:00:00',
+      ends_at: '2026-09-09T19:00:00',
+      all_day: false,
+      osoby: [{ id: 'ja', name: 'Ola' }],
+    },
+  ],
+  notatki: [{ id: 'n1', content: 'Zebranie', pinned: true, autor: 'Marek' }],
+  listy: [{ id: 'l1', name: 'Spożywcze', pozostalo: 4 }],
+}
+
+const PUSTE: DanePodsumowania = {
+  dzien: '2026-09-09',
+  wydarzenia: [],
+  notatki: [],
+  listy: [],
+}
+
+describe('zbudujPodsumowanie', () => {
+  it('zachowuje kolejność, w jakiej dane przyszły z bazy', () => {
+    const { tekst } = zbudujPodsumowanie(PELNE, ODBIORCA)
+    expect(tekst.indexOf('Wakacje')).toBeLessThan(tekst.indexOf('Trening'))
+  })
+
+  it('wydarzenie odbiorcy jest wyróżnione gwiazdką', () => {
+    const { tekst } = zbudujPodsumowanie(PELNE, ODBIORCA)
+    expect(tekst).toContain('* 18:00 Trening — Ola')
+    expect(tekst).toContain('  Cały dzień · Wakacje — Kuba')
+  })
+
+  it('ma wszystkie trzy sekcje, gdy jest czym je wypełnić', () => {
+    const { tekst } = zbudujPodsumowanie(PELNE, ODBIORCA)
+    expect(tekst).toContain('DZIŚ W KALENDARZU')
+    expect(tekst).toContain('TABLICA')
+    expect(tekst).toContain('ZAKUPY')
+  })
+
+  it('pomija sekcję, dla której nie ma treści', () => {
+    const { tekst } = zbudujPodsumowanie({ ...PELNE, listy: [] }, ODBIORCA)
+    expect(tekst).not.toContain('ZAKUPY')
+  })
+
+  it('pusty dzień to jedno zdanie, bez nagłówków sekcji', () => {
+    const { tekst, temat } = zbudujPodsumowanie(PUSTE, ODBIORCA)
+    expect(temat).toContain('spokojny dzień')
+    expect(tekst).toContain('Spokojny dzień')
+    expect(tekst).not.toContain('DZIŚ W KALENDARZU')
+  })
+
+  it('zwraca się do odbiorcy po imieniu', () => {
+    expect(zbudujPodsumowanie(PUSTE, ODBIORCA).tekst).toContain('Dzień dobry, Ola!')
+  })
+
+  it('stopka mówi, gdzie to wyłączyć', () => {
+    expect(zbudujPodsumowanie(PUSTE, ODBIORCA).tekst).toContain('Mój dom')
+  })
+
+  it('link pojawia się tylko wtedy, gdy jest dokąd prowadzić', () => {
+    expect(zbudujPodsumowanie(PUSTE, ODBIORCA).html).not.toContain('<a ')
+    expect(
+      zbudujPodsumowanie(PUSTE, ODBIORCA, { linkAplikacji: 'https://kokpit.example' }).html,
+    ).toContain('https://kokpit.example')
+  })
+
+  it('HTML ma style w atrybutach, bo klienci pocztowi nie czytają <style>', () => {
+    const { html } = zbudujPodsumowanie(PELNE, ODBIORCA)
+    expect(html).toContain('style="')
+    expect(html).not.toContain('<style')
+  })
+
+  it('escapuje treść z bazy, żeby notatka nie wstrzyknęła znaczników', () => {
+    const zlosliwa = {
+      ...PUSTE,
+      notatki: [{ id: 'n', content: '<b>hej</b>', pinned: false, autor: 'Ola' }],
+    }
+    expect(zbudujPodsumowanie(zlosliwa, ODBIORCA).html).toContain('&lt;b&gt;hej&lt;/b&gt;')
   })
 })
