@@ -238,3 +238,23 @@
     gap: var(--odstep-3);
   }
 }
+
+/* Ustawienia porannego maila - własne, więc bez listy osób. */
+.powiadomienia {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 12px;
+  align-items: center;
+}
+
+.powiadomienia .przelacznik {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.powiadomienia select {
+  justify-self: start;
+}

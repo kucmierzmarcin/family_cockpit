@@ -54,6 +54,10 @@ export type DomownikDb = {
   user_id: string | null
   email: string | null
   created_at: string
+  /** Czy ta osoba chce porannego podsumowania mailem. */
+  digest_enabled: boolean
+  /** O której, czasu polskiego. Format kolumny `time`: 'GG:MM:SS'. */
+  digest_at: string
 }
 
 /** Lista zakupów w tabeli `shopping_lists`. */

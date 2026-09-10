@@ -98,6 +98,30 @@ export function useDomownicy(onBlad: (tekst: string) => void) {
     [onBlad],
   )
 
+  /**
+   * Własne powiadomienia. Idzie przez funkcję w bazie, nie przez update na
+   * `members` - polityka pozwala zmieniać wiersze tylko rodzicowi, a luzowanie
+   * jej dałoby dziecku prawo przestawić sobie rolę. RLS filtruje wiersze, nie
+   * kolumny.
+   */
+  const ustawPowiadomienia = useCallback(
+    async (wlaczone: boolean, godzina: string): Promise<boolean> => {
+      const { error } = await supabase.rpc('ustaw_powiadomienia', {
+        p_wlaczone: wlaczone,
+        p_godzina: godzina,
+      })
+
+      if (error) {
+        onBlad(`Nie udało się zapisać powiadomień: ${error.message}`)
+        return false
+      }
+
+      await odswiez()
+      return true
+    },
+    [odswiez, onBlad],
+  )
+
   const usun = useCallback(
     async (id: string) => {
       const kopia = domownicy
@@ -112,5 +136,5 @@ export function useDomownicy(onBlad: (tekst: string) => void) {
     [domownicy, onBlad],
   )
 
-  return { domownicy, ladowanie, dodaj, zmien, usun, proponowanyKolor }
+  return { domownicy, ladowanie, dodaj, zmien, usun, proponowanyKolor, ustawPowiadomienia }
 }

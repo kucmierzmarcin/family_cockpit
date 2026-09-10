@@ -12,6 +12,12 @@ import type { TrybDodawania } from './uklad/nawigacja'
 
 const ROLE: Rola[] = ['rodzic', 'domownik', 'dziecko']
 
+/** Od 5:00 do 10:00 co pół godziny - poza tym oknem "poranne" traci sens. */
+const GODZINY = Array.from({ length: 11 }, (_, i) => {
+  const minuty = 5 * 60 + i * 30
+  return `${String(Math.floor(minuty / 60)).padStart(2, '0')}:${minuty % 60 === 0 ? '00' : '30'}`
+})
+
 const OPIS_KONTA = {
   polaczone: 'konto połączone',
   czeka: 'czeka na pierwsze logowanie',
@@ -27,6 +33,7 @@ type Props = {
   onDodaj: (nowy: NowyDomownik) => Promise<boolean>
   onZmien: (id: string, zmiany: ZmianaDomownika) => Promise<boolean>
   onUsun: (id: string) => void
+  onUstawPowiadomienia: (wlaczone: boolean, godzina: string) => Promise<boolean>
   dodawanie: TrybDodawania
 }
 
@@ -40,6 +47,7 @@ export function MojDom({
   onDodaj,
   onZmien,
   onUsun,
+  onUstawPowiadomienia,
   dodawanie,
 }: Props) {
   const [edytowany, setEdytowany] = useState<string | null>(null)
@@ -136,6 +144,11 @@ export function MojDom({
           </ul>
         )}
       </section>
+
+      <Powiadomienia
+        ja={domownicy.find((d) => d.id === mojeId)}
+        onZapisz={onUstawPowiadomienia}
+      />
 
       {jestemRodzicem &&
         (dodawanie === null ? (
@@ -255,5 +268,65 @@ function FormularzOsoby({
         </button>
       )}
     </form>
+  )
+}
+
+/**
+ * Ustawienia porannego maila - wyłącznie własne. Cudzych powiadomień nie
+ * ustawia nikt, rodzic też nie: to skrzynka tej osoby.
+ */
+function Powiadomienia({
+  ja,
+  onZapisz,
+}: {
+  ja: DomownikDb | undefined
+  onZapisz: (wlaczone: boolean, godzina: string) => Promise<boolean>
+}) {
+  const [zapisywanie, setZapisywanie] = useState(false)
+
+  if (!ja) return null
+
+  const godzina = ja.digest_at.slice(0, 5)
+
+  async function zapisz(wlaczone: boolean, oGodzinie: string) {
+    setZapisywanie(true)
+    await onZapisz(wlaczone, oGodzinie)
+    setZapisywanie(false)
+  }
+
+  return (
+    <section className="karta">
+      <h2 className="panel-tytul">Powiadomienia</h2>
+      <p className="panel-dzien">
+        Poranny mail z tym, co dziś czeka dom: kalendarz, świeże ogłoszenia
+        z tablicy i to, czego brakuje na listach zakupów.
+      </p>
+
+      <div className="powiadomienia">
+        <label className="przelacznik">
+          <input
+            type="checkbox"
+            checked={ja.digest_enabled}
+            disabled={zapisywanie}
+            onChange={(e) => void zapisz(e.target.checked, godzina)}
+          />
+          Poranne podsumowanie
+        </label>
+
+        <label htmlFor="godzina-podsumowania">O godzinie</label>
+        <select
+          id="godzina-podsumowania"
+          value={godzina}
+          disabled={zapisywanie || !ja.digest_enabled}
+          onChange={(e) => void zapisz(true, e.target.value)}
+        >
+          {GODZINY.map((g) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
+        </select>
+      </div>
+    </section>
   )
 }

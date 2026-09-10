@@ -239,6 +239,7 @@ function App({ profil, email }: Props) {
           onDodaj={osoby.dodaj}
           onZmien={osoby.zmien}
           onUsun={usunDomownika}
+          onUstawPowiadomienia={osoby.ustawPowiadomienia}
           dodawanie={trybDodawania('dom')}
         />
       ) : (
