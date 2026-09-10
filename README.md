@@ -214,8 +214,11 @@ znaczy awarię, a nie „nic się nie dzieje".
 
 Wysyłkę uruchamia `pg_cron` co 15 minut. Zadanie woła Edge Function
 `poranne-podsumowanie`, ta wybiera domowników, którym właśnie wybiła ich
-godzina, i zapisuje każdą wysyłkę w tabeli `digest_log` — jeden mail na osobę
-na dzień, niezależnie od tego, ile razy cron się odpali.
+godzina, i zapisuje każdą wysyłkę w tabeli `digest_log` — w normalnych
+warunkach jeden mail na osobę na dzień, niezależnie od tego, ile razy cron się
+odpali. Wysyłka i zapis sukcesu to dwa osobne kroki bez wspólnej transakcji,
+więc rzadka awaria dokładnie między nimi (np. padnięcie połączenia) może
+sporadycznie doprowadzić do drugiej wysyłki tego samego dnia.
 
 ## Role i dostęp
 
