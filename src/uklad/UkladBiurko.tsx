@@ -9,13 +9,15 @@ type Props = {
   email: string
   ekran: Ekran
   onEkran: (e: Ekran) => void
+  /** Widok dnia/tygodnia na szerokim ekranie: wypełnij okno, bez przewijania strony. */
+  pelnyEkran?: boolean
   children: ReactNode
 }
 
 /** Rama na komputerze: nagłówek z zakładkami u góry i kontem po prawej. */
-export function UkladBiurko({ profil, email, ekran, onEkran, children }: Props) {
+export function UkladBiurko({ profil, email, ekran, onEkran, pelnyEkran, children }: Props) {
   return (
-    <div className="kokpit">
+    <div className={`kokpit${pelnyEkran ? ' kokpit-pelny' : ''}`}>
       <header className="naglowek">
         <div className="pasek">
           <nav className="zakladki" aria-label="Ekran">
@@ -47,9 +49,6 @@ export function UkladBiurko({ profil, email, ekran, onEkran, children }: Props) 
             </button>
           </div>
         </div>
-
-        <h1>Kokpit Rodzinny</h1>
-        <p className="podtytul">Wspólny kalendarz całej rodziny</p>
       </header>
 
       {children}

@@ -204,6 +204,10 @@ function App({ profil, email }: Props) {
       />
     )
 
+  // Ten sam warunek otwiera arkusz na telefonie i formularz w panelu na
+  // komputerze - dwa miejsca, jedna definicja "otwarte".
+  const formularzOtwarty = dodawanie === 'kalendarz' || edytowane !== null
+
   const tresc = (
     <>
       {blad && (
@@ -342,7 +346,7 @@ function App({ profil, email }: Props) {
                 </aside>
               )}
               <Arkusz
-                otwarty={dodawanie === 'kalendarz' || edytowane !== null}
+                otwarty={formularzOtwarty}
                 tytul={edytowane ? 'Zmień wydarzenie' : pokazImportAI ? 'Importuj z AI' : 'Nowe wydarzenie'}
                 onZamknij={() => {
                   setDodawanie(null)
@@ -356,7 +360,7 @@ function App({ profil, email }: Props) {
             </>
           ) : (
             <aside className="panel" aria-label="Szczegóły dnia">
-              {widok === 'miesiac' && !edytowane && (
+              {widok === 'miesiac' && !formularzOtwarty && (
                 <ListaDnia
                   dzien={kotwica}
                   wydarzenia={widoczne}
@@ -364,8 +368,20 @@ function App({ profil, email }: Props) {
                   onKlik={setEdytowane}
                 />
               )}
-              {przelacznikImportu}
-              {panelDodawania}
+              {formularzOtwarty ? (
+                <>
+                  {przelacznikImportu}
+                  {panelDodawania}
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="dodaj-wydarzenie"
+                  onClick={() => setDodawanie('kalendarz')}
+                >
+                  + Dodaj wydarzenie
+                </button>
+              )}
             </aside>
           )}
         </div>
@@ -401,7 +417,13 @@ function App({ profil, email }: Props) {
   }
 
   return (
-    <UkladBiurko profil={profil} email={email} ekran={ekran} onEkran={przelaczEkran}>
+    <UkladBiurko
+      profil={profil}
+      email={email}
+      ekran={ekran}
+      onEkran={przelaczEkran}
+      pelnyEkran={ekran === 'kalendarz' && widok !== 'miesiac'}
+    >
       {tresc}
     </UkladBiurko>
   )

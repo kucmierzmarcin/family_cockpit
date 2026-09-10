@@ -476,6 +476,30 @@
   }
 }
 
+/* Widok dnia/tygodnia w trybie .kokpit-pelny (patrz powloka.css): sekcja
+   kalendarza i siatka godzin wypełniają dokładnie dostępną wysokość zamiast
+   liczyć ją na oko z `vh` - tylko `.sg-przewijane` przewija się w środku. */
+@media (min-width: 900px) {
+  .kokpit-pelny .kalendarz {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .kokpit-pelny .siatka-godzin {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .kokpit-pelny .sg-przewijane {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
 @media (max-width: 767px) {
   /* Komórka dnia: numer i najwyżej dwie pigułki. Wyżej robi się nieczytelnie. */
   .dzien {
@@ -556,3 +580,23 @@
 /* Panel z listą dnia schodzi pod siatkę już dziś: blok `@media (max-width: 900px)`
    przełącza `.uklad` na jedną kolumnę, a `.panel` stoi w drzewie za sekcją
    kalendarza. Nic tu nie dokładamy - sprawdź tylko w kroku 3, że tak jest. */
+
+/* Formularz "Nowe wydarzenie" chowa się za tym przyciskiem, dopóki ktoś
+   naprawdę nie chce czegoś dodać - lista dnia zostaje na wierzchu. */
+.dodaj-wydarzenie {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--akcent);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.dodaj-wydarzenie:hover {
+  background: #6b21d6;
+}

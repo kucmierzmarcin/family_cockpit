@@ -8,15 +8,7 @@
 
 .naglowek {
   text-align: center;
-  margin-bottom: 28px;
-}
-
-.naglowek h1 {
-  margin: 0;
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  color: var(--tekst);
+  margin-bottom: 20px;
 }
 
 .podtytul {
@@ -32,6 +24,37 @@
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 24px;
   align-items: start;
+}
+
+/* Widok dnia/tygodnia na szerokim ekranie: kokpit ma dokładnie wysokość okna,
+   nic nad siatką godzin się nie rusza - przewija się tylko siatka w środku
+   (patrz .sg-przewijane w kalendarz.css). Poniżej 900px panel i tak schodzi
+   pod kalendarz (patrz wspolne.css), więc strona przewija się jak dotychczas
+   i ten tryb się nie włącza. */
+@media (min-width: 900px) {
+  .kokpit-pelny {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 20px;
+    overflow: hidden;
+  }
+
+  .kokpit-pelny .naglowek {
+    flex: none;
+  }
+
+  .kokpit-pelny .uklad {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+  }
+
+  /* Dłuższy formularz (np. z opcjami powtarzania) mieści się w wysokości
+     panelu, przewijając się w środku - reszta strony stoi w miejscu. */
+  .kokpit-pelny .panel {
+    overflow-y: auto;
+  }
 }
 
 /* --- Ekran logowania i komunikaty bramy --- */
