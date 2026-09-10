@@ -23,6 +23,7 @@ import { BEZ_OSOBY, osobyWydarzenia, widocznePrzyFiltrze } from './osoby'
 import { kolor } from './kolory'
 import { TYTULY, type Ekran, type TrybDodawania } from './uklad/nawigacja'
 import { useTelefon } from './uklad/useTelefon'
+import { useSzerokiKalendarz } from './uklad/useSzerokiKalendarz'
 import { UkladBiurko } from './uklad/UkladBiurko'
 import { UkladTelefon } from './uklad/UkladTelefon'
 import { KontoKarta } from './uklad/KontoKarta'
@@ -58,6 +59,7 @@ function App({ profil, email }: Props) {
 
   const osoby = useDomownicy(setBlad)
   const telefon = useTelefon()
+  const szerokiKalendarz = useSzerokiKalendarz()
   const [dodawanie, setDodawanie] = useState<Ekran | null>(null)
 
   // Na telefonie formularz danego ekranu siedzi w arkuszu sterowanym stąd; na
@@ -319,6 +321,7 @@ function App({ profil, email }: Props) {
                   setKotwica(d)
                   setWidok('dzien')
                 }}
+                wypelnijOkno={szerokiKalendarz}
               />
             )}
 
@@ -329,6 +332,7 @@ function App({ profil, email }: Props) {
                 osobaPoId={osobaPoId}
                 dzisiaj={dzisiaj}
                 onKlikWydarzenie={setEdytowane}
+                wypelnijOkno={szerokiKalendarz}
               />
             )}
           </section>

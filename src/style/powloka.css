@@ -31,7 +31,7 @@
    (patrz .sg-przewijane w kalendarz.css). Poniżej 900px panel i tak schodzi
    pod kalendarz (patrz wspolne.css), więc strona przewija się jak dotychczas
    i ten tryb się nie włącza. */
-@media (min-width: 900px) {
+@media (min-width: 901px) {
   .kokpit-pelny {
     height: 100vh;
     display: flex;

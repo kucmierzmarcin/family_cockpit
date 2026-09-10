@@ -479,7 +479,7 @@
 /* Widok dnia/tygodnia w trybie .kokpit-pelny (patrz powloka.css): sekcja
    kalendarza i siatka godzin wypełniają dokładnie dostępną wysokość zamiast
    liczyć ją na oko z `vh` - tylko `.sg-przewijane` przewija się w środku. */
-@media (min-width: 900px) {
+@media (min-width: 901px) {
   .kokpit-pelny .kalendarz {
     display: flex;
     flex-direction: column;
@@ -497,7 +497,48 @@
     flex: 1;
     min-height: 0;
     max-height: none;
+    overflow: hidden;
   }
+}
+
+/* Siatka elastyczna (patrz SiatkaGodzin.tsx, prop `wypelnijOkno`): liczba
+   godzin jest dynamiczna, więc każdy wiersz i każde wydarzenie liczy swoją
+   wysokość jako ułamek całego pokazanego zakresu, a nie w sztywnych
+   pikselach - dzięki temu zawsze mieszczą się dokładnie w dostępnej
+   wysokości. `min-height` na bloku pilnuje czytelności krótkich wydarzeń
+   zamiast liczenia minimalnej wysokości w JS. */
+.sg-elastyczna .sg-tresc {
+  height: 100%;
+}
+
+.sg-elastyczna .sg-godziny {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.sg-elastyczna .sg-godzina {
+  flex: 1;
+  min-height: 0;
+}
+
+.sg-elastyczna .sg-kolumny {
+  height: 100%;
+}
+
+.sg-elastyczna .sg-kolumna {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.sg-elastyczna .sg-kratka {
+  flex: 1;
+  min-height: 0;
+}
+
+.sg-elastyczna .sg-blok {
+  min-height: 20px;
 }
 
 @media (max-width: 767px) {

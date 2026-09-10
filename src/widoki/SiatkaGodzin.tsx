@@ -14,7 +14,8 @@ import { klucz } from '../dates'
 import { barwyWydarzenia } from '../osoby'
 import { KropkiOsob } from './KropkiOsob'
 
-/** Wysokość jednej godziny w pikselach - stąd biorą się pozycje bloków. */
+/** Wysokość jednej godziny w pikselach - stąd biorą się pozycje bloków, gdy
+ *  siatka się przewija (telefon, wąski ekran). */
 const WYSOKOSC_GODZINY = 48
 const MINUT_W_DOBIE = 24 * 60
 
@@ -24,6 +25,16 @@ const GODZINA_STARTOWA = 7
 /** Blok krótszego wydarzenia i tak musi dać się kliknąć i przeczytać. */
 const MINIMALNA_WYSOKOSC = 22
 
+/**
+ * Przy `wypelnijOkno` siatka nie ma się przewijać - zamiast pełnej doby
+ * pokazuje tylko sensowny zakres godzin, rozciągnięty tak, żeby zmieścić się
+ * dokładnie w dostępnej wysokości. Noc rzadko ma wydarzenia rodzinne, więc
+ * domyślnie jej nie pokazujemy - a jeśli któregoś dnia coś tam jednak jest,
+ * zakres się rozszerza, żeby nic nie zniknęło.
+ */
+const DOMYSLNA_GODZINA_OD = 6
+const DOMYSLNA_GODZINA_DO = 23
+
 type Props = {
   dni: Date[]
   wydarzenia: Wydarzenie[]
@@ -31,6 +42,8 @@ type Props = {
   dzisiaj: Date
   onKlikWydarzenie: (w: Wydarzenie) => void
   onKlikDzien?: (dzien: Date) => void
+  /** Szeroki ekran, widok dnia/tygodnia: zmieść całą siatkę bez przewijania. */
+  wypelnijOkno?: boolean
 }
 
 /** Wspólny silnik widoku tygodnia i dnia: pasek całodniowych + siatka godzin. */
@@ -41,6 +54,7 @@ export function SiatkaGodzin({
   dzisiaj,
   onKlikWydarzenie,
   onKlikDzien,
+  wypelnijOkno,
 }: Props) {
   const przewijane = useRef<HTMLDivElement>(null)
   const naglowekDni = useRef<HTMLDivElement>(null)
@@ -58,7 +72,9 @@ export function SiatkaGodzin({
   }
 
   useEffect(() => {
-    // Bez tego widok otwiera się na północy, gdzie zwykle nic nie ma.
+    // Bez tego widok otwiera się na północy, gdzie zwykle nic nie ma. Przy
+    // wypelnijOkno siatka i tak się nie przewija - ustawienie scrollTop jest
+    // wtedy nieszkodliwym no-opem.
     if (przewijane.current) {
       przewijane.current.scrollTop = GODZINA_STARTOWA * WYSOKOSC_GODZINY
     }
@@ -72,13 +88,36 @@ export function SiatkaGodzin({
   const paskowe = wydarzenia.filter((w) => w.calodniowe || !wJednymDniu(w))
   const godzinne = wydarzenia.filter((w) => !w.calodniowe && wJednymDniu(w))
 
+  // Pełna doba, chyba że wypelnijOkno - wtedy tylko rozsądne okno, rozszerzane
+  // o godziny, w których naprawdę coś jest tego konkretnego tygodnia/dnia.
+  let godzinaOd = 0
+  let godzinaDo = 24
+  if (wypelnijOkno) {
+    godzinaOd = DOMYSLNA_GODZINA_OD
+    godzinaDo = DOMYSLNA_GODZINA_DO
+    for (const d of dni) {
+      const poczatek = poczatekDnia(d)
+      const koniecDnia = nastepnyDzien(d)
+      for (const w of godzinne) {
+        if (!nachodzi(w, poczatek, koniecDnia)) continue
+        const odMinut = minutyOdPolnocy(w.start)
+        const doMinut = minutyOdPolnocy(w.koniec) || MINUT_W_DOBIE
+        godzinaOd = Math.min(godzinaOd, Math.floor(odMinut / 60))
+        godzinaDo = Math.max(godzinaDo, Math.ceil(doMinut / 60))
+      }
+    }
+  }
+  const liczbaGodzin = godzinaDo - godzinaOd
+  const zakresOdMinut = godzinaOd * 60
+  const zakresMinut = liczbaGodzin * 60
+
   // Barwy bierzemy od pierwszej przypisanej osoby; reszta pokazuje się kropkami.
   function barwy(w: Wydarzenie) {
     return barwyWydarzenia(w.osobyId, osobaPoId)
   }
 
   return (
-    <div className="siatka-godzin">
+    <div className={`siatka-godzin${wypelnijOkno ? ' sg-elastyczna' : ''}`}>
       <div className="sg-naglowek">
         <div className="sg-rog" />
         <div
@@ -152,10 +191,17 @@ export function SiatkaGodzin({
       )}
 
       <div className="sg-przewijane" ref={przewijane} onScroll={synchronizujPrzewijanie}>
-        <div className="sg-tresc" style={{ height: (MINUT_W_DOBIE / 60) * WYSOKOSC_GODZINY }}>
+        <div
+          className="sg-tresc"
+          style={wypelnijOkno ? undefined : { height: (MINUT_W_DOBIE / 60) * WYSOKOSC_GODZINY }}
+        >
           <div className="sg-godziny">
-            {Array.from({ length: 24 }, (_, g) => (
-              <div key={g} className="sg-godzina" style={{ height: WYSOKOSC_GODZINY }}>
+            {Array.from({ length: liczbaGodzin }, (_, i) => godzinaOd + i).map((g) => (
+              <div
+                key={g}
+                className="sg-godzina"
+                style={wypelnijOkno ? undefined : { height: WYSOKOSC_GODZINY }}
+              >
                 <span>{String(g).padStart(2, '0')}:00</span>
               </div>
             ))}
@@ -173,19 +219,30 @@ export function SiatkaGodzin({
 
               return (
                 <div key={klucz(d)} className="sg-kolumna">
-                  {Array.from({ length: 24 }, (_, g) => (
-                    <div key={g} className="sg-kratka" style={{ height: WYSOKOSC_GODZINY }} />
+                  {Array.from({ length: liczbaGodzin }, (_, i) => godzinaOd + i).map((g) => (
+                    <div
+                      key={g}
+                      className="sg-kratka"
+                      style={wypelnijOkno ? undefined : { height: WYSOKOSC_GODZINY }}
+                    />
                   ))}
 
                   {ulozone.map((w) => {
                     const odMinut = minutyOdPolnocy(w.start)
                     const doMinut = minutyOdPolnocy(w.koniec) || MINUT_W_DOBIE
-                    const wysokosc = Math.max(
-                      MINIMALNA_WYSOKOSC,
-                      ((doMinut - odMinut) / 60) * WYSOKOSC_GODZINY,
-                    )
                     const b = barwy(w)
                     const szerokosc = 100 / w.kolumn
+                    // Elastyczna siatka liczy pozycję jako ułamek pokazanego
+                    // zakresu godzin (procent), bo wysokość wiersza nie jest
+                    // znana w pikselach - CSS `min-height` na `.sg-blok`
+                    // pilnuje czytelności krótkich wydarzeń zamiast tego
+                    // liczenia w JS.
+                    const top = wypelnijOkno
+                      ? `${((odMinut - zakresOdMinut) / zakresMinut) * 100}%`
+                      : (odMinut / 60) * WYSOKOSC_GODZINY
+                    const wysokosc = wypelnijOkno
+                      ? `${((doMinut - odMinut) / zakresMinut) * 100}%`
+                      : Math.max(MINIMALNA_WYSOKOSC, ((doMinut - odMinut) / 60) * WYSOKOSC_GODZINY)
 
                     return (
                       <button
@@ -193,7 +250,7 @@ export function SiatkaGodzin({
                         type="button"
                         className="sg-blok"
                         style={{
-                          top: (odMinut / 60) * WYSOKOSC_GODZINY,
+                          top,
                           height: wysokosc,
                           left: `${w.kolumna * szerokosc}%`,
                           width: `calc(${szerokosc}% - 4px)`,

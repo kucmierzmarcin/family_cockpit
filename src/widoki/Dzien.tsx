@@ -8,6 +8,7 @@ type Props = {
   osobaPoId: Map<string, DomownikDb>
   dzisiaj: Date
   onKlikWydarzenie: (w: Wydarzenie) => void
+  wypelnijOkno?: boolean
 }
 
 /** Jeden dzień: ta sama siatka godzin, tylko jedna kolumna. */

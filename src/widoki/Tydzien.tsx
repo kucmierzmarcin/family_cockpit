@@ -9,6 +9,7 @@ type Props = {
   dzisiaj: Date
   onKlikWydarzenie: (w: Wydarzenie) => void
   onKlikDzien: (dzien: Date) => void
+  wypelnijOkno?: boolean
 }
 
 /** Tydzień: siedem kolumn w siatce godzin. */
