@@ -695,3 +695,39 @@ as $$
 $$;
 
 revoke execute on function public.podsumowanie_domu(uuid, date) from public, anon, authenticated;
+
+-- ============================================================
+--  17. Poranne podsumowanie - harmonogram
+-- ============================================================
+
+-- Sekrety Vault (URL funkcji i klucz service_role) trzeba zalozyc recznie,
+-- klucz serwisowy nie moze trafic do repo:
+--
+--   select vault.create_secret(
+--     'https://fqviwnzinpndyprcovxw.supabase.co/functions/v1/poranne-podsumowanie',
+--     'kokpit_url_funkcji');
+--   select vault.create_secret('<SERVICE_ROLE_KEY>', 'kokpit_klucz_serwisowy');
+
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+-- Co 15 minut, przy godzinach wybieranych co 30 - zapas na spozniony przebieg.
+-- Dziennie 96 wywolan, w wiekszosci konczacych sie pustym `do_wyslania()`.
+--
+-- timeout_milliseconds=30000: domyslne 5s pg_net bylo za krotkie, obserwowane
+-- na live timeouty przy pustych wywolaniach (cold start Edge Function). Bez
+-- tego padniete polaczenie moze zostawic wpis w digest_log jako "w_toku" i
+-- doprowadzic do podwojnej wysylki po ponownym zajeciu po 15 minutach.
+select cron.schedule('poranne-podsumowanie', '*/15 * * * *', $$
+  select net.http_post(
+    url     := (select decrypted_secret from vault.decrypted_secrets
+                 where name = 'kokpit_url_funkcji'),
+    headers := jsonb_build_object(
+                 'Content-Type', 'application/json',
+                 'Authorization', 'Bearer ' ||
+                   (select decrypted_secret from vault.decrypted_secrets
+                     where name = 'kokpit_klucz_serwisowy')),
+    body    := '{}'::jsonb,
+    timeout_milliseconds := 30000
+  );
+$$);

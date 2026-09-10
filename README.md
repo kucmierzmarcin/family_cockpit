@@ -51,6 +51,27 @@ Skrypt [`supabase/start.sql`](supabase/start.sql) jest już opcjonalny. Przydaje
 się tylko wtedy, gdy w bazie leżą dane sprzed wprowadzenia logowania i trzeba je
 wciągnąć do nowo założonego domu.
 
+5. **Poranne podsumowanie** (opcjonalne — bez tego reszta aplikacji działa):
+
+   - Załóż konto na [resend.com](https://resend.com) i wygeneruj klucz API.
+   - Panel Supabase → **Edge Functions → Secrets**: `RESEND_API_KEY` (klucz
+     `re_…`), `RESEND_FROM` (np. `Kokpit Rodzinny <onboarding@resend.dev>`),
+     `APP_URL` (adres aplikacji albo pusto).
+   - SQL Editor: załóż sekrety Vault, podstawiając klucz `service_role`
+     z **Settings → API**:
+
+     ```sql
+     select vault.create_secret(
+       'https://TWOJ-PROJEKT.supabase.co/functions/v1/poranne-podsumowanie',
+       'kokpit_url_funkcji');
+     select vault.create_secret('SERVICE_ROLE_KEY', 'kokpit_klucz_serwisowy');
+     ```
+
+   - Wdróż funkcję: `supabase functions deploy poranne-podsumowanie`.
+
+   Dopóki nie zweryfikujesz własnej domeny w Resend, maile dochodzą **wyłącznie
+   na adres właściciela konta Resend** — pozostali domownicy nie dostaną nic.
+
 ## Struktura
 
 | Plik | Do czego służy |
@@ -86,6 +107,9 @@ wciągnąć do nowo założonego domu.
 | `src/kolory.ts` | Paleta kolorów domowników |
 | `src/dates.ts` | Polskie nazwy miesięcy i dni, budowanie siatki kalendarza |
 | `src/lib/supabase.ts` | Połączenie z bazą i typy danych |
+| `supabase/functions/poranne-podsumowanie/index.ts` | Spina bazę, treść i wysyłkę |
+| `supabase/functions/_wspolne/podsumowanie.ts` | Temat i treść maila z danych domu |
+| `supabase/functions/_wspolne/resend.ts` | Wysyłka — jedyne miejsce z dostawcą poczty |
 | `supabase/schema.sql` | Pełny schemat: tabele, funkcje i reguły dostępu |
 | `supabase/start.sql` | Skrypt uruchamiany raz — zakłada pierwszy dom |
 
@@ -173,6 +197,28 @@ jednym urządzeniu pojawia się na pozostałych w kilka sekund.
 Obsługuje to jeden wspólny hook [`src/useNaZywo.ts`](src/useNaZywo.ts). Realtime
 respektuje reguły RLS, więc subskrypcja nie jest obejściem uprawnień — kanał nie
 przyniesie danych z cudzego domu.
+
+## Poranne podsumowanie
+
+Raz dziennie, o godzinie, którą każdy ustawia sobie sam, przychodzi mail z tym,
+co dziś czeka dom: wydarzenia z kalendarza, przypięte i świeże ogłoszenia
+z tablicy oraz liczba nieodhaczonych rzeczy na listach zakupów. Wydarzenia,
+do których jesteś przypisany, są pogrubione.
+
+Podsumowanie jest **domyślnie wyłączone** — włącznik i godzinę znajdziesz na
+ekranie „Mój dom". Ustawia je każdy sobie, rodzic też nie zrobi tego za innych:
+to skrzynka tej osoby. Dostają je wyłącznie domownicy z kontem.
+
+Pusty dzień też dostaje maila — jedno zdanie. Dzięki temu cisza w skrzynce
+znaczy awarię, a nie „nic się nie dzieje".
+
+Wysyłkę uruchamia `pg_cron` co 15 minut. Zadanie woła Edge Function
+`poranne-podsumowanie`, ta wybiera domowników, którym właśnie wybiła ich
+godzina, i zapisuje każdą wysyłkę w tabeli `digest_log` — w normalnych
+warunkach jeden mail na osobę na dzień, niezależnie od tego, ile razy cron się
+odpali. Wysyłka i zapis sukcesu to dwa osobne kroki bez wspólnej transakcji,
+więc rzadka awaria dokładnie między nimi (np. padnięcie połączenia) może
+sporadycznie doprowadzić do drugiej wysyłki tego samego dnia.
 
 ## Role i dostęp
 
