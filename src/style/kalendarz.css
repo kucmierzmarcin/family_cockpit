@@ -371,8 +371,8 @@
 .sg-blok {
   position: absolute;
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  align-items: center;
+  gap: 6px;
   margin-left: 2px;
   padding: 3px 6px;
   border: none;
@@ -392,11 +392,14 @@
 }
 
 .sg-blok-godzina {
+  flex-shrink: 0;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .sg-blok-tytul {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
