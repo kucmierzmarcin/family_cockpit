@@ -16,13 +16,24 @@ type Zajety = {
   dzien: string
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
   const baza = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
   )
 
-  const { data, error } = await baza.rpc('do_wyslania')
+  // p_teraz jest opcjonalny i sluzy wylacznie testom - pozwala wymusic wysylke
+  // bez czekania na oknie domownika. Funkcja jest chroniona verify_jwt, wiec
+  // to bezpieczne. Cron zawsze wysyla '{}', wiec brak p_teraz to normalny bieg.
+  let pTeraz: string | undefined
+  try {
+    const cialo = await req.json()
+    if (typeof cialo?.p_teraz === 'string') pTeraz = cialo.p_teraz
+  } catch {
+    // brak ciala / nie-JSON - normalne wywolanie z crona
+  }
+
+  const { data, error } = await baza.rpc('do_wyslania', pTeraz ? { p_teraz: pTeraz } : {})
   if (error) {
     return odpowiedz({ blad: error.message }, 500)
   }
