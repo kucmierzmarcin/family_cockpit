@@ -57,3 +57,27 @@ export function temat(dane: DanePodsumowania): string {
   const ile = dane.wydarzenia.length
   return `${naglowekDnia(dane.dzien)} — ${ile === 0 ? 'spokojny dzień' : odmienWydarzenia(ile)}`
 }
+
+/**
+ * Godzina z kolumny `timestamp`, bez zera wiodącego: '08:00:00' -> '8:00'.
+ * Bierzemy podciąg zamiast `new Date(...)`, bo wartość nie niesie strefy,
+ * a Date doklejałby strefę serwera i przesuwał godziny.
+ */
+function godzina(ts: string): string {
+  const hhmm = ts.slice(11, 16)
+  return hhmm.startsWith('0') ? hhmm.slice(1) : hhmm
+}
+
+export function liniaWydarzenia(w: WydarzenieDnia): string {
+  const czas = w.all_day ? 'Cały dzień ·' : godzina(w.starts_at)
+  const osoby = w.osoby.length ? ` — ${w.osoby.map((o) => o.name).join(', ')}` : ''
+  return `${czas} ${w.title}${osoby}`
+}
+
+export function liniaNotatki(n: NotatkaDnia): string {
+  return `${n.content} (${n.pinned ? 'przypięte, ' : ''}${n.autor})`
+}
+
+export function liniaListy(l: ListaDnia): string {
+  return `${l.name} — ${l.pozostalo} ${l.pozostalo === 1 ? 'rzecz' : 'rzeczy'}`
+}

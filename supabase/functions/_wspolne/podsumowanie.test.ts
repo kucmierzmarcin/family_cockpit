@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { naglowekDnia, odmienWydarzenia, temat } from './podsumowanie'
+import {
+  liniaListy,
+  liniaNotatki,
+  liniaWydarzenia,
+  naglowekDnia,
+  odmienWydarzenia,
+  temat,
+} from './podsumowanie'
 
 function dane(ile: number) {
   return {
@@ -50,5 +57,73 @@ describe('temat', () => {
 
   it('pusty dzień nazywa po imieniu', () => {
     expect(temat(dane(0))).toBe('Środa, 9 września — spokojny dzień')
+  })
+})
+
+describe('liniaWydarzenia', () => {
+  it('godzinowe: godzina, tytuł, osoby', () => {
+    expect(
+      liniaWydarzenia({
+        id: 'a',
+        title: 'Trening',
+        starts_at: '2026-09-09T08:00:00',
+        ends_at: '2026-09-09T09:30:00',
+        all_day: false,
+        osoby: [
+          { id: 'o1', name: 'Ola' },
+          { id: 'o2', name: 'Marek' },
+        ],
+      }),
+    ).toBe('8:00 Trening — Ola, Marek')
+  })
+
+  it('całodniowe zamiast godziny mówi "Cały dzień"', () => {
+    expect(
+      liniaWydarzenia({
+        id: 'b',
+        title: 'Wakacje',
+        starts_at: '2026-09-09T00:00:00',
+        ends_at: '2026-09-12T00:00:00',
+        all_day: true,
+        osoby: [],
+      }),
+    ).toBe('Cały dzień · Wakacje')
+  })
+
+  it('bez osób nie dokleja myślnika', () => {
+    expect(
+      liniaWydarzenia({
+        id: 'c',
+        title: 'Dentysta',
+        starts_at: '2026-09-09T14:05:00',
+        ends_at: '2026-09-09T15:00:00',
+        all_day: false,
+        osoby: [],
+      }),
+    ).toBe('14:05 Dentysta')
+  })
+})
+
+describe('liniaNotatki', () => {
+  it('przypięta jest oznaczona', () => {
+    expect(liniaNotatki({ id: 'n', content: 'Zebranie', pinned: true, autor: 'Marek' })).toBe(
+      'Zebranie (przypięte, Marek)',
+    )
+  })
+
+  it('zwykła podaje samego autora', () => {
+    expect(liniaNotatki({ id: 'n', content: 'Kupiłem chleb', pinned: false, autor: 'Ola' })).toBe(
+      'Kupiłem chleb (Ola)',
+    )
+  })
+})
+
+describe('liniaListy', () => {
+  it('jedna rzecz', () => {
+    expect(liniaListy({ id: 'l', name: 'Apteka', pozostalo: 1 })).toBe('Apteka — 1 rzecz')
+  })
+
+  it('więcej rzeczy', () => {
+    expect(liniaListy({ id: 'l', name: 'Spożywcze', pozostalo: 4 })).toBe('Spożywcze — 4 rzeczy')
   })
 })
