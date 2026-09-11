@@ -731,3 +731,94 @@ select cron.schedule('poranne-podsumowanie', '*/15 * * * *', $$
     timeout_milliseconds := 30000
   );
 $$);
+
+-- ============================================================
+--  18. Bot na Telegramie
+-- ============================================================
+
+alter table public.members
+  add column if not exists telegram_chat_id bigint;
+
+create unique index if not exists members_telegram_chat_id_key
+  on public.members (telegram_chat_id) where telegram_chat_id is not null;
+
+-- Kody parowania - jednorazowe, krotkotrwale. RLS wlaczone, zero polityk:
+-- to sprawa service_role i security definer funkcji, nie przegladarki.
+create table if not exists public.telegram_kody (
+  kod        text primary key,
+  member_id  uuid not null references public.members(id) on delete cascade,
+  wygasa     timestamptz not null
+);
+
+create index if not exists telegram_kody_member_idx on public.telegram_kody (member_id);
+
+alter table public.telegram_kody enable row level security;
+
+-- Generuje jednorazowy kod parowania dla zalogowanego. Nadpisuje wczesniejszy
+-- kod tej samej osoby (jeden aktywny kod na raz), zeby stare kody nie zalegaly.
+create or replace function public.wygeneruj_kod_telegramu()
+  returns text
+  language plpgsql volatile security definer set search_path = public
+as $$
+declare
+  wlasny_member uuid;
+  nowy_kod text;
+begin
+  if auth.uid() is null then
+    raise exception 'Trzeba byc zalogowanym.';
+  end if;
+
+  select id into wlasny_member from public.members where user_id = auth.uid();
+  if wlasny_member is null then
+    raise exception 'Nie znaleziono domownika dla tego konta.';
+  end if;
+
+  delete from public.telegram_kody where member_id = wlasny_member;
+
+  -- 6 znakow z alfabetu bez znakow latwych do pomylenia (0/O, 1/I/l).
+  nowy_kod := (
+    select string_agg(znak, '')
+      from (
+        select substr('23456789ABCDEFGHJKMNPQRSTUVWXYZ',
+                       (random() * 31)::int + 1, 1) as znak
+          from generate_series(1, 6)
+      ) losowe
+  );
+
+  insert into public.telegram_kody (kod, member_id, wygasa)
+  values (nowy_kod, wlasny_member, now() + interval '15 minutes');
+
+  return nowy_kod;
+end
+$$;
+
+revoke execute on function public.wygeneruj_kod_telegramu() from public, anon;
+grant  execute on function public.wygeneruj_kod_telegramu() to authenticated;
+
+-- Parowanie po stronie bota - wolane kluczem service_role, bez auth.uid().
+-- Jedno zapytanie: znajdz niewygasly kod, zaktualizuj chat_id, skasuj kod.
+create or replace function public.polacz_telegram(p_kod text, p_chat_id bigint)
+  returns boolean
+  language plpgsql volatile security definer set search_path = public
+as $$
+declare
+  znaleziony_member uuid;
+begin
+  select member_id into znaleziony_member
+    from public.telegram_kody
+   where kod = p_kod and wygasa > now();
+
+  if znaleziony_member is null then
+    return false;
+  end if;
+
+  update public.members set telegram_chat_id = p_chat_id
+   where id = znaleziony_member;
+
+  delete from public.telegram_kody where kod = p_kod;
+
+  return true;
+end
+$$;
+
+revoke execute on function public.polacz_telegram(text, bigint) from public, anon, authenticated;
