@@ -93,7 +93,9 @@ export function budujZapytanieBota(dzisiaj: Date, domownicy: string[], wiadomosc
             'Użyj narzędzia pasującego do wiadomości: pokaz_podsumowanie gdy pytają o kalendarz/tablicę/zakupy, ' +
             'zaproponuj_wydarzenie gdy proszą o dodanie czegoś do kalendarza (pole "czlonek" musi być dokładnie ' +
             'jednym z podanych imion domowników albo "Wspólne"), odpowiedz_tekstem w każdym innym przypadku - ' +
-            'krótko i po ludzku wytłumacz, że potrafisz pokazać kalendarz albo dodać wydarzenie.',
+            'NIE odpowiadaj na pytanie, nawet jeśli znasz odpowiedź (np. wiedza ogólna, pogawędka) - zamiast tego ' +
+            'krótko i po ludzku wytłumacz, że jesteś botem kalendarza i potrafisz tylko pokazać kalendarz albo ' +
+            'dodać wydarzenie.',
         },
       ],
     },
