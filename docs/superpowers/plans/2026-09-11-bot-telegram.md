@@ -1540,6 +1540,7 @@ Zadania 8, po dodaniu ekranu parowania w apce.
 - Modyfikacja: `src/lib/supabase.ts`
 - Modyfikacja: `src/useDomownicy.ts`
 - Modyfikacja: `src/MojDom.tsx`
+- Modyfikacja: `src/App.tsx`
 - Modyfikacja: `src/style/wspolne.css`
 - Modyfikacja: `.env.example`
 
