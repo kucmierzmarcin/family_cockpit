@@ -824,3 +824,65 @@ end
 $$;
 
 revoke execute on function public.polacz_telegram(text, bigint) from public, anon, authenticated;
+
+-- Szkic wydarzenia czekajacy na potwierdzenie "tak"/"nie" - jeden na osobe,
+-- nowa propozycja nadpisuje poprzednia (member_id jest kluczem glownym).
+create table if not exists public.telegram_drafts (
+  member_id   uuid primary key references public.members(id) on delete cascade,
+  event_data  jsonb not null,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.telegram_drafts enable row level security;
+
+-- Dane potrzebne botowi do obslugi wiadomosci - jedno zapytanie zamiast
+-- dwoch osobnych (member + household).
+create or replace function public.domownik_po_czacie(p_chat_id bigint)
+  returns table (member_id uuid, household_id uuid, imie text)
+  language sql stable security definer set search_path = public
+as $$
+  select m.id, m.household_id, m.name
+    from public.members m
+   where m.telegram_chat_id = p_chat_id
+$$;
+
+revoke execute on function public.domownik_po_czacie(bigint) from public, anon, authenticated;
+
+-- Zapis wydarzenia zaproponowanego przez bota. p_member NIE jest tu
+-- weryfikowany wzgledem zadnej sesji - ufa mu tylko Edge Function, ktora
+-- wczesniej ustalila je przez domownik_po_czacie(). household_id bierzemy
+-- z domownika, nie z argumentu, zeby nie dalo sie podac cudzego domu.
+create or replace function public.dodaj_wydarzenie_bota(
+  p_member     uuid,
+  p_tytul      text,
+  p_poczatek   timestamp,
+  p_koniec     timestamp,
+  p_calodniowe boolean,
+  p_osoby      uuid[]
+) returns uuid
+  language plpgsql volatile security definer set search_path = public
+as $$
+declare
+  wlasny_dom uuid;
+  nowe_id uuid;
+begin
+  select household_id into wlasny_dom from public.members where id = p_member;
+  if wlasny_dom is null then
+    raise exception 'Nieznany domownik.';
+  end if;
+
+  insert into public.events (title, starts_at, ends_at, all_day, household_id, created_by)
+  values (p_tytul, p_poczatek, p_koniec, p_calodniowe, wlasny_dom, p_member)
+  returning id into nowe_id;
+
+  if p_osoby is not null and array_length(p_osoby, 1) > 0 then
+    insert into public.event_members (event_id, member_id)
+    select nowe_id, unnest(p_osoby);
+  end if;
+
+  return nowe_id;
+end
+$$;
+
+revoke execute on function public.dodaj_wydarzenie_bota(uuid, text, timestamp, timestamp, boolean, uuid[])
+  from public, anon, authenticated;
