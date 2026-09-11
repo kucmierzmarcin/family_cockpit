@@ -28,6 +28,7 @@ import { UkladBiurko } from './uklad/UkladBiurko'
 import { UkladTelefon } from './uklad/UkladTelefon'
 import { KontoKarta } from './uklad/KontoKarta'
 import { Arkusz } from './uklad/Arkusz'
+import { Popup } from './uklad/Popup'
 import { SterowanieKalendarza, type Widok } from './widoki/SterowanieKalendarza'
 import './style/index.css'
 
@@ -168,7 +169,6 @@ function App({ profil, email }: Props) {
         setDodawanie(null)
         setPokazImportAI(false)
       }}
-      pokazTytul={!telefon}
     />
   )
 
@@ -202,13 +202,127 @@ function App({ profil, email }: Props) {
           setPokazImportAI(false)
           setDodawanie(null)
         }}
-        pokazTytul={!telefon}
       />
     )
 
-  // Ten sam warunek otwiera arkusz na telefonie i formularz w panelu na
-  // komputerze - dwa miejsca, jedna definicja "otwarte".
+  // Ten sam warunek otwiera arkusz na telefonie i popup na komputerze - dwa
+  // miejsca, jedna definicja "otwarte".
   const formularzOtwarty = dodawanie === 'kalendarz' || edytowane !== null
+  const tytulFormularza = edytowane
+    ? 'Zmień wydarzenie'
+    : pokazImportAI
+      ? 'Importuj z AI'
+      : 'Nowe wydarzenie'
+
+  function zamknijFormularz() {
+    setDodawanie(null)
+    setEdytowane(null)
+    setPokazImportAI(false)
+  }
+
+  // Ta sama zawartosc niezaleznie od tego, czy stoi sama (komputer) czy obok
+  // panelu z lista dnia (telefon, widok Miesiac) - patrz `tresc` nizej.
+  const sekcjaKalendarza = (
+    <section className="kalendarz" aria-label="Kalendarz">
+      {!telefon && (
+        <SterowanieKalendarza
+          naglowek={naglowek}
+          widok={widok}
+          onWidok={setWidok}
+          onPrzesun={przesun}
+          onDzis={() => setKotwica(new Date())}
+          akcja={
+            <button
+              type="button"
+              className="dodaj-wydarzenie-gorne"
+              onClick={() => setDodawanie('kalendarz')}
+            >
+              + Dodaj wydarzenie
+            </button>
+          }
+        />
+      )}
+
+      {osoby.domownicy.length > 0 && (
+        <div className="filtry" role="group" aria-label="Pokaż wydarzenia osób">
+          {osoby.domownicy.map((d) => {
+            const widac = !ukryci.has(d.id)
+            return (
+              <button
+                key={d.id}
+                type="button"
+                className={`filtr${widac ? ' wlaczony' : ''}`}
+                aria-pressed={widac}
+                onClick={() => przelaczFiltr(d.id)}
+              >
+                <span
+                  className="kropka"
+                  style={{ background: kolor(d.color).kropka }}
+                  aria-hidden="true"
+                />
+                {d.name}
+              </button>
+            )
+          })}
+          <button
+            type="button"
+            className={`filtr${!ukryci.has(BEZ_OSOBY) ? ' wlaczony' : ''}`}
+            aria-pressed={!ukryci.has(BEZ_OSOBY)}
+            onClick={() => przelaczFiltr(BEZ_OSOBY)}
+          >
+            <span className="kropka kropka-pusta" aria-hidden="true" />
+            Bez osoby
+          </button>
+        </div>
+      )}
+
+      {widok === 'miesiac' && (
+        <Miesiac
+          dni={dniMiesiaca}
+          wydarzenia={widoczne}
+          osobaPoId={osobaPoId}
+          dzisiaj={dzisiaj}
+          wybranyDzien={klucz(kotwica)}
+          ladowanie={dane.ladowanie}
+          maksPigulek={telefon ? 2 : 3}
+          onWybierzDzien={(k) => {
+            setKotwica(new Date(`${k}T12:00:00`))
+            setEdytowane(null)
+            // Na komputerze nie ma juz panelu z lista dnia - klikniecie
+            // dnia przenosi wprost do jego szczegolow, tak jak juz dzis
+            // robi klik w naglowek dnia w widoku Tydzien.
+            if (!telefon) setWidok('dzien')
+          }}
+        />
+      )}
+
+      {widok === 'tydzien' && (
+        <Tydzien
+          dni={dniTygodnia}
+          wydarzenia={widoczne}
+          osobaPoId={osobaPoId}
+          dzisiaj={dzisiaj}
+          onKlikWydarzenie={setEdytowane}
+          onKlikDzien={(d) => {
+            setKotwica(d)
+            setWidok('dzien')
+          }}
+          wypelnijOkno={szerokiKalendarz}
+        />
+      )}
+
+      {widok === 'dzien' && (
+        <Dzien
+          dzien={kotwica}
+          wydarzenia={widoczne}
+          osobaPoId={osobaPoId}
+          dzisiaj={dzisiaj}
+          onKlikWydarzenie={setEdytowane}
+          wypelnijOkno={szerokiKalendarz}
+        />
+      )}
+    </section>
+  )
 
   const tresc = (
     <>
@@ -248,147 +362,35 @@ function App({ profil, email }: Props) {
           onUstawPowiadomienia={osoby.ustawPowiadomienia}
           dodawanie={trybDodawania('dom')}
         />
-      ) : (
+      ) : telefon ? (
         <div className="uklad">
-          <section className="kalendarz" aria-label="Kalendarz">
-            {!telefon && (
-              <SterowanieKalendarza
-                naglowek={naglowek}
-                widok={widok}
-                onWidok={setWidok}
-                onPrzesun={przesun}
-                onDzis={() => setKotwica(new Date())}
-              />
-            )}
+          {sekcjaKalendarza}
 
-            {osoby.domownicy.length > 0 && (
-              <div className="filtry" role="group" aria-label="Pokaż wydarzenia osób">
-                {osoby.domownicy.map((d) => {
-                  const widac = !ukryci.has(d.id)
-                  return (
-                    <button
-                      key={d.id}
-                      type="button"
-                      className={`filtr${widac ? ' wlaczony' : ''}`}
-                      aria-pressed={widac}
-                      onClick={() => przelaczFiltr(d.id)}
-                    >
-                      <span
-                        className="kropka"
-                        style={{ background: kolor(d.color).kropka }}
-                        aria-hidden="true"
-                      />
-                      {d.name}
-                    </button>
-                  )
-                })}
-                <button
-                  type="button"
-                  className={`filtr${!ukryci.has(BEZ_OSOBY) ? ' wlaczony' : ''}`}
-                  aria-pressed={!ukryci.has(BEZ_OSOBY)}
-                  onClick={() => przelaczFiltr(BEZ_OSOBY)}
-                >
-                  <span className="kropka kropka-pusta" aria-hidden="true" />
-                  Bez osoby
-                </button>
-              </div>
-            )}
-
-            {widok === 'miesiac' && (
-              <Miesiac
-                dni={dniMiesiaca}
-                wydarzenia={widoczne}
-                osobaPoId={osobaPoId}
-                dzisiaj={dzisiaj}
-                wybranyDzien={klucz(kotwica)}
-                ladowanie={dane.ladowanie}
-                maksPigulek={telefon ? 2 : 3}
-                onWybierzDzien={(k) => {
-                  setKotwica(new Date(`${k}T12:00:00`))
-                  setEdytowane(null)
-                }}
-              />
-            )}
-
-            {widok === 'tydzien' && (
-              <Tydzien
-                dni={dniTygodnia}
-                wydarzenia={widoczne}
-                osobaPoId={osobaPoId}
-                dzisiaj={dzisiaj}
-                onKlikWydarzenie={setEdytowane}
-                onKlikDzien={(d) => {
-                  setKotwica(d)
-                  setWidok('dzien')
-                }}
-                wypelnijOkno={szerokiKalendarz}
-              />
-            )}
-
-            {widok === 'dzien' && (
-              <Dzien
+          {widok === 'miesiac' && !edytowane && (
+            <aside className="panel" aria-label="Szczegóły dnia">
+              <ListaDnia
                 dzien={kotwica}
                 wydarzenia={widoczne}
                 osobaPoId={osobaPoId}
-                dzisiaj={dzisiaj}
-                onKlikWydarzenie={setEdytowane}
-                wypelnijOkno={szerokiKalendarz}
+                onKlik={setEdytowane}
               />
-            )}
-          </section>
-
-          {telefon ? (
-            <>
-              {widok === 'miesiac' && !edytowane && (
-                <aside className="panel" aria-label="Szczegóły dnia">
-                  <ListaDnia
-                    dzien={kotwica}
-                    wydarzenia={widoczne}
-                    osobaPoId={osobaPoId}
-                    onKlik={setEdytowane}
-                  />
-                </aside>
-              )}
-              <Arkusz
-                otwarty={formularzOtwarty}
-                tytul={edytowane ? 'Zmień wydarzenie' : pokazImportAI ? 'Importuj z AI' : 'Nowe wydarzenie'}
-                onZamknij={() => {
-                  setDodawanie(null)
-                  setEdytowane(null)
-                  setPokazImportAI(false)
-                }}
-              >
-                {przelacznikImportu}
-                {panelDodawania}
-              </Arkusz>
-            </>
-          ) : (
-            <aside className="panel" aria-label="Szczegóły dnia">
-              {widok === 'miesiac' && !formularzOtwarty && (
-                <ListaDnia
-                  dzien={kotwica}
-                  wydarzenia={widoczne}
-                  osobaPoId={osobaPoId}
-                  onKlik={setEdytowane}
-                />
-              )}
-              {formularzOtwarty ? (
-                <>
-                  {przelacznikImportu}
-                  {panelDodawania}
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="dodaj-wydarzenie"
-                  onClick={() => setDodawanie('kalendarz')}
-                >
-                  + Dodaj wydarzenie
-                </button>
-              )}
             </aside>
           )}
+
+          <Arkusz otwarty={formularzOtwarty} tytul={tytulFormularza} onZamknij={zamknijFormularz}>
+            {przelacznikImportu}
+            {panelDodawania}
+          </Arkusz>
         </div>
+      ) : (
+        <>
+          {sekcjaKalendarza}
+
+          <Popup otwarty={formularzOtwarty} tytul={tytulFormularza} onZamknij={zamknijFormularz}>
+            {przelacznikImportu}
+            {panelDodawania}
+          </Popup>
+        </>
       )}
     </>
   )

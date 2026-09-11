@@ -26,10 +26,6 @@ type Props = {
   ) => Promise<boolean>
   onUsun?: (zakres: ZakresZmiany) => void
   onZamknij: () => void
-  /** Czy pokazać własny nagłówek. Domyślnie tak - na komputerze to jedyny tytuł;
-   * na telefonie Arkusz już pokazuje ten sam tekst w swoim pasku, więc App.tsx
-   * przekazuje tu `false`. */
-  pokazTytul?: boolean
 }
 
 /** Rozbija chwilę na parę pól formularza: datę i godzinę. */
@@ -50,7 +46,6 @@ export function FormularzWydarzenia({
   onZapisz,
   onUsun,
   onZamknij,
-  pokazTytul = true,
 }: Props) {
   const edycja = Boolean(wydarzenie)
   const wSerii = Boolean(wydarzenie?.seriaId)
@@ -144,10 +139,6 @@ export function FormularzWydarzenia({
 
   return (
     <form className="formularz formularz-wydarzenia" onSubmit={(e) => void wyslij(e)}>
-      {pokazTytul && (
-        <h2 className="panel-tytul">{edycja ? 'Zmień wydarzenie' : 'Nowe wydarzenie'}</h2>
-      )}
-
       {blad && (
         <p className="blad" role="alert">
           {blad}

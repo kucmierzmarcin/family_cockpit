@@ -27,8 +27,6 @@ type Props = {
   domownicy: DomownikDb[]
   onZapisz: (pozycje: PozycjaImportu[]) => Promise<string | null>
   onZamknij: () => void
-  /** Czy pokazać własny nagłówek - patrz analogiczny prop w FormularzWydarzenia. */
-  pokazTytul?: boolean
 }
 
 async function plikDoBase64(plik: File): Promise<string> {
@@ -38,7 +36,7 @@ async function plikDoBase64(plik: File): Promise<string> {
   return btoa(binarne)
 }
 
-export function ImportAI({ domownicy, onZapisz, onZamknij, pokazTytul = true }: Props) {
+export function ImportAI({ domownicy, onZapisz, onZamknij }: Props) {
   const [prompt, setPrompt] = useState('')
   const [plik, setPlik] = useState<File | null>(null)
   const [rozpoznawanie, setRozpoznawanie] = useState(false)
@@ -130,8 +128,6 @@ export function ImportAI({ domownicy, onZapisz, onZamknij, pokazTytul = true }: 
 
   return (
     <div className="formularz formularz-import-ai">
-      {pokazTytul && <h2 className="panel-tytul">Importuj z AI</h2>}
-
       {!wynik ? (
         <>
           {bladRozpoznania && (

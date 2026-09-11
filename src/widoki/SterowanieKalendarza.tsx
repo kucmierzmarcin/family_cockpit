@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 export type Widok = 'miesiac' | 'tydzien' | 'dzien'
 
 const NAZWY_WIDOKOW: Record<Widok, string> = {
@@ -12,6 +14,8 @@ type Props = {
   onWidok: (w: Widok) => void
   onPrzesun: (kierunek: -1 | 1) => void
   onDzis: () => void
+  /** Dodatkowy przycisk w pasku - np. "Dodaj wydarzenie" na komputerze. */
+  akcja?: ReactNode
 }
 
 /**
@@ -25,6 +29,7 @@ export function SterowanieKalendarza({
   onWidok,
   onPrzesun,
   onDzis,
+  akcja,
 }: Props) {
   return (
     <>
@@ -49,6 +54,7 @@ export function SterowanieKalendarza({
         <button type="button" className="dzis" onClick={onDzis}>
           Dziś
         </button>
+        {akcja}
       </div>
 
       <div className="zakladki widoki" role="group" aria-label="Zakres widoku">

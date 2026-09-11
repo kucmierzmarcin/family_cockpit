@@ -28,9 +28,9 @@
 
 /* Widok dnia/tygodnia na szerokim ekranie: kokpit ma dokładnie wysokość okna,
    nic nad siatką godzin się nie rusza - przewija się tylko siatka w środku
-   (patrz .sg-przewijane w kalendarz.css). Poniżej 900px panel i tak schodzi
-   pod kalendarz (patrz wspolne.css), więc strona przewija się jak dotychczas
-   i ten tryb się nie włącza. */
+   (patrz .sg-przewijane i `.kokpit-pelny .kalendarz` w kalendarz.css). Na
+   komputerze `.uklad`/`.panel` renderują się tylko na telefonie (patrz
+   App.tsx), więc ten tryb ich nie dotyczy. */
 @media (min-width: 901px) {
   .kokpit-pelny {
     height: 100vh;
@@ -42,18 +42,6 @@
 
   .kokpit-pelny .naglowek {
     flex: none;
-  }
-
-  .kokpit-pelny .uklad {
-    flex: 1;
-    min-height: 0;
-    align-items: stretch;
-  }
-
-  /* Dłuższy formularz (np. z opcjami powtarzania) mieści się w wysokości
-     panelu, przewijając się w środku - reszta strony stoi w miejscu. */
-  .kokpit-pelny .panel {
-    overflow-y: auto;
   }
 }
 
@@ -201,8 +189,9 @@
   }
 }
 
-/* Arkusz pokazuje się wyłącznie na telefonie - na biurku formularze zostają
-   wbudowane w stronę, więc Arkusz w ogóle się tam nie renderuje. */
+/* Arkusz (telefon) i Popup (komputer) dzielą to samo tło i te same klasy
+   wewnętrzne (.arkusz-pasek/.arkusz-zamknij/.arkusz-tresc) - różni je tylko
+   pozycja i kształt kontenera, patrz .popup niżej. */
 .arkusz-tlo {
   position: fixed;
   inset: 0;
@@ -224,6 +213,22 @@
     calc(var(--odstep-4) + env(safe-area-inset-bottom));
   background: var(--karta);
   border-radius: var(--promien-l) var(--promien-l) 0 0;
+  box-shadow: var(--cien);
+}
+
+.popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--warstwa-arkusz);
+  display: flex;
+  flex-direction: column;
+  width: min(480px, calc(100vw - 40px));
+  max-height: 85vh;
+  padding: var(--odstep-4);
+  background: var(--karta);
+  border-radius: var(--promien-l);
   box-shadow: var(--cien);
 }
 

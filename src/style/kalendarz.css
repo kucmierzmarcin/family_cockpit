@@ -63,6 +63,25 @@
   border-color: var(--akcent);
 }
 
+/* Jedyny sposób dodania wydarzenia na komputerze - otwiera .popup zamiast
+   zawsze widocznego panelu obok kalendarza (patrz App.tsx, Popup.tsx). */
+.dodaj-wydarzenie-gorne {
+  padding: 9px 18px;
+  border: none;
+  border-radius: 10px;
+  background: var(--akcent);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.dodaj-wydarzenie-gorne:hover {
+  background: #6b21d6;
+}
+
 /* --- Siatka dni --- */
 
 .dni-tygodnia,
@@ -484,9 +503,10 @@
    liczyć ją na oko z `vh` - tylko `.sg-przewijane` przewija się w środku. */
 @media (min-width: 901px) {
   .kokpit-pelny .kalendarz {
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    min-height: 0;
   }
 
   .kokpit-pelny .siatka-godzin {
@@ -621,26 +641,6 @@
   }
 }
 
-/* Panel z listą dnia schodzi pod siatkę już dziś: blok `@media (max-width: 900px)`
-   przełącza `.uklad` na jedną kolumnę, a `.panel` stoi w drzewie za sekcją
-   kalendarza. Nic tu nie dokładamy - sprawdź tylko w kroku 3, że tak jest. */
-
-/* Formularz "Nowe wydarzenie" chowa się za tym przyciskiem, dopóki ktoś
-   naprawdę nie chce czegoś dodać - lista dnia zostaje na wierzchu. */
-.dodaj-wydarzenie {
-  width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: 10px;
-  background: var(--akcent);
-  color: #fff;
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.dodaj-wydarzenie:hover {
-  background: #6b21d6;
-}
+/* `.uklad`/`.panel` (lista dnia obok/pod kalendarzem) zostały tylko dla
+   telefonu - patrz App.tsx. Na komputerze kalendarz stoi sam, a dodawanie
+   i edycja wydarzenia otwierają się w `.popup` (Popup.tsx). */
