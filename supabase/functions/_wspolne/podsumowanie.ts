@@ -138,11 +138,12 @@ const STOPKA = 'Wyłączysz to w Kokpicie → Mój dom.'
 export function zbudujPodsumowanie(
   dane: DanePodsumowania,
   odbiorca: Odbiorca,
-  opcje: { linkAplikacji?: string } = {},
+  opcje: { linkAplikacji?: string; pokazStopke?: boolean } = {},
 ): Mail {
   const czesci = sekcje(dane, odbiorca.memberId)
   const powitanie = `Dzień dobry, ${odbiorca.imie}!`
   const link = opcje.linkAplikacji?.trim()
+  const stopka = opcje.pokazStopke ?? true
 
   const tekst = [
     powitanie,
@@ -154,9 +155,17 @@ export function zbudujPodsumowanie(
           '',
         ])
       : [SPOKOJNY, '']),
-    STOPKA,
+    ...(stopka ? [STOPKA] : []),
     ...(link ? [link] : []),
   ].join('\n')
+
+  const stopkaHtml = stopka
+    ? `<p style="margin:24px 0 0;font-size:12px;color:#9ca3af">${escapuj(STOPKA)}${
+        link ? ` <a href="${escapuj(link)}" style="color:#7c3aed">Otwórz Kokpit</a>` : ''
+      }</p>`
+    : link
+      ? `<p style="margin:24px 0 0;font-size:12px;color:#9ca3af"><a href="${escapuj(link)}" style="color:#7c3aed">Otwórz Kokpit</a></p>`
+      : ''
 
   const html = [
     '<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;',
@@ -176,11 +185,8 @@ export function zbudujPodsumowanie(
             '</ul>',
         )
       : [`<p style="margin:0 0 18px">${escapuj(SPOKOJNY)}</p>`]),
-    `<p style="margin:24px 0 0;font-size:12px;color:#9ca3af">${escapuj(STOPKA)}`,
-    link
-      ? ` <a href="${escapuj(link)}" style="color:#7c3aed">Otwórz Kokpit</a>`
-      : '',
-    '</p></div>',
+    stopkaHtml,
+    '</div>',
   ].join('')
 
   return { temat: temat(dane), tekst, html }

@@ -224,3 +224,26 @@ describe('zbudujPodsumowanie', () => {
     expect(zbudujPodsumowanie(zlosliwa, ODBIORCA).html).toContain('&lt;b&gt;hej&lt;/b&gt;')
   })
 })
+
+describe('zbudujPodsumowanie - pokazStopke', () => {
+  it('domyslnie pokazuje stopke (zgodnosc wsteczna z mailem)', () => {
+    const { tekst } = zbudujPodsumowanie(PUSTE, ODBIORCA)
+    expect(tekst).toContain('Wyłączysz to w Kokpicie')
+  })
+
+  it('pokazStopke:false chowa zdanie o wylaczeniu, ale nie reszte tekstu', () => {
+    const { tekst } = zbudujPodsumowanie(PUSTE, ODBIORCA, { pokazStopke: false })
+    expect(tekst).not.toContain('Wyłączysz to w Kokpicie')
+    expect(tekst).toContain('Dzień dobry, Ola!')
+  })
+
+  it('link dziala tez bez stopki', () => {
+    const { tekst, html } = zbudujPodsumowanie(PUSTE, ODBIORCA, {
+      pokazStopke: false,
+      linkAplikacji: 'https://kokpit.example',
+    })
+    expect(tekst).toContain('https://kokpit.example')
+    expect(html).toContain('https://kokpit.example')
+    expect(html).not.toContain('Wyłączysz to w Kokpicie')
+  })
+})
