@@ -19,9 +19,22 @@ export type ProponowaneWydarzenie = {
   calodniowe: boolean
 }
 
+export type ProponowanaPozycjaZakupow = {
+  nazwa: string
+  ilosc: string | null
+  lista: string | null // null = uzytkownik nie nazwal listy, kod sam decyduje
+}
+
+export type ProponowanaNotatka = {
+  tresc: string
+  przypieta: boolean
+}
+
 export type OdpowiedzBota =
   | { rodzaj: 'podsumowanie'; data: string }
   | { rodzaj: 'wydarzenie'; wydarzenie: ProponowaneWydarzenie }
+  | { rodzaj: 'zakupy'; pozycja: ProponowanaPozycjaZakupow }
+  | { rodzaj: 'notatka'; notatka: ProponowanaNotatka }
   | { rodzaj: 'tekst'; tresc: string }
 
 export type Potwierdzenie = 'tak' | 'nie' | 'niejasne'
@@ -30,13 +43,15 @@ const MODEL = 'gemini-3.6-flash'
 
 const NARZEDZIE_PODSUMOWANIE = 'pokaz_podsumowanie'
 const NARZEDZIE_WYDARZENIE = 'zaproponuj_wydarzenie'
+const NARZEDZIE_ZAKUPY = 'dodaj_pozycje_zakupow'
+const NARZEDZIE_NOTATKA = 'dodaj_notatke'
 const NARZEDZIE_TEKST = 'odpowiedz_tekstem'
 
 function danaDzien(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
 
-function schematNarzedzi(domownicy: string[]) {
+function schematNarzedzi(domownicy: string[], listyZakupow: string[]) {
   return [
     {
       name: NARZEDZIE_PODSUMOWANIE,
@@ -72,6 +87,38 @@ function schematNarzedzi(domownicy: string[]) {
       },
     },
     {
+      name: NARZEDZIE_ZAKUPY,
+      description: 'Uzytkownik prosi o dodanie pozycji na liste zakupow.',
+      parameters: {
+        type: 'object',
+        properties: {
+          nazwa: { type: 'string', description: 'Nazwa produktu, np. "Mleko".' },
+          ilosc: { type: 'string', description: 'Opcjonalnie ilosc, np. "1 l", "2 szt.". Pomin, jesli nie podano.' },
+          lista: {
+            type: 'string',
+            ...(listyZakupow.length > 0 ? { enum: listyZakupow } : {}),
+            description:
+              listyZakupow.length > 0
+                ? 'Nazwa listy, jesli uzytkownik ja podal - dokladnie jedna z istniejacych list.'
+                : 'Nazwa listy, jesli uzytkownik ja podal (w tym domu nie ma jeszcze zadnej listy).',
+          },
+        },
+        required: ['nazwa'],
+      },
+    },
+    {
+      name: NARZEDZIE_NOTATKA,
+      description: 'Uzytkownik prosi o dodanie notatki/ogloszenia na tablice rodzinna.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tresc: { type: 'string' },
+          przypieta: { type: 'boolean', description: 'Czy notatka ma byc przypieta na gorze tablicy.' },
+        },
+        required: ['tresc'],
+      },
+    },
+    {
       name: NARZEDZIE_TEKST,
       description: 'Wiadomosc nie pasuje do zadnej z powyzszych akcji - odpowiedz krotko, po ludzku.',
       parameters: {
@@ -85,8 +132,13 @@ function schematNarzedzi(domownicy: string[]) {
   ]
 }
 
-/** Zapytanie do Gemini generateContent z trzema narzedziami do wyboru. */
-export function budujZapytanieBota(dzisiaj: Date, domownicy: string[], wiadomosc: string) {
+/** Zapytanie do Gemini generateContent z pieciu narzedziami do wyboru. */
+export function budujZapytanieBota(
+  dzisiaj: Date,
+  domownicy: string[],
+  listyZakupow: string[],
+  wiadomosc: string,
+) {
   return {
     model: MODEL,
     systemInstruction: {
@@ -95,18 +147,21 @@ export function budujZapytanieBota(dzisiaj: Date, domownicy: string[], wiadomosc
           text:
             `Jesteś botem rodzinnego kalendarza Kokpit. Dzisiaj jest ${danaDzien(dzisiaj)}. ` +
             `Domownicy w tym domu: ${domownicy.length > 0 ? domownicy.join(', ') : '(brak)'}. ` +
+            `Listy zakupów w tym domu: ${listyZakupow.length > 0 ? listyZakupow.join(', ') : '(brak)'}. ` +
             'Użyj narzędzia pasującego do wiadomości: pokaz_podsumowanie gdy pytają o kalendarz/tablicę/zakupy na ' +
             'dowolny dzień (pole "data" musi być policzoną datą RRRR-MM-DD, nie nazwą dnia), ' +
             'zaproponuj_wydarzenie gdy proszą o dodanie czegoś do kalendarza (pole "czlonek" musi być dokładnie ' +
-            'jednym z podanych imion domowników albo "Wspólne"), odpowiedz_tekstem w każdym innym przypadku - ' +
+            'jednym z podanych imion domowników albo "Wspólne"), dodaj_pozycje_zakupow gdy proszą o dopisanie ' +
+            'czegoś na listę zakupów, dodaj_notatke gdy proszą o dopisanie notatki/ogłoszenia na tablicę, ' +
+            'odpowiedz_tekstem w każdym innym przypadku - ' +
             'NIE odpowiadaj na pytanie, nawet jeśli znasz odpowiedź (np. wiedza ogólna, pogawędka) - zamiast tego ' +
-            'krótko i po ludzku wytłumacz, że jesteś botem kalendarza i potrafisz tylko pokazać kalendarz albo ' +
-            'dodać wydarzenie.',
+            'krótko i po ludzku wytłumacz, że jesteś botem kalendarza i potrafisz tylko pokazać kalendarz, dodać ' +
+            'wydarzenie, dopisać coś na listę zakupów albo notatkę na tablicę.',
         },
       ],
     },
     contents: [{ role: 'user', parts: [{ text: wiadomosc }] }],
-    tools: [{ functionDeclarations: schematNarzedzi(domownicy) }],
+    tools: [{ functionDeclarations: schematNarzedzi(domownicy, listyZakupow) }],
     toolConfig: { functionCallingConfig: { mode: 'ANY' } },
     generationConfig: { maxOutputTokens: 2000, thinkingConfig: { thinkingLevel: 'minimal' } },
   }
@@ -151,6 +206,30 @@ export function rozpoznajOdpowiedz(
     return {
       rodzaj: 'wydarzenie',
       wydarzenie: { tytul: a.tytul, czlonek: a.czlonek, data: a.data, start, koniec, calodniowe },
+    }
+  }
+
+  if (wywolanie.nazwa === NARZEDZIE_ZAKUPY) {
+    if (typeof a.nazwa !== 'string' || !a.nazwa.trim()) {
+      throw new Error('Brak nazwy pozycji do dodania na zakupy.')
+    }
+    return {
+      rodzaj: 'zakupy',
+      pozycja: {
+        nazwa: a.nazwa,
+        ilosc: typeof a.ilosc === 'string' && a.ilosc.trim() ? a.ilosc : null,
+        lista: typeof a.lista === 'string' && a.lista.trim() ? a.lista : null,
+      },
+    }
+  }
+
+  if (wywolanie.nazwa === NARZEDZIE_NOTATKA) {
+    if (typeof a.tresc !== 'string' || !a.tresc.trim()) {
+      throw new Error('Brak treści notatki.')
+    }
+    return {
+      rodzaj: 'notatka',
+      notatka: { tresc: a.tresc, przypieta: Boolean(a.przypieta) },
     }
   }
 

@@ -8,6 +8,8 @@ import {
   rozpoznajOdpowiedz,
   rozpoznajPotwierdzenie,
   zlozTimestamp,
+  type ProponowanaNotatka,
+  type ProponowanaPozycjaZakupow,
   type ProponowaneWydarzenie,
 } from '../_wspolne/botAI.ts'
 import { zapytajGeminiNarzedzie } from '../_wspolne/gemini.ts'
@@ -16,7 +18,8 @@ import { wyslijWiadomosc } from '../_wspolne/telegram.ts'
 
 const SZKIC_WAZNY_MINUT = 10
 
-type Domownik = { member_id: string; household_id: string; imie: string }
+type Domownik = { member_id: string; household_id: string; imie: string; rola: string }
+type ListaZakupow = { id: string; name: string }
 
 Deno.serve(async (req) => {
   const baza = createClient(
@@ -190,7 +193,14 @@ async function obsluzWiadomosc(
   const czlonkowie = await pobierzCzlonkow(baza, domownik.household_id)
   const imiona = [...czlonkowie.keys()]
 
-  const zapytanie = budujZapytanieBota(dzisiaj, imiona, tekst)
+  const { data: listyDb, error: bladList } = await baza
+    .from('shopping_lists')
+    .select('id, name')
+    .eq('household_id', domownik.household_id)
+  if (bladList) throw new Error(bladList.message)
+  const listy = (listyDb ?? []) as ListaZakupow[]
+
+  const zapytanie = budujZapytanieBota(dzisiaj, imiona, listy.map((l) => l.name), tekst)
   const wywolanie = await zapytajGeminiNarzedzie(zapytanie, kluczApi)
   const odpowiedz = rozpoznajOdpowiedz(wywolanie, imiona)
 
@@ -217,6 +227,16 @@ async function obsluzWiadomosc(
     return
   }
 
+  if (odpowiedz.rodzaj === 'zakupy') {
+    await obsluzZakupy(baza, domownik, chatId, listy, odpowiedz.pozycja)
+    return
+  }
+
+  if (odpowiedz.rodzaj === 'notatka') {
+    await obsluzNotatke(baza, domownik, chatId, odpowiedz.notatka)
+    return
+  }
+
   const { error: bladSzkicu } = await baza.from('telegram_drafts').upsert({
     member_id: domownik.member_id,
     event_data: odpowiedz.wydarzenie,
@@ -224,6 +244,89 @@ async function obsluzWiadomosc(
   })
   if (bladSzkicu) throw new Error(bladSzkicu.message)
   await wyslijWiadomosc(chatId, `Zapisać: ${opisPropozycji(odpowiedz.wydarzenie)}? (tak/nie)`)
+}
+
+/**
+ * Dodaje pozycje na liste zakupow - zapisuje sie od razu, bez potwierdzenia
+ * tak/nie (nizsze ryzyko pomylki niz przy wydarzeniu, latwo poprawic w apce).
+ * Wybor listy: nazwana i istniejaca -> ta; nazwana i nieistniejaca -> zaklada
+ * ja tylko rodzic; nienazwana i jedna lista w domu -> ta; nienazwana i zero
+ * albo kilka list -> pyta uzytkownika, nic nie zapisuje.
+ */
+async function obsluzZakupy(
+  baza: ReturnType<typeof createClient>,
+  domownik: Domownik,
+  chatId: number,
+  listy: ListaZakupow[],
+  pozycja: ProponowanaPozycjaZakupow,
+): Promise<void> {
+  let listaId: string
+  let nazwaListy: string
+
+  if (pozycja.lista) {
+    const znaleziona = listy.find((l) => l.name.toLowerCase() === pozycja.lista!.toLowerCase())
+    if (znaleziona) {
+      listaId = znaleziona.id
+      nazwaListy = znaleziona.name
+    } else if (domownik.rola !== 'rodzic') {
+      await wyslijWiadomosc(
+        chatId,
+        `Nie ma jeszcze listy „${pozycja.lista}". Poproś rodzica, żeby ją założył w aplikacji.`,
+      )
+      return
+    } else {
+      const { data: nowaId, error: bladZalozenia } = await baza.rpc('zaloz_liste_zakupow_bota', {
+        p_member: domownik.member_id,
+        p_nazwa: pozycja.lista,
+      })
+      if (bladZalozenia) throw new Error(bladZalozenia.message)
+      listaId = nowaId as string
+      nazwaListy = pozycja.lista
+    }
+  } else if (listy.length === 1) {
+    listaId = listy[0].id
+    nazwaListy = listy[0].name
+  } else if (listy.length === 0) {
+    await wyslijWiadomosc(
+      chatId,
+      domownik.rola === 'rodzic'
+        ? 'Nie masz jeszcze żadnej listy zakupów. Napisz np. "dodaj mleko do listy Spożywcze", żeby ją założyć.'
+        : 'Nie masz jeszcze żadnej listy zakupów. Poproś rodzica, żeby ją założył w aplikacji.',
+    )
+    return
+  } else {
+    await wyslijWiadomosc(chatId, `Do której listy dodać? Masz: ${listy.map((l) => l.name).join(', ')}.`)
+    return
+  }
+
+  const { error: bladDodania } = await baza.rpc('dodaj_pozycje_zakupow_bota', {
+    p_member: domownik.member_id,
+    p_lista_id: listaId,
+    p_nazwa: pozycja.nazwa,
+    p_ilosc: pozycja.ilosc,
+  })
+  if (bladDodania) throw new Error(bladDodania.message)
+
+  await wyslijWiadomosc(
+    chatId,
+    `Dodane ✅ na listę „${nazwaListy}": ${pozycja.nazwa}${pozycja.ilosc ? ` (${pozycja.ilosc})` : ''}`,
+  )
+}
+
+/** Dodaje notatke na tablice - zapisuje sie od razu, bez potwierdzenia tak/nie. */
+async function obsluzNotatke(
+  baza: ReturnType<typeof createClient>,
+  domownik: Domownik,
+  chatId: number,
+  notatka: ProponowanaNotatka,
+): Promise<void> {
+  const { error } = await baza.rpc('dodaj_notatke_bota', {
+    p_member: domownik.member_id,
+    p_tresc: notatka.tresc,
+    p_przypieta: notatka.przypieta,
+  })
+  if (error) throw new Error(error.message)
+  await wyslijWiadomosc(chatId, 'Dodane na tablicę ✅')
 }
 
 async function pobierzCzlonkow(

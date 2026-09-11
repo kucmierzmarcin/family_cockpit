@@ -836,12 +836,13 @@ create table if not exists public.telegram_drafts (
 alter table public.telegram_drafts enable row level security;
 
 -- Dane potrzebne botowi do obslugi wiadomosci - jedno zapytanie zamiast
--- dwoch osobnych (member + household).
+-- dwoch osobnych (member + household). `rola` dodana dla dodawania
+-- zakupow/notatek - trzeba wiedziec, czy piszacy moze zalozyc nowa liste.
 create or replace function public.domownik_po_czacie(p_chat_id bigint)
-  returns table (member_id uuid, household_id uuid, imie text)
+  returns table (member_id uuid, household_id uuid, imie text, rola text)
   language sql stable security definer set search_path = public
 as $$
-  select m.id, m.household_id, m.name
+  select m.id, m.household_id, m.name, m.role
     from public.members m
    where m.telegram_chat_id = p_chat_id
 $$;
@@ -897,3 +898,100 @@ create or replace function public.dzisiaj_w_warszawie()
 as $$
   select (now() at time zone 'Europe/Warsaw')::date
 $$;
+
+-- Dodanie pozycji do ISTNIEJACEJ listy zakupow. p_lista_id musi naleziec do
+-- domu wyliczonego z p_member - jedyne miejsce, ktore ufa Edge Function.
+create or replace function public.dodaj_pozycje_zakupow_bota(
+  p_member   uuid,
+  p_lista_id uuid,
+  p_nazwa    text,
+  p_ilosc    text
+) returns uuid
+  language plpgsql volatile security definer set search_path = public
+as $$
+declare
+  wlasny_dom uuid;
+  nowe_id uuid;
+begin
+  select household_id into wlasny_dom from public.members where id = p_member;
+  if wlasny_dom is null then
+    raise exception 'Nieznany domownik.';
+  end if;
+
+  if not exists (
+    select 1 from public.shopping_lists where id = p_lista_id and household_id = wlasny_dom
+  ) then
+    raise exception 'Lista nie nalezy do tego domu.';
+  end if;
+
+  insert into public.shopping_items (list_id, name, quantity, created_by)
+  values (p_lista_id, p_nazwa, p_ilosc, p_member)
+  returning id into nowe_id;
+
+  return nowe_id;
+end
+$$;
+
+revoke execute on function public.dodaj_pozycje_zakupow_bota(uuid, uuid, text, text)
+  from public, anon, authenticated;
+
+-- Zaklada nowa liste zakupow - tylko dla rodzica, mirror reguly RLS
+-- "Listy - dodawanie" (tam public.jestem_rodzicem() liczy sie z auth.uid();
+-- tu Edge Function nie ma sesji, wiec sprawdzamy role p_member wprost).
+create or replace function public.zaloz_liste_zakupow_bota(p_member uuid, p_nazwa text)
+  returns uuid
+  language plpgsql volatile security definer set search_path = public
+as $$
+declare
+  wlasny_dom uuid;
+  jest_rodzicem boolean;
+  nowa_lista uuid;
+begin
+  select household_id, (role = 'rodzic') into wlasny_dom, jest_rodzicem
+    from public.members where id = p_member;
+
+  if wlasny_dom is null then
+    raise exception 'Nieznany domownik.';
+  end if;
+  if not jest_rodzicem then
+    raise exception 'Tylko rodzic moze zalozyc nowa liste zakupow.';
+  end if;
+
+  insert into public.shopping_lists (household_id, name)
+  values (wlasny_dom, p_nazwa)
+  returning id into nowa_lista;
+
+  return nowa_lista;
+end
+$$;
+
+revoke execute on function public.zaloz_liste_zakupow_bota(uuid, text)
+  from public, anon, authenticated;
+
+-- Dodanie notatki na tablice - kazdy domownik moze, tak jak w aplikacji.
+create or replace function public.dodaj_notatke_bota(
+  p_member    uuid,
+  p_tresc     text,
+  p_przypieta boolean
+) returns uuid
+  language plpgsql volatile security definer set search_path = public
+as $$
+declare
+  wlasny_dom uuid;
+  nowa_id uuid;
+begin
+  select household_id into wlasny_dom from public.members where id = p_member;
+  if wlasny_dom is null then
+    raise exception 'Nieznany domownik.';
+  end if;
+
+  insert into public.notes (household_id, content, pinned, created_by)
+  values (wlasny_dom, p_tresc, coalesce(p_przypieta, false), p_member)
+  returning id into nowa_id;
+
+  return nowa_id;
+end
+$$;
+
+revoke execute on function public.dodaj_notatke_bota(uuid, text, boolean)
+  from public, anon, authenticated;

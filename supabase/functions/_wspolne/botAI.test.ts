@@ -12,16 +12,38 @@ import {
 
 describe('budujZapytanieBota', () => {
   it('zawiera wiadomosc uzytkownika i liste domownikow w instrukcji systemowej', () => {
-    const z = budujZapytanieBota(new Date('2026-09-11T10:00:00'), ['Marcin', 'Magda'], 'co mam jutro?')
+    const z = budujZapytanieBota(new Date('2026-09-11T10:00:00'), ['Marcin', 'Magda'], [], 'co mam jutro?')
     expect(z.contents[0].parts[0].text).toBe('co mam jutro?')
     expect(z.systemInstruction.parts[0].text).toContain('Marcin, Magda')
   })
 
-  it('wymusza wybor jednego z trzech narzedzi', () => {
-    const z = budujZapytanieBota(new Date('2026-09-11T10:00:00'), [], 'test')
+  it('wymusza wybor jednego z pieciu narzedzi', () => {
+    const z = budujZapytanieBota(new Date('2026-09-11T10:00:00'), [], [], 'test')
     const nazwy = z.tools[0].functionDeclarations.map((n: { name: string }) => n.name)
-    expect(nazwy).toEqual(['pokaz_podsumowanie', 'zaproponuj_wydarzenie', 'odpowiedz_tekstem'])
+    expect(nazwy).toEqual([
+      'pokaz_podsumowanie',
+      'zaproponuj_wydarzenie',
+      'dodaj_pozycje_zakupow',
+      'dodaj_notatke',
+      'odpowiedz_tekstem',
+    ])
     expect(z.toolConfig.functionCallingConfig.mode).toBe('ANY')
+  })
+
+  it('lista zakupow trafia jako enum pola "lista", gdy istnieja jakies listy', () => {
+    const z = budujZapytanieBota(new Date('2026-09-11T10:00:00'), [], ['Zakupy', 'Apteka'], 'test')
+    const zakupy = z.tools[0].functionDeclarations.find(
+      (n: { name: string }) => n.name === 'dodaj_pozycje_zakupow',
+    )
+    expect(zakupy.parameters.properties.lista.enum).toEqual(['Zakupy', 'Apteka'])
+  })
+
+  it('bez enuma pola "lista", gdy zaden dom nie ma jeszcze listy', () => {
+    const z = budujZapytanieBota(new Date('2026-09-11T10:00:00'), [], [], 'test')
+    const zakupy = z.tools[0].functionDeclarations.find(
+      (n: { name: string }) => n.name === 'dodaj_pozycje_zakupow',
+    )
+    expect(zakupy.parameters.properties.lista.enum).toBeUndefined()
   })
 })
 
@@ -103,6 +125,48 @@ describe('rozpoznajOdpowiedz - zaproponuj_wydarzenie', () => {
       ['Marcin'],
     )
     expect(w.rodzaj).toBe('wydarzenie')
+  })
+})
+
+describe('rozpoznajOdpowiedz - dodaj_pozycje_zakupow', () => {
+  it('pelne dane', () => {
+    const w = rozpoznajOdpowiedz(
+      { nazwa: 'dodaj_pozycje_zakupow', args: { nazwa: 'Mleko', ilosc: '1 l', lista: 'Zakupy' } },
+      [],
+    )
+    expect(w).toEqual({ rodzaj: 'zakupy', pozycja: { nazwa: 'Mleko', ilosc: '1 l', lista: 'Zakupy' } })
+  })
+
+  it('ilosc i lista sa opcjonalne - brak staje sie null', () => {
+    const w = rozpoznajOdpowiedz({ nazwa: 'dodaj_pozycje_zakupow', args: { nazwa: 'Chleb' } }, [])
+    expect(w).toEqual({ rodzaj: 'zakupy', pozycja: { nazwa: 'Chleb', ilosc: null, lista: null } })
+  })
+
+  it('odrzuca brak nazwy pozycji', () => {
+    expect(() =>
+      rozpoznajOdpowiedz({ nazwa: 'dodaj_pozycje_zakupow', args: { nazwa: '   ' } }, []),
+    ).toThrow('nazwy pozycji')
+  })
+})
+
+describe('rozpoznajOdpowiedz - dodaj_notatke', () => {
+  it('pelne dane', () => {
+    const w = rozpoznajOdpowiedz(
+      { nazwa: 'dodaj_notatke', args: { tresc: 'Kupić kwiaty na urodziny', przypieta: true } },
+      [],
+    )
+    expect(w).toEqual({ rodzaj: 'notatka', notatka: { tresc: 'Kupić kwiaty na urodziny', przypieta: true } })
+  })
+
+  it('przypieta domyslnie false', () => {
+    const w = rozpoznajOdpowiedz({ nazwa: 'dodaj_notatke', args: { tresc: 'Zadzwonić do babci' } }, [])
+    expect(w).toEqual({ rodzaj: 'notatka', notatka: { tresc: 'Zadzwonić do babci', przypieta: false } })
+  })
+
+  it('odrzuca brak tresci notatki', () => {
+    expect(() => rozpoznajOdpowiedz({ nazwa: 'dodaj_notatke', args: { tresc: '  ' } }, [])).toThrow(
+      'treści notatki',
+    )
   })
 })
 
