@@ -58,6 +58,8 @@ export type DomownikDb = {
   digest_enabled: boolean
   /** O której, czasu polskiego. Format kolumny `time`: 'GG:MM:SS'. */
   digest_at: string
+  /** Chat_id Telegrama po sparowaniu - null, dopóki domownik nie połączy konta. */
+  telegram_chat_id: number | null
 }
 
 /** Lista zakupów w tabeli `shopping_lists`. */

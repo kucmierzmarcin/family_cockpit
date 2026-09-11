@@ -258,3 +258,27 @@
 .powiadomienia select {
   justify-self: start;
 }
+
+/* Parowanie z botem na Telegramie - kod jednorazowy, patrz MojDom.tsx. */
+.polaczono {
+  margin: 0;
+  color: var(--akcent);
+  font-weight: 600;
+}
+
+.kod-telegramu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kod {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--akcent-jasny);
+  font-family: monospace;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}

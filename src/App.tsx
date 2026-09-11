@@ -360,6 +360,7 @@ function App({ profil, email }: Props) {
           onZmien={osoby.zmien}
           onUsun={usunDomownika}
           onUstawPowiadomienia={osoby.ustawPowiadomienia}
+          onPolaczTelegram={osoby.polaczTelegram}
           dodawanie={trybDodawania('dom')}
         />
       ) : telefon ? (

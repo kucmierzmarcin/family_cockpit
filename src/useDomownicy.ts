@@ -122,6 +122,20 @@ export function useDomownicy(onBlad: (tekst: string) => void) {
     [odswiez, onBlad],
   )
 
+  /**
+   * Kod parowania z botem - jednorazowy, ważny 15 minut po stronie bazy.
+   * Nie odświeżamy tu listy: `telegram_chat_id` zmieni się dopiero, gdy bot
+   * sparuje konto, a tamten update i tak przyjdzie przez `useNaZywo` wyżej.
+   */
+  const polaczTelegram = useCallback(async (): Promise<string | null> => {
+    const { data, error } = await supabase.rpc('wygeneruj_kod_telegramu')
+    if (error) {
+      onBlad(`Nie udało się wygenerować kodu: ${error.message}`)
+      return null
+    }
+    return data as string
+  }, [onBlad])
+
   const usun = useCallback(
     async (id: string) => {
       const kopia = domownicy
@@ -136,5 +150,14 @@ export function useDomownicy(onBlad: (tekst: string) => void) {
     [domownicy, onBlad],
   )
 
-  return { domownicy, ladowanie, dodaj, zmien, usun, proponowanyKolor, ustawPowiadomienia }
+  return {
+    domownicy,
+    ladowanie,
+    dodaj,
+    zmien,
+    usun,
+    proponowanyKolor,
+    ustawPowiadomienia,
+    polaczTelegram,
+  }
 }

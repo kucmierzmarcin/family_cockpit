@@ -16,6 +16,7 @@ function osoba(id: string, name: string, color: string): DomownikDb {
     created_at: '2026-01-01T00:00:00',
     digest_enabled: false,
     digest_at: '07:00:00',
+    telegram_chat_id: null,
   }
 }
 

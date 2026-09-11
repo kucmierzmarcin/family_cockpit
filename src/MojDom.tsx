@@ -34,6 +34,7 @@ type Props = {
   onZmien: (id: string, zmiany: ZmianaDomownika) => Promise<boolean>
   onUsun: (id: string) => void
   onUstawPowiadomienia: (wlaczone: boolean, godzina: string) => Promise<boolean>
+  onPolaczTelegram: () => Promise<string | null>
   dodawanie: TrybDodawania
 }
 
@@ -48,6 +49,7 @@ export function MojDom({
   onZmien,
   onUsun,
   onUstawPowiadomienia,
+  onPolaczTelegram,
   dodawanie,
 }: Props) {
   const [edytowany, setEdytowany] = useState<string | null>(null)
@@ -148,6 +150,11 @@ export function MojDom({
       <Powiadomienia
         ja={domownicy.find((d) => d.id === mojeId)}
         onZapisz={onUstawPowiadomienia}
+      />
+
+      <BotTelegram
+        ja={domownicy.find((d) => d.id === mojeId)}
+        onGeneruj={onPolaczTelegram}
       />
 
       {jestemRodzicem &&
@@ -327,6 +334,71 @@ function Powiadomienia({
           ))}
         </select>
       </div>
+    </section>
+  )
+}
+
+const NAZWA_BOTA = import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined
+
+/**
+ * Parowanie z botem na Telegramie - kod jednorazowy z apki, wysyłany do bota
+ * jako `/start KOD`. Stan "połączono" przychodzi sam przez Realtime
+ * (patrz komentarz przy `polaczTelegram` w useDomownicy.ts).
+ */
+function BotTelegram({
+  ja,
+  onGeneruj,
+}: {
+  ja: DomownikDb | undefined
+  onGeneruj: () => Promise<string | null>
+}) {
+  const [kod, setKod] = useState<string | null>(null)
+  const [generowanie, setGenerowanie] = useState(false)
+
+  if (!ja) return null
+
+  async function generuj() {
+    setGenerowanie(true)
+    setKod(await onGeneruj())
+    setGenerowanie(false)
+  }
+
+  return (
+    <section className="karta">
+      <h2 className="panel-tytul">Bot na Telegramie</h2>
+      <p className="panel-dzien">
+        Napisz do bota „co mam dziś" albo „dodaj wizytę u dentysty w piątek o
+        15" - zrozumie zwykłe zdanie.
+      </p>
+
+      {ja.telegram_chat_id ? (
+        <p className="polaczono">✓ Połączono</p>
+      ) : kod ? (
+        <div className="kod-telegramu">
+          <p>
+            Otwórz{' '}
+            {NAZWA_BOTA ? (
+              <a href={`https://t.me/${NAZWA_BOTA}`} target="_blank" rel="noreferrer">
+                t.me/{NAZWA_BOTA}
+              </a>
+            ) : (
+              'bota na Telegramie'
+            )}{' '}
+            i wyślij:
+          </p>
+          <p className="kod">/start {kod}</p>
+          <p className="panel-dzien">Kod ważny 15 minut.</p>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="dodaj-wydarzenie-gorne"
+          onClick={() => void generuj()}
+          disabled={generowanie}
+        >
+          Połącz z Telegramem
+        </button>
+      )}
     </section>
   )
 }
