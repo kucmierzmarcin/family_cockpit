@@ -97,12 +97,12 @@ function escapuj(tekst: string): string {
 
 type Sekcja = { tytul: string; linie: { tresc: string; wyroznione: boolean }[] }
 
-function sekcje(dane: DanePodsumowania, memberId: string): Sekcja[] {
+function sekcje(dane: DanePodsumowania, memberId: string, etykietaKalendarza: string): Sekcja[] {
   const wynik: Sekcja[] = []
 
   if (dane.wydarzenia.length) {
     wynik.push({
-      tytul: 'DZIŚ W KALENDARZU',
+      tytul: etykietaKalendarza,
       linie: dane.wydarzenia.map((w) => ({
         tresc: liniaWydarzenia(w),
         wyroznione: moje(w, memberId),
@@ -138,9 +138,9 @@ const STOPKA = 'Wyłączysz to w Kokpicie → Mój dom.'
 export function zbudujPodsumowanie(
   dane: DanePodsumowania,
   odbiorca: Odbiorca,
-  opcje: { linkAplikacji?: string; pokazStopke?: boolean } = {},
+  opcje: { linkAplikacji?: string; pokazStopke?: boolean; etykietaKalendarza?: string } = {},
 ): Mail {
-  const czesci = sekcje(dane, odbiorca.memberId)
+  const czesci = sekcje(dane, odbiorca.memberId, opcje.etykietaKalendarza ?? 'DZIŚ W KALENDARZU')
   const powitanie = `Dzień dobry, ${odbiorca.imie}!`
   const link = opcje.linkAplikacji?.trim()
   const stopka = opcje.pokazStopke ?? true

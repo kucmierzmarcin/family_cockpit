@@ -247,3 +247,16 @@ describe('zbudujPodsumowanie - pokazStopke', () => {
     expect(html).not.toContain('Wyłączysz to w Kokpicie')
   })
 })
+
+describe('zbudujPodsumowanie - etykietaKalendarza', () => {
+  it('domyslnie naglowek sekcji mowi "DZIS" (mail zawsze dotyczy dzisiaj)', () => {
+    const { tekst } = zbudujPodsumowanie(PELNE, ODBIORCA)
+    expect(tekst).toContain('DZIŚ W KALENDARZU')
+  })
+
+  it('etykietaKalendarza nadpisuje naglowek sekcji, np. dla zapytania o jutro', () => {
+    const { tekst } = zbudujPodsumowanie(PELNE, ODBIORCA, { etykietaKalendarza: 'JUTRO W KALENDARZU' })
+    expect(tekst).toContain('JUTRO W KALENDARZU')
+    expect(tekst).not.toContain('DZIŚ W KALENDARZU')
+  })
+})

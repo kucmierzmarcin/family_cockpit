@@ -180,7 +180,10 @@ async function obsluzWiadomosc(
     const mail = zbudujPodsumowanie(
       dane as DanePodsumowania,
       { memberId: domownik.member_id, imie: domownik.imie, email: '' },
-      { pokazStopke: false },
+      {
+        pokazStopke: false,
+        etykietaKalendarza: odpowiedz.zakres === 'jutro' ? 'JUTRO W KALENDARZU' : 'DZIŚ W KALENDARZU',
+      },
     )
     await wyslijWiadomosc(chatId, mail.tekst)
     return
