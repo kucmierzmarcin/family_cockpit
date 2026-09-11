@@ -1,8 +1,14 @@
 # Bot na komunikatorze (Telegram) — spec
 
 **Cel:** Domownik pisze do bota na Telegramie zwykłym językiem. Bot odpowiada,
-co dziś/jutro/w tym tygodniu czeka dom (ten sam kawałek co poranny mail), oraz
-dodaje wydarzenia do kalendarza na podstawie opisu w wiadomości.
+co dziś/jutro czeka dom (ten sam kawałek co poranny mail), oraz dodaje
+wydarzenia do kalendarza na podstawie opisu w wiadomości.
+
+**Uwaga (odkryte przy pisaniu planu):** `podsumowanie_domu(p_dom, p_dzien)`
+liczy się dla **jednego** dnia — pierwotny pomysł „ten tydzień" wymagałby
+zmiany kontraktu tej funkcji, od której zależy już wdrożony mail. Zamiast
+ryzykować regresję w działającej funkcji, V1 bota ogranicza się do „dziś" i
+„jutro"; tydzień zostaje do sprawdzenia w samej aplikacji.
 
 **Poza zakresem V1:** edycja i usuwanie istniejących wydarzeń przez czat,
 ogólna pogawędka (bot poza dwiema powyższymi rolami grzecznie odsyła do tego,
@@ -22,8 +28,7 @@ parowanie `chat_id`.
 Rozpoznawanie intencji: Gemini function-calling (ten sam klient co
 `import-ai`) z trzema narzędziami do wyboru:
 
-- `pokaz_podsumowanie` — pytanie o kalendarz/tablicę/zakupy (dziś, jutro,
-  ten tydzień).
+- `pokaz_podsumowanie` — pytanie o kalendarz/tablicę/zakupy (dziś albo jutro).
 - `zaproponuj_wydarzenie` — prośba o dodanie czegoś do kalendarza.
 - `odpowiedz_tekstem` — nic z powyższych; bot krótko tłumaczy, co potrafi.
 
