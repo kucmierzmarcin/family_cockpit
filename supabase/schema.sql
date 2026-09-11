@@ -886,3 +886,14 @@ $$;
 
 revoke execute on function public.dodaj_wydarzenie_bota(uuid, text, timestamp, timestamp, boolean, uuid[])
   from public, anon, authenticated;
+
+-- "Dzisiaj" liczone w bazie, w strefie Europe/Warsaw - nie w Deno (kod
+-- Edge Function biegnie w UTC, wiec new Date() dawal zla date w oknie
+-- 00:00-02:00 czasu warszawskiego). Zwykla funkcja, bez security definer -
+-- nie dotyka tabel, nic wrazliwego nie ujawnia.
+create or replace function public.dzisiaj_w_warszawie()
+  returns date
+  language sql stable
+as $$
+  select (now() at time zone 'Europe/Warsaw')::date
+$$;

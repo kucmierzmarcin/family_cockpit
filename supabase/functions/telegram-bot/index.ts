@@ -57,11 +57,12 @@ Deno.serve(async (req) => {
       return odpowiedzOk()
     }
 
-    const { data: szkicDb } = await baza
+    const { data: szkicDb, error: bladSzkicu } = await baza
       .from('telegram_drafts')
       .select('event_data, created_at')
       .eq('member_id', domownik.member_id)
       .maybeSingle()
+    if (bladSzkicu) throw new Error(bladSzkicu.message)
 
     const szkicSwiezy =
       szkicDb && Date.now() - new Date(szkicDb.created_at).getTime() < SZKIC_WAZNY_MINUT * 60_000
@@ -114,13 +115,24 @@ async function obsluzPotwierdzenie(
   const decyzja = rozpoznajPotwierdzenie(tekst)
 
   if (decyzja === 'niejasne') {
-    await wyslijWiadomosc(chatId, 'Napisz "tak" żeby zapisać, albo "nie" żeby anulować.')
+    // Niejasna odpowiedz nie moze blokowac calej rozmowy na czas waznosci
+    // szkicu (10 minut) - porzucamy propozycje i traktujemy wiadomosc tak,
+    // jakby przyszla bez szkicu w tle.
+    const { error: bladPorzucenia } = await baza
+      .from('telegram_drafts')
+      .delete()
+      .eq('member_id', domownik.member_id)
+    if (bladPorzucenia) throw new Error(bladPorzucenia.message)
+    await obsluzWiadomosc(baza, domownik, chatId, tekst)
     return
   }
 
-  await baza.from('telegram_drafts').delete().eq('member_id', domownik.member_id)
-
   if (decyzja === 'nie') {
+    const { error: bladUsuniecia } = await baza
+      .from('telegram_drafts')
+      .delete()
+      .eq('member_id', domownik.member_id)
+    if (bladUsuniecia) throw new Error(bladUsuniecia.message)
     await wyslijWiadomosc(chatId, 'OK, nie dodaję.')
     return
   }
@@ -143,6 +155,16 @@ async function obsluzPotwierdzenie(
   })
   if (bladDodania) throw new Error(bladDodania.message)
 
+  // Kasujemy szkic dopiero PO udanym zapisie - nieudana proba (blad rzucony
+  // wyzej) zostawia draft na miejscu, wiec powtorzone "tak" da sie bezpiecznie
+  // ponowic. Blad samego czyszczenia nie unieważnia juz udanego zapisu -
+  // logujemy, ale nie psujemy uzytkownikowi potwierdzenia sukcesu.
+  const { error: bladCzyszczenia } = await baza
+    .from('telegram_drafts')
+    .delete()
+    .eq('member_id', domownik.member_id)
+  if (bladCzyszczenia) console.error(bladCzyszczenia)
+
   await wyslijWiadomosc(chatId, 'Dodane ✅')
 }
 
@@ -158,10 +180,17 @@ async function obsluzWiadomosc(
     return
   }
 
+  // "Dzisiaj" musi przyjsc z bazy, w strefie Europe/Warsaw - Deno biegnie w
+  // UTC, a new Date() dawal zla date w oknie 00:00-02:00 czasu warszawskiego
+  // (znalezione w koncowej recenzji galezi).
+  const { data: dzisiajStr, error: bladDaty } = await baza.rpc('dzisiaj_w_warszawie')
+  if (bladDaty) throw new Error(bladDaty.message)
+  const dzisiaj = new Date(`${dzisiajStr}T00:00:00Z`)
+
   const czlonkowie = await pobierzCzlonkow(baza, domownik.household_id)
   const imiona = [...czlonkowie.keys()]
 
-  const zapytanie = budujZapytanieBota(new Date(), imiona, tekst)
+  const zapytanie = budujZapytanieBota(dzisiaj, imiona, tekst)
   const wywolanie = await zapytajGeminiNarzedzie(zapytanie, kluczApi)
   const odpowiedz = rozpoznajOdpowiedz(wywolanie, imiona)
 
@@ -171,7 +200,7 @@ async function obsluzWiadomosc(
   }
 
   if (odpowiedz.rodzaj === 'podsumowanie') {
-    const dzien = dataDlaZakresu(odpowiedz.zakres, new Date())
+    const dzien = dataDlaZakresu(odpowiedz.zakres, dzisiaj)
     const { data: dane, error } = await baza.rpc('podsumowanie_domu', {
       p_dom: domownik.household_id,
       p_dzien: dzien,
@@ -189,11 +218,12 @@ async function obsluzWiadomosc(
     return
   }
 
-  await baza.from('telegram_drafts').upsert({
+  const { error: bladSzkicu } = await baza.from('telegram_drafts').upsert({
     member_id: domownik.member_id,
     event_data: odpowiedz.wydarzenie,
     created_at: new Date().toISOString(),
   })
+  if (bladSzkicu) throw new Error(bladSzkicu.message)
   await wyslijWiadomosc(chatId, `Zapisać: ${opisPropozycji(odpowiedz.wydarzenie)}? (tak/nie)`)
 }
 
