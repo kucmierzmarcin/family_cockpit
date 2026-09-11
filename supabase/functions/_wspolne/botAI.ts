@@ -112,7 +112,13 @@ function schematNarzedzi(domownicy: string[], listyZakupow: string[]) {
       parameters: {
         type: 'object',
         properties: {
-          tresc: { type: 'string' },
+          tresc: {
+            type: 'string',
+            description:
+              'DOKLADNA tresc notatki, ktora ma trafic na tablice - przepisz to, co uzytkownik chce zapisac, ' +
+              'usuwajac tylko polecenie ("dodaj notatke", "zapisz na tablicy" itp.). NIE parafrazuj, ' +
+              'NIE wymyslaj wlasnej tresci ani szczegolow, ktorych uzytkownik nie podal.',
+          },
           przypieta: { type: 'boolean', description: 'Czy notatka ma byc przypieta na gorze tablicy.' },
         },
         required: ['tresc'],
@@ -156,7 +162,9 @@ export function budujZapytanieBota(
             'odpowiedz_tekstem w każdym innym przypadku - ' +
             'NIE odpowiadaj na pytanie, nawet jeśli znasz odpowiedź (np. wiedza ogólna, pogawędka) - zamiast tego ' +
             'krótko i po ludzku wytłumacz, że jesteś botem kalendarza i potrafisz tylko pokazać kalendarz, dodać ' +
-            'wydarzenie, dopisać coś na listę zakupów albo notatkę na tablicę.',
+            'wydarzenie, dopisać coś na listę zakupów albo notatkę na tablicę. ' +
+            'We wszystkich polach tekstowych (tytuł, nazwa pozycji, treść notatki) przepisuj DOKŁADNIE to, co ' +
+            'napisał użytkownik - nigdy nie wymyślaj ani nie parafrazuj treści, których nie podał.',
         },
       ],
     },
