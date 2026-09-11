@@ -72,6 +72,17 @@ wciągnąć do nowo założonego domu.
    Dopóki nie zweryfikujesz własnej domeny w Resend, maile dochodzą **wyłącznie
    na adres właściciela konta Resend** — pozostali domownicy nie dostaną nic.
 
+6. **Bot na Telegramie** (opcjonalne — bez tego reszta aplikacji działa):
+
+   - Załóż bota przez [@BotFather](https://t.me/BotFather) (`/newbot`),
+     zapisz token.
+   - Panel Supabase → **Edge Functions → Secrets**: `TELEGRAM_BOT_TOKEN`.
+   - Wdróż funkcję: `supabase functions deploy telegram-bot --no-verify-jwt`.
+   - Zarejestruj webhook:
+     `curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://TWOJ-PROJEKT.supabase.co/functions/v1/telegram-bot"`.
+   - W `.env`: `VITE_TELEGRAM_BOT_USERNAME=<nazwa_bota_bez_@>` (żeby ekran
+     „Mój dom" pokazywał link do bota).
+
 ## Struktura
 
 | Plik | Do czego służy |
@@ -110,6 +121,9 @@ wciągnąć do nowo założonego domu.
 | `supabase/functions/poranne-podsumowanie/index.ts` | Spina bazę, treść i wysyłkę |
 | `supabase/functions/_wspolne/podsumowanie.ts` | Temat i treść maila z danych domu |
 | `supabase/functions/_wspolne/resend.ts` | Wysyłka — jedyne miejsce z dostawcą poczty |
+| `supabase/functions/telegram-bot/index.ts` | Webhook bota - parowanie, pytania, propozycje, potwierdzenia |
+| `supabase/functions/_wspolne/botAI.ts` | Zapytanie do Gemini (3 narzędzia) i walidacja - silnik bota |
+| `supabase/functions/_wspolne/telegram.ts` | Wysyłka wiadomości - jedyne miejsce z Telegram Bot API |
 | `supabase/schema.sql` | Pełny schemat: tabele, funkcje i reguły dostępu |
 | `supabase/start.sql` | Skrypt uruchamiany raz — zakłada pierwszy dom |
 
@@ -219,6 +233,20 @@ warunkach jeden mail na osobę na dzień, niezależnie od tego, ile razy cron si
 odpali. Wysyłka i zapis sukcesu to dwa osobne kroki bez wspólnej transakcji,
 więc rzadka awaria dokładnie między nimi (np. padnięcie połączenia) może
 sporadycznie doprowadzić do drugiej wysyłki tego samego dnia.
+
+## Bot na Telegramie
+
+Domownik z kontem może połączyć swój Telegram z Kokpitem (ekran „Mój dom" →
+„Bot na Telegramie") i pisać do bota zwykłym językiem: „co mam dziś?", „co
+mam jutro?", „dodaj wizytę u dentysty w piątek o 15". Bot rozpoznaje intencję
+przez Gemini i albo odpowiada podsumowaniem dnia (ten sam kawałek co poranny
+mail), albo proponuje wydarzenie i czeka na „tak"/„nie", zanim je zapisze.
+
+Parowanie konta idzie przez jednorazowy kod ważny 15 minut - Telegram nie ma
+dostępu do maila/hasła, więc to jedyny sposób, żeby bot wiedział, kto pisze.
+
+Bot na razie tylko dodaje pojedyncze wydarzenia - edycja, usuwanie i
+wydarzenia powtarzające się zostają w samej aplikacji.
 
 ## Role i dostęp
 
