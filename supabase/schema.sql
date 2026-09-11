@@ -744,15 +744,15 @@ create unique index if not exists members_telegram_chat_id_key
 
 -- Kody parowania - jednorazowe, krotkotrwale. RLS wlaczone, zero polityk:
 -- to sprawa service_role i security definer funkcji, nie przegladarki.
-create table if not exists public.telegram_kody (
-  kod        text primary key,
+create table if not exists public.telegram_codes (
+  code       text primary key,
   member_id  uuid not null references public.members(id) on delete cascade,
-  wygasa     timestamptz not null
+  expires_at timestamptz not null
 );
 
-create index if not exists telegram_kody_member_idx on public.telegram_kody (member_id);
+create index if not exists telegram_codes_member_idx on public.telegram_codes (member_id);
 
-alter table public.telegram_kody enable row level security;
+alter table public.telegram_codes enable row level security;
 
 -- Generuje jednorazowy kod parowania dla zalogowanego. Nadpisuje wczesniejszy
 -- kod tej samej osoby (jeden aktywny kod na raz), zeby stare kody nie zalegaly.
@@ -773,19 +773,21 @@ begin
     raise exception 'Nie znaleziono domownika dla tego konta.';
   end if;
 
-  delete from public.telegram_kody where member_id = wlasny_member;
+  delete from public.telegram_codes where member_id = wlasny_member;
 
   -- 6 znakow z alfabetu bez znakow latwych do pomylenia (0/O, 1/I/l).
+  -- floor(), nie samo ::int - Postgres zaokragla przy rzutowaniu float->int,
+  -- wiec (random()*31)::int moglo dac 31 (indeks 32), poza alfabetem.
   nowy_kod := (
     select string_agg(znak, '')
       from (
         select substr('23456789ABCDEFGHJKMNPQRSTUVWXYZ',
-                       (random() * 31)::int + 1, 1) as znak
+                       floor(random() * 31)::int + 1, 1) as znak
           from generate_series(1, 6)
       ) losowe
   );
 
-  insert into public.telegram_kody (kod, member_id, wygasa)
+  insert into public.telegram_codes (code, member_id, expires_at)
   values (nowy_kod, wlasny_member, now() + interval '15 minutes');
 
   return nowy_kod;
@@ -805,8 +807,8 @@ declare
   znaleziony_member uuid;
 begin
   select member_id into znaleziony_member
-    from public.telegram_kody
-   where kod = p_kod and wygasa > now();
+    from public.telegram_codes
+   where code = p_kod and expires_at > now();
 
   if znaleziony_member is null then
     return false;
@@ -815,7 +817,7 @@ begin
   update public.members set telegram_chat_id = p_chat_id
    where id = znaleziony_member;
 
-  delete from public.telegram_kody where kod = p_kod;
+  delete from public.telegram_codes where code = p_kod;
 
   return true;
 end
