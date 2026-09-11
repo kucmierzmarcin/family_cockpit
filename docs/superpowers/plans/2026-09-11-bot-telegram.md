@@ -1007,7 +1007,7 @@ git commit -m "Opcja pominiecia stopki mailowej w podsumowaniu"
 
 **Interfejsy:**
 - Konsumuje: `members.telegram_chat_id` (Zadanie 1).
-- Produkuje: tabela `telegram_szkice(member_id, wydarzenie, utworzono)`,
+- Produkuje: tabela `telegram_drafts(member_id, event_data, created_at)`,
   `domownik_po_czacie(p_chat_id bigint) returns table (member_id uuid,
   household_id uuid, imie text)`, `dodaj_wydarzenie_bota(p_member uuid,
   p_tytul text, p_poczatek timestamp, p_koniec timestamp, p_calodniowe
@@ -1018,7 +1018,7 @@ git commit -m "Opcja pominiecia stopki mailowej w podsumowaniu"
 MCP `execute_sql`:
 
 ```sql
-select to_regclass('public.telegram_szkice');
+select to_regclass('public.telegram_drafts');
 ```
 
 Oczekiwane: `null`.
@@ -1030,13 +1030,13 @@ MCP `apply_migration`, nazwa `bot_telegram_wydarzenia`:
 ```sql
 -- Szkic wydarzenia czekajacy na potwierdzenie "tak"/"nie" - jeden na osobe,
 -- nowa propozycja nadpisuje poprzednia (member_id jest kluczem glownym).
-create table if not exists public.telegram_szkice (
+create table if not exists public.telegram_drafts (
   member_id   uuid primary key references public.members(id) on delete cascade,
-  wydarzenie  jsonb not null,
-  utworzono   timestamptz not null default now()
+  event_data  jsonb not null,
+  created_at  timestamptz not null default now()
 );
 
-alter table public.telegram_szkice enable row level security;
+alter table public.telegram_drafts enable row level security;
 
 -- Dane potrzebne botowi do obslugi wiadomosci - jedno zapytanie zamiast
 -- dwoch osobnych (member + household).
@@ -1161,7 +1161,7 @@ MCP `execute_sql`:
 ```sql
 begin;
 set local role authenticated;
-select count(*) from public.telegram_szkice;      -- oczekiwane: 0 (RLS bez polityk)
+select count(*) from public.telegram_drafts;      -- oczekiwane: 0 (RLS bez polityk)
 select public.domownik_po_czacie(1);               -- oczekiwane: permission denied
 select public.dodaj_wydarzenie_bota(
   gen_random_uuid(), 'x', now(), now() + interval '1 hour', false, array[]::uuid[]
@@ -1343,16 +1343,16 @@ Deno.serve(async (req) => {
     }
 
     const { data: szkicDb } = await baza
-      .from('telegram_szkice')
-      .select('wydarzenie, utworzono')
+      .from('telegram_drafts')
+      .select('event_data, created_at')
       .eq('member_id', domownik.member_id)
       .maybeSingle()
 
     const szkicSwiezy =
-      szkicDb && Date.now() - new Date(szkicDb.utworzono).getTime() < SZKIC_WAZNY_MINUT * 60_000
+      szkicDb && Date.now() - new Date(szkicDb.created_at).getTime() < SZKIC_WAZNY_MINUT * 60_000
 
     if (szkicSwiezy) {
-      await obsluzPotwierdzenie(baza, domownik, chatId, tekst, szkicDb.wydarzenie as ProponowaneWydarzenie)
+      await obsluzPotwierdzenie(baza, domownik, chatId, tekst, szkicDb.event_data as ProponowaneWydarzenie)
     } else {
       await obsluzWiadomosc(baza, domownik, chatId, tekst)
     }
@@ -1399,7 +1399,7 @@ async function obsluzPotwierdzenie(
     return
   }
 
-  await baza.from('telegram_szkice').delete().eq('member_id', domownik.member_id)
+  await baza.from('telegram_drafts').delete().eq('member_id', domownik.member_id)
 
   if (decyzja === 'nie') {
     await wyslijWiadomosc(chatId, 'OK, nie dodaję.')
@@ -1466,10 +1466,10 @@ async function obsluzWiadomosc(
     return
   }
 
-  await baza.from('telegram_szkice').upsert({
+  await baza.from('telegram_drafts').upsert({
     member_id: domownik.member_id,
-    wydarzenie: odpowiedz.wydarzenie,
-    utworzono: new Date().toISOString(),
+    event_data: odpowiedz.wydarzenie,
+    created_at: new Date().toISOString(),
   })
   await wyslijWiadomosc(chatId, `Zapisać: ${opisPropozycji(odpowiedz.wydarzenie)}? (tak/nie)`)
 }
@@ -1737,8 +1737,8 @@ Wejdź na „Mój dom". Oczekiwane:
 2. Klik pokazuje 6-znakowy kod i (jeśli ustawiono `VITE_TELEGRAM_BOT_USERNAME`
    w `.env`) link do bota.
 3. Sprawdź w MCP `execute_sql`, że kod naprawdę wylądował w
-   `telegram_kody` (`select * from telegram_kody order by wygasa desc limit
-   1;`).
+   `telegram_codes` (`select * from telegram_codes order by expires_at desc
+   limit 1;`).
 
 - [ ] **Krok 8: Testy, lint i build**
 
