@@ -2,7 +2,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 import {
   WSPOLNE,
   budujZapytanieBota,
-  dataDlaZakresu,
+  etykietaDnia,
   nastepnyDzien,
   opisPropozycji,
   rozpoznajOdpowiedz,
@@ -200,10 +200,9 @@ async function obsluzWiadomosc(
   }
 
   if (odpowiedz.rodzaj === 'podsumowanie') {
-    const dzien = dataDlaZakresu(odpowiedz.zakres, dzisiaj)
     const { data: dane, error } = await baza.rpc('podsumowanie_domu', {
       p_dom: domownik.household_id,
-      p_dzien: dzien,
+      p_dzien: odpowiedz.data,
     })
     if (error) throw new Error(error.message)
     const mail = zbudujPodsumowanie(
@@ -211,7 +210,7 @@ async function obsluzWiadomosc(
       { memberId: domownik.member_id, imie: domownik.imie, email: '' },
       {
         pokazStopke: false,
-        etykietaKalendarza: odpowiedz.zakres === 'jutro' ? 'JUTRO W KALENDARZU' : 'DZIŚ W KALENDARZU',
+        etykietaKalendarza: etykietaDnia(odpowiedz.data, dzisiaj),
       },
     )
     await wyslijWiadomosc(chatId, mail.tekst)

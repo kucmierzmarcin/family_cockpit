@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   WSPOLNE,
   budujZapytanieBota,
-  dataDlaZakresu,
+  etykietaDnia,
   nastepnyDzien,
   opisPropozycji,
   rozpoznajOdpowiedz,
@@ -26,15 +26,15 @@ describe('budujZapytanieBota', () => {
 })
 
 describe('rozpoznajOdpowiedz - pokaz_podsumowanie', () => {
-  it('poprawny zakres', () => {
-    const w = rozpoznajOdpowiedz({ nazwa: 'pokaz_podsumowanie', args: { zakres: 'jutro' } }, [])
-    expect(w).toEqual({ rodzaj: 'podsumowanie', zakres: 'jutro' })
+  it('poprawna data', () => {
+    const w = rozpoznajOdpowiedz({ nazwa: 'pokaz_podsumowanie', args: { data: '2026-09-16' } }, [])
+    expect(w).toEqual({ rodzaj: 'podsumowanie', data: '2026-09-16' })
   })
 
-  it('odrzuca nieznany zakres', () => {
+  it('odrzuca nieprawidlowa date', () => {
     expect(() =>
-      rozpoznajOdpowiedz({ nazwa: 'pokaz_podsumowanie', args: { zakres: 'pojutrze' } }, []),
-    ).toThrow('zakres')
+      rozpoznajOdpowiedz({ nazwa: 'pokaz_podsumowanie', args: { data: 'nie-data' } }, []),
+    ).toThrow('Nieprawidłowa data')
   })
 })
 
@@ -139,13 +139,21 @@ describe('rozpoznajPotwierdzenie', () => {
   })
 })
 
-describe('dataDlaZakresu', () => {
-  it('dzis to dzisiejsza data', () => {
-    expect(dataDlaZakresu('dzis', new Date('2026-09-11T10:00:00'))).toBe('2026-09-11')
+describe('etykietaDnia', () => {
+  it('dzisiejsza data dostaje etykiete DZIS', () => {
+    expect(etykietaDnia('2026-09-11', new Date('2026-09-11T10:00:00'))).toBe('DZIŚ W KALENDARZU')
   })
 
-  it('jutro to nastepny dzien', () => {
-    expect(dataDlaZakresu('jutro', new Date('2026-09-11T10:00:00'))).toBe('2026-09-12')
+  it('jutrzejsza data dostaje etykiete JUTRO', () => {
+    expect(etykietaDnia('2026-09-12', new Date('2026-09-11T10:00:00'))).toBe('JUTRO W KALENDARZU')
+  })
+
+  it('inny dzien dostaje pelna nazwe dnia i date', () => {
+    expect(etykietaDnia('2026-09-16', new Date('2026-09-11T10:00:00'))).toBe('ŚRODA, 16 WRZEŚNIA W KALENDARZU')
+  })
+
+  it('dzien z przeszlosci tez dostaje pelna nazwe (nie jest ani dzis ani jutro)', () => {
+    expect(etykietaDnia('2026-09-01', new Date('2026-09-11T10:00:00'))).toBe('WTOREK, 1 WRZEŚNIA W KALENDARZU')
   })
 })
 

@@ -6,10 +6,9 @@
  */
 
 import type { WywolanieNarzedzia } from './gemini.ts'
+import { naglowekDnia } from './podsumowanie.ts'
 
 export const WSPOLNE = 'Wspólne'
-
-export type ZakresPodsumowania = 'dzis' | 'jutro'
 
 export type ProponowaneWydarzenie = {
   tytul: string
@@ -21,7 +20,7 @@ export type ProponowaneWydarzenie = {
 }
 
 export type OdpowiedzBota =
-  | { rodzaj: 'podsumowanie'; zakres: ZakresPodsumowania }
+  | { rodzaj: 'podsumowanie'; data: string }
   | { rodzaj: 'wydarzenie'; wydarzenie: ProponowaneWydarzenie }
   | { rodzaj: 'tekst'; tresc: string }
 
@@ -41,13 +40,19 @@ function schematNarzedzi(domownicy: string[]) {
   return [
     {
       name: NARZEDZIE_PODSUMOWANIE,
-      description: 'Uzytkownik pyta, co go czeka w domu - kalendarz, tablica, zakupy, dzis albo jutro.',
+      description:
+        'Uzytkownik pyta, co go czeka w domu - kalendarz, tablica, zakupy - na dowolny dzien: dzis, jutro, ' +
+        'konkretny dzien tygodnia albo konkretna data.',
       parameters: {
         type: 'object',
         properties: {
-          zakres: { type: 'string', enum: ['dzis', 'jutro'] },
+          data: {
+            type: 'string',
+            description:
+              'RRRR-MM-DD - dokladna data dnia, o ktory pyta uzytkownik, policzona wzgledem dzisiejszej daty.',
+          },
         },
-        required: ['zakres'],
+        required: ['data'],
       },
     },
     {
@@ -90,7 +95,8 @@ export function budujZapytanieBota(dzisiaj: Date, domownicy: string[], wiadomosc
           text:
             `Jesteś botem rodzinnego kalendarza Kokpit. Dzisiaj jest ${danaDzien(dzisiaj)}. ` +
             `Domownicy w tym domu: ${domownicy.length > 0 ? domownicy.join(', ') : '(brak)'}. ` +
-            'Użyj narzędzia pasującego do wiadomości: pokaz_podsumowanie gdy pytają o kalendarz/tablicę/zakupy, ' +
+            'Użyj narzędzia pasującego do wiadomości: pokaz_podsumowanie gdy pytają o kalendarz/tablicę/zakupy na ' +
+            'dowolny dzień (pole "data" musi być policzoną datą RRRR-MM-DD, nie nazwą dnia), ' +
             'zaproponuj_wydarzenie gdy proszą o dodanie czegoś do kalendarza (pole "czlonek" musi być dokładnie ' +
             'jednym z podanych imion domowników albo "Wspólne"), odpowiedz_tekstem w każdym innym przypadku - ' +
             'NIE odpowiadaj na pytanie, nawet jeśli znasz odpowiedź (np. wiedza ogólna, pogawędka) - zamiast tego ' +
@@ -119,11 +125,10 @@ export function rozpoznajOdpowiedz(
   const a = wywolanie.args
 
   if (wywolanie.nazwa === NARZEDZIE_PODSUMOWANIE) {
-    const zakres = a.zakres
-    if (zakres !== 'dzis' && zakres !== 'jutro') {
-      throw new Error(`Nieprawidłowy zakres podsumowania: "${String(zakres)}".`)
+    if (typeof a.data !== 'string' || Number.isNaN(new Date(a.data).getTime())) {
+      throw new Error(`Nieprawidłowa data: "${String(a.data)}".`)
     }
-    return { rodzaj: 'podsumowanie', zakres }
+    return { rodzaj: 'podsumowanie', data: a.data }
   }
 
   if (wywolanie.nazwa === NARZEDZIE_WYDARZENIE) {
@@ -171,11 +176,16 @@ export function rozpoznajPotwierdzenie(wiadomosc: string): Potwierdzenie {
   return 'niejasne'
 }
 
-/** Data (RRRR-MM-DD) dla "dzis"/"jutro" wzgledem podanej chwili. */
-export function dataDlaZakresu(zakres: ZakresPodsumowania, dzisiaj: Date): string {
-  const d = new Date(dzisiaj)
-  if (zakres === 'jutro') d.setDate(d.getDate() + 1)
-  return danaDzien(d)
+/**
+ * Etykieta sekcji kalendarza w odpowiedzi bota - "DZIS"/"JUTRO" dla tych
+ * dwoch szczegolnych dni (zgodnosc z dotychczasowym brzmieniem), pelna nazwa
+ * dnia (przez naglowekDnia z podsumowanie.ts) dla kazdego innego.
+ */
+export function etykietaDnia(data: string, dzisiaj: Date): string {
+  const dzis = danaDzien(dzisiaj)
+  if (data === dzis) return 'DZIŚ W KALENDARZU'
+  if (data === nastepnyDzien(dzis)) return 'JUTRO W KALENDARZU'
+  return `${naglowekDnia(data).toUpperCase()} W KALENDARZU`
 }
 
 /** Dzien po danej dacie (RRRR-MM-DD) - potrzebne do konca wydarzenia calodniowego. */
