@@ -94,7 +94,7 @@ describe('rozpoznajOdpowiedz - zaproponuj_wydarenie', () => {
         { nazwa: 'zaproponuj_wydarenie', args: { ...argumenty, start: '11:00', koniec: '10:00' } },
         ['Marcin'],
       ),
-    ).toThrow('później')
+    ).toThrow('późniejszy')
   })
 
   it('calodniowe pomija sprawdzenie kolejnosci godzin', () => {

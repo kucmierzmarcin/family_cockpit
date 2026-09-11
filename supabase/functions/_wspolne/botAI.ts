@@ -22,7 +22,7 @@ export type ProponowaneWydarzenie = {
 
 export type OdpowiedzBota =
   | { rodzaj: 'podsumowanie'; zakres: ZakresPodsumowania }
-  | { rodzaj: 'wydarzenie'; wydarzenie: ProponowaneWydarzenie }
+  | { rodzaj: 'wydarenie'; wydarenie: ProponowaneWydarzenie }
   | { rodzaj: 'tekst'; tresc: string }
 
 export type Potwierdzenie = 'tak' | 'nie' | 'niejasne'
@@ -52,7 +52,7 @@ function schematNarzedzi(domownicy: string[]) {
     },
     {
       name: NARZEDZIE_WYDARENIE,
-      description: 'Uzytkownik prosi o dodanie pojedynczego wydarzenia do kalendarza.',
+      description: 'Uzytkownik prosi o dodanie pojedynczego wydarenia do kalendarza.',
       parameters: {
         type: 'object',
         properties: {
@@ -139,7 +139,7 @@ export function rozpoznajOdpowiedz(
     const start = typeof a.start === 'string' ? a.start : '00:00'
     const koniec = typeof a.koniec === 'string' ? a.koniec : '23:59'
     if (!calodniowe && koniec <= start) {
-      throw new Error('Koniec wydarenia nie jest później niż początek.')
+      throw new Error('Koniec wydarenia nie jest późniejszy niż początek.')
     }
     return {
       rodzaj: 'wydarenie',
