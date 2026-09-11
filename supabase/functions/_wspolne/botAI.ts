@@ -22,7 +22,7 @@ export type ProponowaneWydarzenie = {
 
 export type OdpowiedzBota =
   | { rodzaj: 'podsumowanie'; zakres: ZakresPodsumowania }
-  | { rodzaj: 'wydarenie'; wydarenie: ProponowaneWydarzenie }
+  | { rodzaj: 'wydarzenie'; wydarzenie: ProponowaneWydarzenie }
   | { rodzaj: 'tekst'; tresc: string }
 
 export type Potwierdzenie = 'tak' | 'nie' | 'niejasne'
@@ -30,7 +30,7 @@ export type Potwierdzenie = 'tak' | 'nie' | 'niejasne'
 const MODEL = 'gemini-3.6-flash'
 
 const NARZEDZIE_PODSUMOWANIE = 'pokaz_podsumowanie'
-const NARZEDZIE_WYDARENIE = 'zaproponuj_wydarenie'
+const NARZEDZIE_WYDARZENIE = 'zaproponuj_wydarzenie'
 const NARZEDZIE_TEKST = 'odpowiedz_tekstem'
 
 function danaDzien(d: Date): string {
@@ -51,8 +51,8 @@ function schematNarzedzi(domownicy: string[]) {
       },
     },
     {
-      name: NARZEDZIE_WYDARENIE,
-      description: 'Uzytkownik prosi o dodanie pojedynczego wydarenia do kalendarza.',
+      name: NARZEDZIE_WYDARZENIE,
+      description: 'Uzytkownik prosi o dodanie pojedynczego wydarzenia do kalendarza.',
       parameters: {
         type: 'object',
         properties: {
@@ -91,9 +91,9 @@ export function budujZapytanieBota(dzisiaj: Date, domownicy: string[], wiadomosc
             `Jesteś botem rodzinnego kalendarza Kokpit. Dzisiaj jest ${danaDzien(dzisiaj)}. ` +
             `Domownicy w tym domu: ${domownicy.length > 0 ? domownicy.join(', ') : '(brak)'}. ` +
             'Użyj narzędzia pasującego do wiadomości: pokaz_podsumowanie gdy pytają o kalendarz/tablicę/zakupy, ' +
-            'zaproponuj_wydarenie gdy proszą o dodanie czegoś do kalendarza (pole "czlonek" musi być dokładnie ' +
+            'zaproponuj_wydarzenie gdy proszą o dodanie czegoś do kalendarza (pole "czlonek" musi być dokładnie ' +
             'jednym z podanych imion domowników albo "Wspólne"), odpowiedz_tekstem w każdym innym przypadku - ' +
-            'krótko i po ludzku wytłumacz, że potrafisz pokazać kalendarz albo dodać wydarenie.',
+            'krótko i po ludzku wytłumacz, że potrafisz pokazać kalendarz albo dodać wydarzenie.',
         },
       ],
     },
@@ -124,7 +124,7 @@ export function rozpoznajOdpowiedz(
     return { rodzaj: 'podsumowanie', zakres }
   }
 
-  if (wywolanie.nazwa === NARZEDZIE_WYDARENIE) {
+  if (wywolanie.nazwa === NARZEDZIE_WYDARZENIE) {
     const dozwoleni = new Set([...domownicy, WSPOLNE])
     if (typeof a.czlonek !== 'string' || !dozwoleni.has(a.czlonek)) {
       throw new Error(`Rozpoznano nieznaną osobę: "${String(a.czlonek)}".`)
@@ -133,17 +133,17 @@ export function rozpoznajOdpowiedz(
       throw new Error(`Nieprawidłowa data: "${String(a.data)}".`)
     }
     if (typeof a.tytul !== 'string' || !a.tytul.trim()) {
-      throw new Error('Brak tytułu wydarenia.')
+      throw new Error('Brak tytułu wydarzenia.')
     }
     const calodniowe = Boolean(a.calodniowe)
     const start = typeof a.start === 'string' ? a.start : '00:00'
     const koniec = typeof a.koniec === 'string' ? a.koniec : '23:59'
     if (!calodniowe && koniec <= start) {
-      throw new Error('Koniec wydarenia nie jest późniejszy niż początek.')
+      throw new Error('Koniec wydarzenia nie jest późniejszy niż początek.')
     }
     return {
-      rodzaj: 'wydarenie',
-      wydarenie: { tytul: a.tytul, czlonek: a.czlonek, data: a.data, start, koniec, calodniowe },
+      rodzaj: 'wydarzenie',
+      wydarzenie: { tytul: a.tytul, czlonek: a.czlonek, data: a.data, start, koniec, calodniowe },
     }
   }
 
@@ -176,7 +176,7 @@ export function dataDlaZakresu(zakres: ZakresPodsumowania, dzisiaj: Date): strin
   return danaDzien(d)
 }
 
-/** Dzien po danej dacie (RRRR-MM-DD) - potrzebne do konca wydarenia calodniowego. */
+/** Dzien po danej dacie (RRRR-MM-DD) - potrzebne do konca wydarzenia calodniowego. */
 export function nastepnyDzien(data: string): string {
   const d = new Date(`${data}T00:00:00Z`)
   d.setUTCDate(d.getUTCDate() + 1)

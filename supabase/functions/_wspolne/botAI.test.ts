@@ -20,7 +20,7 @@ describe('budujZapytanieBota', () => {
   it('wymusza wybor jednego z trzech narzedzi', () => {
     const z = budujZapytanieBota(new Date('2026-09-11T10:00:00'), [], 'test')
     const nazwy = z.tools[0].functionDeclarations.map((n: { name: string }) => n.name)
-    expect(nazwy).toEqual(['pokaz_podsumowanie', 'zaproponuj_wydarenie', 'odpowiedz_tekstem'])
+    expect(nazwy).toEqual(['pokaz_podsumowanie', 'zaproponuj_wydarzenie', 'odpowiedz_tekstem'])
     expect(z.toolConfig.functionCallingConfig.mode).toBe('ANY')
   })
 })
@@ -38,7 +38,7 @@ describe('rozpoznajOdpowiedz - pokaz_podsumowanie', () => {
   })
 })
 
-describe('rozpoznajOdpowiedz - zaproponuj_wydarenie', () => {
+describe('rozpoznajOdpowiedz - zaproponuj_wydarzenie', () => {
   const argumenty = {
     tytul: 'Dentysta',
     czlonek: 'Marcin',
@@ -49,22 +49,22 @@ describe('rozpoznajOdpowiedz - zaproponuj_wydarenie', () => {
   }
 
   it('domownik z listy', () => {
-    const w = rozpoznajOdpowiedz({ nazwa: 'zaproponuj_wydarenie', args: argumenty }, ['Marcin', 'Magda'])
-    expect(w).toEqual({ rodzaj: 'wydarenie', wydarenie: argumenty })
+    const w = rozpoznajOdpowiedz({ nazwa: 'zaproponuj_wydarzenie', args: argumenty }, ['Marcin', 'Magda'])
+    expect(w).toEqual({ rodzaj: 'wydarzenie', wydarzenie: argumenty })
   })
 
   it('akceptuje Wspólne jako czlonka', () => {
     const w = rozpoznajOdpowiedz(
-      { nazwa: 'zaproponuj_wydarenie', args: { ...argumenty, czlonek: WSPOLNE } },
+      { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, czlonek: WSPOLNE } },
       ['Marcin'],
     )
-    expect(w.rodzaj).toBe('wydarenie')
+    expect(w.rodzaj).toBe('wydarzenie')
   })
 
   it('odrzuca osobe spoza listy domownikow', () => {
     expect(() =>
       rozpoznajOdpowiedz(
-        { nazwa: 'zaproponuj_wydarenie', args: { ...argumenty, czlonek: 'Ktoś Obcy' } },
+        { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, czlonek: 'Ktoś Obcy' } },
         ['Marcin'],
       ),
     ).toThrow('nieznaną osobę')
@@ -73,7 +73,7 @@ describe('rozpoznajOdpowiedz - zaproponuj_wydarenie', () => {
   it('odrzuca nieprawidlowa date', () => {
     expect(() =>
       rozpoznajOdpowiedz(
-        { nazwa: 'zaproponuj_wydarenie', args: { ...argumenty, data: 'nie-data' } },
+        { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, data: 'nie-data' } },
         ['Marcin'],
       ),
     ).toThrow('Nieprawidłowa data')
@@ -82,7 +82,7 @@ describe('rozpoznajOdpowiedz - zaproponuj_wydarenie', () => {
   it('odrzuca brak tytulu', () => {
     expect(() =>
       rozpoznajOdpowiedz(
-        { nazwa: 'zaproponuj_wydarenie', args: { ...argumenty, tytul: '   ' } },
+        { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, tytul: '   ' } },
         ['Marcin'],
       ),
     ).toThrow('tytułu')
@@ -91,7 +91,7 @@ describe('rozpoznajOdpowiedz - zaproponuj_wydarenie', () => {
   it('odrzuca koniec nie pozniejszy niz poczatek', () => {
     expect(() =>
       rozpoznajOdpowiedz(
-        { nazwa: 'zaproponuj_wydarenie', args: { ...argumenty, start: '11:00', koniec: '10:00' } },
+        { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, start: '11:00', koniec: '10:00' } },
         ['Marcin'],
       ),
     ).toThrow('późniejszy')
@@ -99,10 +99,10 @@ describe('rozpoznajOdpowiedz - zaproponuj_wydarenie', () => {
 
   it('calodniowe pomija sprawdzenie kolejnosci godzin', () => {
     const w = rozpoznajOdpowiedz(
-      { nazwa: 'zaproponuj_wydarenie', args: { ...argumenty, calodniowe: true, start: '00:00', koniec: '00:00' } },
+      { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, calodniowe: true, start: '00:00', koniec: '00:00' } },
       ['Marcin'],
     )
-    expect(w.rodzaj).toBe('wydarenie')
+    expect(w.rodzaj).toBe('wydarzenie')
   })
 })
 
@@ -162,13 +162,13 @@ describe('zlozTimestamp', () => {
 })
 
 describe('opisPropozycji', () => {
-  it('wydarenie godzinowe z osoba', () => {
+  it('wydarzenie godzinowe z osoba', () => {
     expect(
       opisPropozycji({ tytul: 'Dentysta', czlonek: 'Marcin', data: '2026-09-18', start: '15:00', koniec: '16:00', calodniowe: false }),
     ).toBe('Dentysta (Marcin) — 2026-09-18, 15:00–16:00')
   })
 
-  it('wydarenie calodniowe, wspolne (bez osoby w nawiasie)', () => {
+  it('wydarzenie calodniowe, wspolne (bez osoby w nawiasie)', () => {
     expect(
       opisPropozycji({ tytul: 'Wycieczka', czlonek: WSPOLNE, data: '2026-09-20', start: '00:00', koniec: '23:59', calodniowe: true }),
     ).toBe('Wycieczka — 2026-09-20 (cały dzień)')
