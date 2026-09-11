@@ -43,7 +43,10 @@ Deno.serve(async (req) => {
       return odpowiedzOk()
     }
 
-    const { data: domownicyDb } = await baza.rpc('domownik_po_czacie', { p_chat_id: chatId })
+    const { data: domownicyDb, error: bladDomownika } = await baza.rpc('domownik_po_czacie', {
+      p_chat_id: chatId,
+    })
+    if (bladDomownika) throw new Error(bladDomownika.message)
     const domownik = domownicyDb?.[0] as Domownik | undefined
 
     if (!domownik) {
@@ -88,7 +91,11 @@ async function obsluzStart(
     return
   }
 
-  const { data: udalo } = await baza.rpc('polacz_telegram', { p_kod: kod, p_chat_id: chatId })
+  const { data: udalo, error: bladParowania } = await baza.rpc('polacz_telegram', {
+    p_kod: kod,
+    p_chat_id: chatId,
+  })
+  if (bladParowania) throw new Error(bladParowania.message)
   await wyslijWiadomosc(
     chatId,
     udalo
@@ -124,7 +131,7 @@ async function obsluzPotwierdzenie(
       ? []
       : [czlonkowie.get(wydarzenie.czlonek)].filter((id): id is string => Boolean(id))
 
-  await baza.rpc('dodaj_wydarzenie_bota', {
+  const { error: bladDodania } = await baza.rpc('dodaj_wydarzenie_bota', {
     p_member: domownik.member_id,
     p_tytul: wydarzenie.tytul,
     p_poczatek: zlozTimestamp(wydarzenie.data, wydarzenie.calodniowe ? '00:00' : wydarzenie.start),
@@ -134,6 +141,7 @@ async function obsluzPotwierdzenie(
     p_calodniowe: wydarzenie.calodniowe,
     p_osoby: idOsoby,
   })
+  if (bladDodania) throw new Error(bladDodania.message)
 
   await wyslijWiadomosc(chatId, 'Dodane ✅')
 }
