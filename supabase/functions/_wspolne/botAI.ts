@@ -15,7 +15,7 @@ export type Powtarzanie = 'brak' | 'tydzien' | 'dwa-tygodnie' | 'miesiac'
 
 export type ProponowaneWydarzenie = {
   tytul: string
-  czlonek: string // dokladnie jedno z podanych imion domownikow albo WSPOLNE
+  czlonkowie: string[] // >=1 z podanych imion domownikow albo [WSPOLNE]
   data: string     // 'RRRR-MM-DD'
   start: string    // 'GG:MM' - ignorowane, gdy calodniowe === true
   koniec: string   // 'GG:MM' - ignorowane, gdy calodniowe === true
@@ -92,7 +92,13 @@ function schematNarzedzi(domownicy: string[], listyZakupow: string[]) {
         type: 'object',
         properties: {
           tytul: { type: 'string' },
-          czlonek: { type: 'string', enum: [...domownicy, WSPOLNE] },
+          czlonkowie: {
+            type: 'array',
+            items: { type: 'string', enum: [...domownicy, WSPOLNE] },
+            description:
+              'Lista osob, ktorych dotyczy wydarzenie - dokladnie imiona z listy domownikow albo "Wspólne". ' +
+              'Moze byc kilka osob naraz, np. ["Zuzia", "Oliwier"].',
+          },
           data: { type: 'string', description: 'RRRR-MM-DD' },
           start: { type: 'string', description: 'GG:MM, dowolne przy calodniowe=true' },
           koniec: { type: 'string', description: 'GG:MM, dowolne przy calodniowe=true' },
@@ -107,7 +113,7 @@ function schematNarzedzi(domownicy: string[], listyZakupow: string[]) {
             description: 'RRRR-MM-DD - do kiedy powtarzac. Wymagane tylko, gdy powtarzanie != "brak".',
           },
         },
-        required: ['tytul', 'czlonek', 'data', 'start', 'koniec', 'calodniowe'],
+        required: ['tytul', 'czlonkowie', 'data', 'start', 'koniec', 'calodniowe'],
       },
     },
     {
@@ -195,8 +201,8 @@ export function budujZapytanieBota(
             `Listy zakupów w tym domu: ${listyZakupow.length > 0 ? listyZakupow.join(', ') : '(brak)'}. ` +
             'Użyj narzędzia pasującego do wiadomości: pokaz_podsumowanie gdy pytają o kalendarz/tablicę/zakupy na ' +
             'dowolny dzień (pole "data" musi być policzoną datą RRRR-MM-DD, nie nazwą dnia), ' +
-            'zaproponuj_wydarzenie gdy proszą o dodanie czegoś do kalendarza (pole "czlonek" musi być dokładnie ' +
-            'jednym z podanych imion domowników albo "Wspólne"; pole "powtarzanie" tylko, gdy mówią że coś się ' +
+            'zaproponuj_wydarzenie gdy proszą o dodanie czegoś do kalendarza (pole "czlonkowie" to lista - jedno ' +
+            'imię, kilka imion albo "Wspólne", dokładnie z podanych imion domowników; pole "powtarzanie" tylko, gdy mówią że coś się ' +
             'powtarza - np. "co tydzień", "co miesiąc" - wraz z "powtarzaj_do" jako datą końca powtarzania), ' +
             'usun_wydarzenie gdy proszą o usunięcie/skasowanie ' +
             'istniejącego wydarzenia, dodaj_pozycje_zakupow gdy proszą o dopisanie ' +
@@ -238,9 +244,20 @@ export function rozpoznajOdpowiedz(
 
   if (wywolanie.nazwa === NARZEDZIE_WYDARZENIE) {
     const dozwoleni = new Set([...domownicy, WSPOLNE])
-    if (typeof a.czlonek !== 'string' || !dozwoleni.has(a.czlonek)) {
-      throw new Error(`Rozpoznano nieznaną osobę: "${String(a.czlonek)}".`)
+    // Gemini czasem zwraca pojedynczy string zamiast tablicy jednoelementowej -
+    // akceptujemy to jako wygode, zamiast odrzucac cala odpowiedz.
+    const czlonkowieRaw = Array.isArray(a.czlonkowie)
+      ? a.czlonkowie
+      : typeof a.czlonkowie === 'string'
+        ? [a.czlonkowie]
+        : []
+    if (
+      czlonkowieRaw.length === 0 ||
+      !czlonkowieRaw.every((c: unknown): c is string => typeof c === 'string' && dozwoleni.has(c))
+    ) {
+      throw new Error(`Rozpoznano nieznaną osobę: "${String(a.czlonkowie)}".`)
     }
+    const czlonkowie = czlonkowieRaw as string[]
     if (typeof a.data !== 'string' || Number.isNaN(new Date(a.data).getTime())) {
       throw new Error(`Nieprawidłowa data: "${String(a.data)}".`)
     }
@@ -275,7 +292,7 @@ export function rozpoznajOdpowiedz(
 
     return {
       rodzaj: 'wydarzenie',
-      wydarzenie: { tytul: a.tytul, czlonek: a.czlonek, data: a.data, start, koniec, calodniowe, powtarzanie, powtarzajDo },
+      wydarzenie: { tytul: a.tytul, czlonkowie, data: a.data, start, koniec, calodniowe, powtarzanie, powtarzajDo },
     }
   }
 
@@ -373,7 +390,7 @@ export function opisPropozycji(w: ProponowaneWydarzenie): string {
       ? w.data
       : `co ${OPIS_POWTARZANIA[w.powtarzanie]} od ${w.data} do ${w.powtarzajDo}`
   const kiedy = w.calodniowe ? `${kiedyData} (cały dzień)` : `${kiedyData}, ${w.start}–${w.koniec}`
-  const dla = w.czlonek === WSPOLNE ? '' : ` (${w.czlonek})`
+  const dla = w.czlonkowie.includes(WSPOLNE) ? '' : ` (${w.czlonkowie.join(', ')})`
   return `${w.tytul}${dla} — ${kiedy}`
 }
 

@@ -65,7 +65,7 @@ describe('rozpoznajOdpowiedz - pokaz_podsumowanie', () => {
 describe('rozpoznajOdpowiedz - zaproponuj_wydarzenie', () => {
   const argumenty = {
     tytul: 'Dentysta',
-    czlonek: 'Marcin',
+    czlonkowie: ['Marcin'],
     data: '2026-09-18',
     start: '15:00',
     koniec: '16:00',
@@ -120,16 +120,47 @@ describe('rozpoznajOdpowiedz - zaproponuj_wydarzenie', () => {
 
   it('akceptuje Wspólne jako czlonka', () => {
     const w = rozpoznajOdpowiedz(
-      { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, czlonek: WSPOLNE } },
+      { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, czlonkowie: [WSPOLNE] } },
       ['Marcin'],
     )
     expect(w.rodzaj).toBe('wydarzenie')
   })
 
+  it('akceptuje kilka osob naraz', () => {
+    const w = rozpoznajOdpowiedz(
+      { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, czlonkowie: ['Marcin', 'Magda'] } },
+      ['Marcin', 'Magda'],
+    )
+    expect(w).toEqual({
+      rodzaj: 'wydarzenie',
+      wydarzenie: { ...argumenty, czlonkowie: ['Marcin', 'Magda'], powtarzanie: 'brak', powtarzajDo: null },
+    })
+  })
+
+  it('akceptuje pojedynczy string jako wygode (Gemini czasem pomija tablice)', () => {
+    const w = rozpoznajOdpowiedz(
+      { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, czlonkowie: 'Marcin' } },
+      ['Marcin'],
+    )
+    expect(w.rodzaj).toBe('wydarzenie')
+    if (w.rodzaj === 'wydarzenie') {
+      expect(w.wydarzenie.czlonkowie).toEqual(['Marcin'])
+    }
+  })
+
   it('odrzuca osobe spoza listy domownikow', () => {
     expect(() =>
       rozpoznajOdpowiedz(
-        { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, czlonek: 'Ktoś Obcy' } },
+        { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, czlonkowie: ['Ktoś Obcy'] } },
+        ['Marcin'],
+      ),
+    ).toThrow('nieznaną osobę')
+  })
+
+  it('odrzuca pusta liste osob', () => {
+    expect(() =>
+      rozpoznajOdpowiedz(
+        { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, czlonkowie: [] } },
         ['Marcin'],
       ),
     ).toThrow('nieznaną osobę')
@@ -307,16 +338,25 @@ describe('opisPropozycji', () => {
   it('wydarzenie godzinowe z osoba', () => {
     expect(
       opisPropozycji({
-        tytul: 'Dentysta', czlonek: 'Marcin', data: '2026-09-18', start: '15:00', koniec: '16:00',
+        tytul: 'Dentysta', czlonkowie: ['Marcin'], data: '2026-09-18', start: '15:00', koniec: '16:00',
         calodniowe: false, powtarzanie: 'brak', powtarzajDo: null,
       }),
     ).toBe('Dentysta (Marcin) — 2026-09-18, 15:00–16:00')
   })
 
+  it('wydarzenie z kilkoma osobami - imiona oddzielone przecinkiem', () => {
+    expect(
+      opisPropozycji({
+        tytul: 'Wycieczka', czlonkowie: ['Zuzia', 'Oliwier'], data: '2026-09-18', start: '10:00', koniec: '12:00',
+        calodniowe: false, powtarzanie: 'brak', powtarzajDo: null,
+      }),
+    ).toBe('Wycieczka (Zuzia, Oliwier) — 2026-09-18, 10:00–12:00')
+  })
+
   it('wydarzenie calodniowe, wspolne (bez osoby w nawiasie)', () => {
     expect(
       opisPropozycji({
-        tytul: 'Wycieczka', czlonek: WSPOLNE, data: '2026-09-20', start: '00:00', koniec: '23:59',
+        tytul: 'Wycieczka', czlonkowie: [WSPOLNE], data: '2026-09-20', start: '00:00', koniec: '23:59',
         calodniowe: true, powtarzanie: 'brak', powtarzajDo: null,
       }),
     ).toBe('Wycieczka — 2026-09-20 (cały dzień)')
@@ -325,7 +365,7 @@ describe('opisPropozycji', () => {
   it('wydarzenie co tydzien dopisuje regule powtarzania', () => {
     expect(
       opisPropozycji({
-        tytul: 'Trening', czlonek: 'Marcin', data: '2026-09-15', start: '18:00', koniec: '19:00',
+        tytul: 'Trening', czlonkowie: ['Marcin'], data: '2026-09-15', start: '18:00', koniec: '19:00',
         calodniowe: false, powtarzanie: 'tydzien', powtarzajDo: '2026-12-01',
       }),
     ).toBe('Trening (Marcin) — co tydzień od 2026-09-15 do 2026-12-01, 18:00–19:00')
@@ -334,7 +374,7 @@ describe('opisPropozycji', () => {
   it('wydarzenie co miesiac, calodniowe', () => {
     expect(
       opisPropozycji({
-        tytul: 'Plyta czynszowa', czlonek: WSPOLNE, data: '2026-09-01', start: '00:00', koniec: '23:59',
+        tytul: 'Plyta czynszowa', czlonkowie: [WSPOLNE], data: '2026-09-01', start: '00:00', koniec: '23:59',
         calodniowe: true, powtarzanie: 'miesiac', powtarzajDo: '2027-03-01',
       }),
     ).toBe('Plyta czynszowa — co miesiąc od 2026-09-01 do 2027-03-01 (cały dzień)')

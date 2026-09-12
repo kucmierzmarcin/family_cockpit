@@ -173,10 +173,11 @@ async function obsluzPotwierdzenie(
 
   const wydarzenie = szkic.wydarzenie
   const czlonkowie = await pobierzCzlonkow(baza, domownik.household_id)
-  const idOsoby =
-    wydarzenie.czlonek === WSPOLNE
-      ? []
-      : [czlonkowie.get(wydarzenie.czlonek)].filter((id): id is string => Boolean(id))
+  const idOsoby = wydarzenie.czlonkowie.includes(WSPOLNE)
+    ? []
+    : wydarzenie.czlonkowie
+        .map((nazwa) => czlonkowie.get(nazwa))
+        .filter((id): id is string => Boolean(id))
 
   const { data: utworzoneDb, error: bladDodania } = await baza.rpc('dodaj_wydarzenie_bota', {
     p_member: domownik.member_id,
