@@ -1314,3 +1314,41 @@ create policy "Zalaczniki terminow - usuwanie" on public.deadline_attachments
 
 alter publication supabase_realtime add table public.deadlines;
 alter publication supabase_realtime add table public.deadline_attachments;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'deadline-attachments',
+  'deadline-attachments',
+  false,
+  10485760,
+  array['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+)
+on conflict (id) do nothing;
+
+-- Sciezka obiektu: {household_id}/{deadline_id}/{losowy-id}-{nazwa-pliku}.
+-- Pierwszy segment sciezki to household_id - polityki porownuja go z moj_dom(),
+-- ten sam podzial uprawnien co w tabeli deadline_attachments.
+drop policy if exists "Zalaczniki terminow - odczyt storage" on storage.objects;
+create policy "Zalaczniki terminow - odczyt storage" on storage.objects
+  for select to authenticated
+  using (
+    bucket_id = 'deadline-attachments'
+    and (storage.foldername(name))[1] = public.moj_dom()::text
+  );
+
+drop policy if exists "Zalaczniki terminow - dodawanie storage" on storage.objects;
+create policy "Zalaczniki terminow - dodawanie storage" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'deadline-attachments'
+    and (storage.foldername(name))[1] = public.moj_dom()::text
+  );
+
+drop policy if exists "Zalaczniki terminow - usuwanie storage" on storage.objects;
+create policy "Zalaczniki terminow - usuwanie storage" on storage.objects
+  for delete to authenticated
+  using (
+    bucket_id = 'deadline-attachments'
+    and (storage.foldername(name))[1] = public.moj_dom()::text
+    and (owner_id = auth.uid()::text or public.jestem_rodzicem())
+  );
