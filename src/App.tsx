@@ -12,6 +12,7 @@ import { nastepnyDzien, opisCzasu, poczatekDnia } from './czas'
 import { MojDom } from './MojDom'
 import { Zakupy } from './Zakupy'
 import { Tablica } from './Tablica'
+import { Terminy } from './WazneTerminy'
 import { Miesiac } from './widoki/Miesiac'
 import { Tydzien } from './widoki/Tydzien'
 import { Dzien } from './widoki/Dzien'
@@ -348,6 +349,15 @@ function App({ profil, email }: Props) {
           osobaPoId={osobaPoId}
           onBlad={setBlad}
           dodawanie={trybDodawania('tablica')}
+        />
+      ) : ekran === 'terminy' ? (
+        <Terminy
+          jestemRodzicem={jestemRodzicem}
+          mojeId={profil.id}
+          householdId={profil.household_id}
+          osobaPoId={osobaPoId}
+          onBlad={setBlad}
+          dodawanie={trybDodawania('terminy')}
         />
       ) : ekran === 'dom' ? (
         <MojDom

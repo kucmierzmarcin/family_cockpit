@@ -318,7 +318,7 @@
   bottom: 0;
   z-index: var(--warstwa-pasek);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   padding-bottom: env(safe-area-inset-bottom);
   background: var(--karta);
   border-top: 1px solid var(--kreska);

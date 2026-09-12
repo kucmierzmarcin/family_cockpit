@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { EKRANY, TYTULY, etykietaDodania } from './nawigacja'
 
 describe('EKRANY', () => {
-  it('cztery ekrany w kolejności zakładek', () => {
-    expect(EKRANY).toEqual(['kalendarz', 'zakupy', 'tablica', 'dom'])
+  it('pięć ekranów w kolejności zakładek', () => {
+    expect(EKRANY).toEqual(['kalendarz', 'zakupy', 'tablica', 'terminy', 'dom'])
   })
 
   it('każdy ekran ma tytuł', () => {
