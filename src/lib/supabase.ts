@@ -103,3 +103,28 @@ export function stanKonta(d: DomownikDb): 'polaczone' | 'czeka' | 'brak' {
   if (d.user_id) return 'polaczone'
   return d.email ? 'czeka' : 'brak'
 }
+
+/** Termin w tabeli deadlines. */
+export type TerminDb = {
+  id: string
+  household_id: string
+  title: string
+  description: string | null
+  due_date: string
+  completed: boolean
+  completed_at: string | null
+  created_by: string | null
+  created_at: string
+}
+
+/** Zalacznik do terminu w tabeli deadline_attachments. */
+export type ZalacznikDb = {
+  id: string
+  deadline_id: string
+  storage_path: string
+  file_name: string
+  content_type: string
+  size_bytes: number
+  created_by: string | null
+  created_at: string
+}
