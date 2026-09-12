@@ -1195,3 +1195,122 @@ $$;
 
 revoke execute on function public.edytuj_wydarzenie_bota(uuid, uuid, text, timestamp, timestamp, boolean, uuid[])
   from public, anon, authenticated;
+
+-- ============================================================
+--  19. Ważne terminy
+-- ============================================================
+
+create table if not exists public.deadlines (
+  id           uuid        primary key default gen_random_uuid(),
+  household_id uuid        references public.households(id) on delete cascade,
+  title        text        not null,
+  description  text,
+  due_date     date        not null,
+  completed    boolean     not null default false,
+  completed_at timestamptz,
+  created_by   uuid        references public.members(id) on delete set null,
+  created_at   timestamptz not null default now()
+);
+
+create table if not exists public.deadline_attachments (
+  id           uuid        primary key default gen_random_uuid(),
+  deadline_id  uuid        not null references public.deadlines(id) on delete cascade,
+  storage_path text        not null,
+  file_name    text        not null,
+  content_type text        not null,
+  size_bytes   bigint      not null,
+  created_by   uuid        references public.members(id) on delete set null,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists deadlines_household_idx on public.deadlines (household_id);
+create index if not exists deadline_attachments_deadline_idx on public.deadline_attachments (deadline_id);
+
+alter table public.deadlines alter column household_id set default public.moj_dom();
+alter table public.deadlines alter column created_by   set default public.ja_jako_member();
+alter table public.deadline_attachments alter column created_by set default public.ja_jako_member();
+
+-- Zalaczniki naleza do domu przez swoj termin - polityka musi siegnac poziom
+-- wyzej. SECURITY DEFINER - ten sam wzorzec co przy shopping_items.
+create or replace function public.termin_z_mojego_domu(p_termin uuid) returns boolean
+  language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.deadlines d
+     where d.id = p_termin and d.household_id = public.moj_dom()
+  )
+$$;
+
+create or replace function public.moj_termin(p_termin uuid) returns boolean
+  language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.deadlines d
+     where d.id = p_termin and d.created_by = public.ja_jako_member()
+  )
+$$;
+
+create or replace function public.moj_zalacznik(p_zalacznik uuid) returns boolean
+  language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.deadline_attachments a
+     where a.id = p_zalacznik and a.created_by = public.ja_jako_member()
+  )
+$$;
+
+grant execute on function public.termin_z_mojego_domu(uuid) to authenticated;
+grant execute on function public.moj_termin(uuid)           to authenticated;
+grant execute on function public.moj_zalacznik(uuid)        to authenticated;
+
+alter table public.deadlines            enable row level security;
+alter table public.deadline_attachments enable row level security;
+
+-- Terminy: widzi i dodaje caly dom. Odhaczanie "zalatwione" to update -
+-- wolno kazdemu, tak jak przypinanie notatki na tablicy. Usuwa autor albo rodzic.
+drop policy if exists "Terminy - odczyt" on public.deadlines;
+create policy "Terminy - odczyt" on public.deadlines
+  for select to authenticated
+  using (household_id = public.moj_dom());
+
+drop policy if exists "Terminy - dodawanie" on public.deadlines;
+create policy "Terminy - dodawanie" on public.deadlines
+  for insert to authenticated
+  with check (household_id = public.moj_dom());
+
+drop policy if exists "Terminy - zmiana" on public.deadlines;
+create policy "Terminy - zmiana" on public.deadlines
+  for update to authenticated
+  using (household_id = public.moj_dom())
+  with check (household_id = public.moj_dom());
+
+drop policy if exists "Terminy - usuwanie" on public.deadlines;
+create policy "Terminy - usuwanie" on public.deadlines
+  for delete to authenticated
+  using (
+    household_id = public.moj_dom()
+    and (public.moj_termin(id) or public.jestem_rodzicem())
+  );
+
+-- Zalaczniki: dodaje kazdy z domu, usuwa wgrywajacy albo rodzic. Bez polityki
+-- update - zalacznik sie nie zmienia, tylko dodaje/usuwa.
+drop policy if exists "Zalaczniki terminow - odczyt" on public.deadline_attachments;
+create policy "Zalaczniki terminow - odczyt" on public.deadline_attachments
+  for select to authenticated
+  using (public.termin_z_mojego_domu(deadline_id));
+
+drop policy if exists "Zalaczniki terminow - dodawanie" on public.deadline_attachments;
+create policy "Zalaczniki terminow - dodawanie" on public.deadline_attachments
+  for insert to authenticated
+  with check (public.termin_z_mojego_domu(deadline_id));
+
+drop policy if exists "Zalaczniki terminow - usuwanie" on public.deadline_attachments;
+create policy "Zalaczniki terminow - usuwanie" on public.deadline_attachments
+  for delete to authenticated
+  using (
+    public.termin_z_mojego_domu(deadline_id)
+    and (public.moj_zalacznik(id) or public.jestem_rodzicem())
+  );
+
+alter publication supabase_realtime add table public.deadlines;
+alter publication supabase_realtime add table public.deadline_attachments;
