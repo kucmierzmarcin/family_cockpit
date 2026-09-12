@@ -5,6 +5,7 @@ import {
   etykietaDnia,
   nastepnyDzien,
   opisPropozycji,
+  opisWydarzenia,
   rozpoznajOdpowiedz,
   rozpoznajPotwierdzenie,
   zlozTimestamp,
@@ -17,12 +18,13 @@ describe('budujZapytanieBota', () => {
     expect(z.systemInstruction.parts[0].text).toContain('Marcin, Magda')
   })
 
-  it('wymusza wybor jednego z pieciu narzedzi', () => {
+  it('wymusza wybor jednego z szesciu narzedzi', () => {
     const z = budujZapytanieBota(new Date('2026-09-11T10:00:00'), [], [], 'test')
     const nazwy = z.tools[0].functionDeclarations.map((n: { name: string }) => n.name)
     expect(nazwy).toEqual([
       'pokaz_podsumowanie',
       'zaproponuj_wydarzenie',
+      'usun_wydarzenie',
       'dodaj_pozycje_zakupow',
       'dodaj_notatke',
       'odpowiedz_tekstem',
@@ -125,6 +127,33 @@ describe('rozpoznajOdpowiedz - zaproponuj_wydarzenie', () => {
       ['Marcin'],
     )
     expect(w.rodzaj).toBe('wydarzenie')
+  })
+})
+
+describe('rozpoznajOdpowiedz - usun_wydarzenie', () => {
+  it('pelne dane (opis + data)', () => {
+    const w = rozpoznajOdpowiedz(
+      { nazwa: 'usun_wydarzenie', args: { opis: 'dentysta', data: '2026-09-18' } },
+      [],
+    )
+    expect(w).toEqual({ rodzaj: 'usun_wydarzenie', opis: 'dentysta', dzien: '2026-09-18' })
+  })
+
+  it('data jest opcjonalna - brak staje sie null', () => {
+    const w = rozpoznajOdpowiedz({ nazwa: 'usun_wydarzenie', args: { opis: 'trening' } }, [])
+    expect(w).toEqual({ rodzaj: 'usun_wydarzenie', opis: 'trening', dzien: null })
+  })
+
+  it('odrzuca brak opisu', () => {
+    expect(() =>
+      rozpoznajOdpowiedz({ nazwa: 'usun_wydarzenie', args: { opis: '   ' } }, []),
+    ).toThrow('opisu wydarzenia')
+  })
+
+  it('odrzuca nieprawidlowa date', () => {
+    expect(() =>
+      rozpoznajOdpowiedz({ nazwa: 'usun_wydarzenie', args: { opis: 'trening', data: 'nie-data' } }, []),
+    ).toThrow('Nieprawidłowa data')
   })
 })
 
@@ -243,6 +272,30 @@ describe('opisPropozycji', () => {
   it('wydarzenie calodniowe, wspolne (bez osoby w nawiasie)', () => {
     expect(
       opisPropozycji({ tytul: 'Wycieczka', czlonek: WSPOLNE, data: '2026-09-20', start: '00:00', koniec: '23:59', calodniowe: true }),
+    ).toBe('Wycieczka — 2026-09-20 (cały dzień)')
+  })
+})
+
+describe('opisWydarzenia', () => {
+  it('wydarzenie godzinowe', () => {
+    expect(
+      opisWydarzenia({
+        title: 'Dentysta',
+        starts_at: '2026-09-18T15:00:00',
+        ends_at: '2026-09-18T16:00:00',
+        all_day: false,
+      }),
+    ).toBe('Dentysta — 2026-09-18, 15:00–16:00')
+  })
+
+  it('wydarzenie calodniowe', () => {
+    expect(
+      opisWydarzenia({
+        title: 'Wycieczka',
+        starts_at: '2026-09-20T00:00:00',
+        ends_at: '2026-09-23T00:00:00',
+        all_day: true,
+      }),
     ).toBe('Wycieczka — 2026-09-20 (cały dzień)')
   })
 })

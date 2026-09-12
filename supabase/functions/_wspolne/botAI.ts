@@ -30,9 +30,18 @@ export type ProponowanaNotatka = {
   przypieta: boolean
 }
 
+/** Wydarzenie tak, jak zwraca je znajdz_wydarzenia_bota() z bazy. */
+export type WydarzenieZnalezione = {
+  title: string
+  starts_at: string // 'RRRR-MM-DDTGG:MM:SS'
+  ends_at: string
+  all_day: boolean
+}
+
 export type OdpowiedzBota =
   | { rodzaj: 'podsumowanie'; data: string }
   | { rodzaj: 'wydarzenie'; wydarzenie: ProponowaneWydarzenie }
+  | { rodzaj: 'usun_wydarzenie'; opis: string; dzien: string | null }
   | { rodzaj: 'zakupy'; pozycja: ProponowanaPozycjaZakupow }
   | { rodzaj: 'notatka'; notatka: ProponowanaNotatka }
   | { rodzaj: 'tekst'; tresc: string }
@@ -43,6 +52,7 @@ const MODEL = 'gemini-3.6-flash'
 
 const NARZEDZIE_PODSUMOWANIE = 'pokaz_podsumowanie'
 const NARZEDZIE_WYDARZENIE = 'zaproponuj_wydarzenie'
+const NARZEDZIE_USUN = 'usun_wydarzenie'
 const NARZEDZIE_ZAKUPY = 'dodaj_pozycje_zakupow'
 const NARZEDZIE_NOTATKA = 'dodaj_notatke'
 const NARZEDZIE_TEKST = 'odpowiedz_tekstem'
@@ -84,6 +94,21 @@ function schematNarzedzi(domownicy: string[], listyZakupow: string[]) {
           calodniowe: { type: 'boolean' },
         },
         required: ['tytul', 'czlonek', 'data', 'start', 'koniec', 'calodniowe'],
+      },
+    },
+    {
+      name: NARZEDZIE_USUN,
+      description: 'Uzytkownik prosi o usuniecie istniejacego wydarzenia z kalendarza.',
+      parameters: {
+        type: 'object',
+        properties: {
+          opis: { type: 'string', description: 'Fragment tytulu wydarzenia do usuniecia, np. "dentysta".' },
+          data: {
+            type: 'string',
+            description: 'RRRR-MM-DD, jesli uzytkownik podal dzien wydarzenia. Pomin, jesli nie podal.',
+          },
+        },
+        required: ['opis'],
       },
     },
     {
@@ -138,7 +163,7 @@ function schematNarzedzi(domownicy: string[], listyZakupow: string[]) {
   ]
 }
 
-/** Zapytanie do Gemini generateContent z pieciu narzedziami do wyboru. */
+/** Zapytanie do Gemini generateContent z szescioma narzedziami do wyboru. */
 export function budujZapytanieBota(
   dzisiaj: Date,
   domownicy: string[],
@@ -157,7 +182,8 @@ export function budujZapytanieBota(
             'Użyj narzędzia pasującego do wiadomości: pokaz_podsumowanie gdy pytają o kalendarz/tablicę/zakupy na ' +
             'dowolny dzień (pole "data" musi być policzoną datą RRRR-MM-DD, nie nazwą dnia), ' +
             'zaproponuj_wydarzenie gdy proszą o dodanie czegoś do kalendarza (pole "czlonek" musi być dokładnie ' +
-            'jednym z podanych imion domowników albo "Wspólne"), dodaj_pozycje_zakupow gdy proszą o dopisanie ' +
+            'jednym z podanych imion domowników albo "Wspólne"), usun_wydarzenie gdy proszą o usunięcie/skasowanie ' +
+            'istniejącego wydarzenia, dodaj_pozycje_zakupow gdy proszą o dopisanie ' +
             'czegoś na listę zakupów, dodaj_notatke gdy proszą o dopisanie notatki/ogłoszenia na tablicę, ' +
             'odpowiedz_tekstem w każdym innym przypadku - ' +
             'NIE odpowiadaj na pytanie, nawet jeśli znasz odpowiedź (np. wiedza ogólna, pogawędka) - zamiast tego ' +
@@ -215,6 +241,17 @@ export function rozpoznajOdpowiedz(
       rodzaj: 'wydarzenie',
       wydarzenie: { tytul: a.tytul, czlonek: a.czlonek, data: a.data, start, koniec, calodniowe },
     }
+  }
+
+  if (wywolanie.nazwa === NARZEDZIE_USUN) {
+    if (typeof a.opis !== 'string' || !a.opis.trim()) {
+      throw new Error('Brak opisu wydarzenia do usunięcia.')
+    }
+    const dzien = typeof a.data === 'string' && a.data.trim() ? a.data : null
+    if (dzien !== null && Number.isNaN(new Date(dzien).getTime())) {
+      throw new Error(`Nieprawidłowa data: "${dzien}".`)
+    }
+    return { rodzaj: 'usun_wydarzenie', opis: a.opis, dzien }
   }
 
   if (wywolanie.nazwa === NARZEDZIE_ZAKUPY) {
@@ -292,4 +329,13 @@ export function opisPropozycji(w: ProponowaneWydarzenie): string {
   const kiedy = w.calodniowe ? `${w.data} (cały dzień)` : `${w.data}, ${w.start}–${w.koniec}`
   const dla = w.czlonek === WSPOLNE ? '' : ` (${w.czlonek})`
   return `${w.tytul}${dla} — ${kiedy}`
+}
+
+/** Opis istniejacego wydarzenia (z bazy) - do listy kandydatow i pytania "usunac: ...?". */
+export function opisWydarzenia(w: WydarzenieZnalezione): string {
+  const dzien = w.starts_at.slice(0, 10)
+  if (w.all_day) return `${w.title} — ${dzien} (cały dzień)`
+  const start = w.starts_at.slice(11, 16)
+  const koniec = w.ends_at.slice(11, 16)
+  return `${w.title} — ${dzien}, ${start}–${koniec}`
 }

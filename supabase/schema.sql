@@ -995,3 +995,82 @@ $$;
 
 revoke execute on function public.dodaj_notatke_bota(uuid, text, boolean)
   from public, anon, authenticated;
+
+-- Szuka wydarzen do usuniecia po fragmencie tytulu, opcjonalnie w danym dniu.
+-- Zwraca liste kandydatow - Edge Function decyduje, co dalej (0/1/wiele).
+-- Kolumna nazwana event_id (nie "id") - "id" jako nazwa zwracanej kolumny
+-- kolidowalo z odwolaniem do members.id w tresci funkcji (blad 42702).
+create or replace function public.znajdz_wydarzenia_bota(
+  p_member uuid,
+  p_fraza  text,
+  p_dzien  date default null
+) returns table (event_id uuid, title text, starts_at timestamp, ends_at timestamp, all_day boolean)
+  language plpgsql stable security definer set search_path = public
+as $$
+declare
+  wlasny_dom uuid;
+begin
+  select m.household_id into wlasny_dom from public.members m where m.id = p_member;
+  if wlasny_dom is null then
+    raise exception 'Nieznany domownik.';
+  end if;
+
+  return query
+    select e.id, e.title, e.starts_at, e.ends_at, e.all_day
+      from public.events e
+     where e.household_id = wlasny_dom
+       and e.title ilike '%' || p_fraza || '%'
+       and (
+         p_dzien is null
+         or (e.starts_at < (p_dzien + 1)::timestamp and e.ends_at > p_dzien::timestamp)
+       )
+     order by e.starts_at
+     limit 10;
+end
+$$;
+
+revoke execute on function public.znajdz_wydarzenia_bota(uuid, text, date)
+  from public, anon, authenticated;
+
+-- Usuwa wydarzenie, jesli p_member ma do tego prawo - dokladnie te same
+-- reguly co RLS "Wydarzenia - usuwanie": autor, przypisana osoba, albo rodzic.
+-- Zwraca false (nie rzuca wyjatku) gdy brak uprawnien, zeby Edge Function
+-- mogla dac uzytkownikowi zrozumiala, nie-techniczna odpowiedz.
+create or replace function public.usun_wydarzenie_bota(p_member uuid, p_event uuid)
+  returns boolean
+  language plpgsql volatile security definer set search_path = public
+as $$
+declare
+  wlasny_dom uuid;
+  jest_rodzicem boolean;
+  event_dom uuid;
+  event_tworca uuid;
+  jest_przypisany boolean;
+begin
+  select household_id, (role = 'rodzic') into wlasny_dom, jest_rodzicem
+    from public.members where id = p_member;
+  if wlasny_dom is null then
+    raise exception 'Nieznany domownik.';
+  end if;
+
+  select household_id, created_by into event_dom, event_tworca
+    from public.events where id = p_event;
+  if event_dom is null or event_dom != wlasny_dom then
+    raise exception 'Nieznane wydarzenie.';
+  end if;
+
+  select exists(
+    select 1 from public.event_members where event_id = p_event and member_id = p_member
+  ) into jest_przypisany;
+
+  if not (event_tworca = p_member or jest_przypisany or jest_rodzicem) then
+    return false;
+  end if;
+
+  delete from public.events where id = p_event;
+  return true;
+end
+$$;
+
+revoke execute on function public.usun_wydarzenie_bota(uuid, uuid)
+  from public, anon, authenticated;

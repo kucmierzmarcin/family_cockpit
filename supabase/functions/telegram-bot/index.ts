@@ -5,12 +5,14 @@ import {
   etykietaDnia,
   nastepnyDzien,
   opisPropozycji,
+  opisWydarzenia,
   rozpoznajOdpowiedz,
   rozpoznajPotwierdzenie,
   zlozTimestamp,
   type ProponowanaNotatka,
   type ProponowanaPozycjaZakupow,
   type ProponowaneWydarzenie,
+  type WydarzenieZnalezione,
 } from '../_wspolne/botAI.ts'
 import { zapytajGeminiNarzedzie } from '../_wspolne/gemini.ts'
 import { zbudujPodsumowanie, type DanePodsumowania } from '../_wspolne/podsumowanie.ts'
@@ -20,6 +22,13 @@ const SZKIC_WAZNY_MINUT = 10
 
 type Domownik = { member_id: string; household_id: string; imie: string; rola: string }
 type ListaZakupow = { id: string; name: string }
+
+// Szkic czekajacy na tak/nie w telegram_drafts.event_data - albo propozycja
+// nowego wydarzenia, albo propozycja usuniecia istniejacego (rozroznione
+// tagiem "rodzaj", kolumna zostaje "event_data" bez zmiany nazwy/typu).
+type Szkic =
+  | { rodzaj: 'wydarzenie'; wydarzenie: ProponowaneWydarzenie }
+  | { rodzaj: 'usuniecie'; eventId: string; opis: string }
 
 Deno.serve(async (req) => {
   const baza = createClient(
@@ -71,7 +80,7 @@ Deno.serve(async (req) => {
       szkicDb && Date.now() - new Date(szkicDb.created_at).getTime() < SZKIC_WAZNY_MINUT * 60_000
 
     if (szkicSwiezy) {
-      await obsluzPotwierdzenie(baza, domownik, chatId, tekst, szkicDb.event_data as ProponowaneWydarzenie)
+      await obsluzPotwierdzenie(baza, domownik, chatId, tekst, szkicDb.event_data as Szkic)
     } else {
       await obsluzWiadomosc(baza, domownik, chatId, tekst)
     }
@@ -113,7 +122,7 @@ async function obsluzPotwierdzenie(
   domownik: Domownik,
   chatId: number,
   tekst: string,
-  wydarzenie: ProponowaneWydarzenie,
+  szkic: Szkic,
 ): Promise<void> {
   const decyzja = rozpoznajPotwierdzenie(tekst)
 
@@ -136,10 +145,33 @@ async function obsluzPotwierdzenie(
       .delete()
       .eq('member_id', domownik.member_id)
     if (bladUsuniecia) throw new Error(bladUsuniecia.message)
-    await wyslijWiadomosc(chatId, 'OK, nie dodaję.')
+    await wyslijWiadomosc(chatId, 'OK, anuluję.')
     return
   }
 
+  if (szkic.rodzaj === 'usuniecie') {
+    const { data: udalo, error } = await baza.rpc('usun_wydarzenie_bota', {
+      p_member: domownik.member_id,
+      p_event: szkic.eventId,
+    })
+    if (error) throw new Error(error.message)
+
+    const { error: bladCzyszczenia } = await baza
+      .from('telegram_drafts')
+      .delete()
+      .eq('member_id', domownik.member_id)
+    if (bladCzyszczenia) console.error(bladCzyszczenia)
+
+    await wyslijWiadomosc(
+      chatId,
+      udalo
+        ? 'Usunięte ✅'
+        : 'Nie możesz usunąć tego wydarzenia — może to zrobić autor, przypisana osoba albo rodzic.',
+    )
+    return
+  }
+
+  const wydarzenie = szkic.wydarzenie
   const czlonkowie = await pobierzCzlonkow(baza, domownik.household_id)
   const idOsoby =
     wydarzenie.czlonek === WSPOLNE
@@ -227,6 +259,11 @@ async function obsluzWiadomosc(
     return
   }
 
+  if (odpowiedz.rodzaj === 'usun_wydarzenie') {
+    await obsluzUsuniecie(baza, domownik, chatId, odpowiedz.opis, odpowiedz.dzien)
+    return
+  }
+
   if (odpowiedz.rodzaj === 'zakupy') {
     await obsluzZakupy(baza, domownik, chatId, listy, odpowiedz.pozycja)
     return
@@ -237,13 +274,58 @@ async function obsluzWiadomosc(
     return
   }
 
+  const szkic: Szkic = { rodzaj: 'wydarzenie', wydarzenie: odpowiedz.wydarzenie }
   const { error: bladSzkicu } = await baza.from('telegram_drafts').upsert({
     member_id: domownik.member_id,
-    event_data: odpowiedz.wydarzenie,
+    event_data: szkic,
     created_at: new Date().toISOString(),
   })
   if (bladSzkicu) throw new Error(bladSzkicu.message)
   await wyslijWiadomosc(chatId, `Zapisać: ${opisPropozycji(odpowiedz.wydarzenie)}? (tak/nie)`)
+}
+
+/**
+ * Szuka wydarzen pasujacych do opisu (opcjonalnie w danym dniu). Bez wyniku:
+ * mowi ze nic nie znalazl. Wiecej niz jeden wynik: wypisuje liste, prosi o
+ * doprecyzowanie, nic nie zapisuje. Dokladnie jeden wynik: zapisuje szkic i
+ * pyta o potwierdzenie tak/nie - usuwanie jest nieodwracalne, w
+ * przeciwienstwie do zakupow/notatek dostaje zawsze potwierdzenie.
+ */
+async function obsluzUsuniecie(
+  baza: ReturnType<typeof createClient>,
+  domownik: Domownik,
+  chatId: number,
+  opis: string,
+  dzien: string | null,
+): Promise<void> {
+  const { data: znalezioneDb, error } = await baza.rpc('znajdz_wydarzenia_bota', {
+    p_member: domownik.member_id,
+    p_fraza: opis,
+    p_dzien: dzien,
+  })
+  if (error) throw new Error(error.message)
+  const znalezione = (znalezioneDb ?? []) as (WydarzenieZnalezione & { event_id: string })[]
+
+  if (znalezione.length === 0) {
+    await wyslijWiadomosc(chatId, `Nie znalazłem wydarzenia pasującego do „${opis}".`)
+    return
+  }
+
+  if (znalezione.length > 1) {
+    const lista = znalezione.map((w) => `- ${opisWydarzenia(w)}`).join('\n')
+    await wyslijWiadomosc(chatId, `Znalazłem kilka pasujących wydarzeń, doprecyzuj które:\n${lista}`)
+    return
+  }
+
+  const [wydarzenie] = znalezione
+  const szkic: Szkic = { rodzaj: 'usuniecie', eventId: wydarzenie.event_id, opis }
+  const { error: bladSzkicu } = await baza.from('telegram_drafts').upsert({
+    member_id: domownik.member_id,
+    event_data: szkic,
+    created_at: new Date().toISOString(),
+  })
+  if (bladSzkicu) throw new Error(bladSzkicu.message)
+  await wyslijWiadomosc(chatId, `Usunąć: ${opisWydarzenia(wydarzenie)}? (tak/nie)`)
 }
 
 /**
