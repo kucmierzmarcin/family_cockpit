@@ -337,6 +337,59 @@
   cursor: not-allowed;
 }
 
+.formularz-terminu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formularz-terminu label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tekst-drugi);
+}
+
+.formularz-terminu input,
+.formularz-terminu textarea {
+  padding: 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  color: var(--tekst);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.formularz-terminu textarea {
+  resize: vertical;
+}
+
+.formularz-terminu input:focus,
+.formularz-terminu textarea:focus {
+  outline: 2px solid var(--akcent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.formularz-terminu button {
+  align-self: flex-start;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background: var(--akcent);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.formularz-terminu button:disabled {
+  background: #c9c5d2;
+  cursor: not-allowed;
+}
+
 @media (max-width: 640px) {
   .pole-ilosci {
     flex: 0 0 68px;
@@ -350,7 +403,9 @@
   .formularz textarea,
   .formularz-listy input,
   .formularz-pozycji input,
-  .formularz-notatki textarea {
+  .formularz-notatki textarea,
+  .formularz-terminu input,
+  .formularz-terminu textarea {
     font-size: 16px;
     min-height: var(--dotyk);
   }
@@ -358,7 +413,8 @@
   .formularz button,
   .formularz-listy button,
   .formularz-pozycji button,
-  .formularz-notatki button {
+  .formularz-notatki button,
+  .formularz-terminu button {
     min-height: var(--dotyk);
   }
 

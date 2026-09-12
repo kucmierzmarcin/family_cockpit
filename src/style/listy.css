@@ -298,3 +298,127 @@
     flex-wrap: wrap;
   }
 }
+
+/* --- Ekran "Terminy" --- */
+
+.terminy {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.przelacznik-zalatwionych {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  font-size: 14px;
+  color: var(--tekst-drugi);
+  cursor: pointer;
+}
+
+.karty-terminow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.karta-terminu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--kreska);
+  border-radius: 12px;
+  background: var(--karta);
+  box-shadow: var(--cien);
+}
+
+.karta-terminu.zalatwiony {
+  opacity: 0.6;
+}
+
+.karta-terminu.zalatwiony .tytul-terminu {
+  text-decoration: line-through;
+}
+
+.zalatwiony-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.znacznik-przeterminowania {
+  align-self: flex-start;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--blad-tlo);
+  color: var(--blad);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.opis-terminu {
+  margin: 0;
+  font-size: 14px;
+  color: var(--tekst-drugi);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.data-terminu {
+  margin: 0;
+  font-size: 13px;
+  color: var(--tekst-drugi);
+}
+
+.zalaczniki-terminu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zalacznik-terminu {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.zalacznik-terminu .drobny {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.stopka-terminu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+  flex-wrap: wrap;
+}
+
+.stopka-terminu .autor-karteczki {
+  margin-right: auto;
+}
+
+@media (max-width: 767px) {
+  .karty-terminow {
+    grid-template-columns: 1fr;
+  }
+}
