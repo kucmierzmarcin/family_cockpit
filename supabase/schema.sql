@@ -1123,3 +1123,75 @@ $$;
 
 revoke execute on function public.usun_wydarzenie_bota(uuid, uuid)
   from public, anon, authenticated;
+
+-- Edytuje wydarzenie, jesli p_member ma do tego prawo - mirror RLS "Wydarzenia
+-- - zmiana" (autor, przypisana osoba, rodzic). Zmiana przypisanych osob
+-- (p_osoby != null) wymaga wezszych uprawnien - mirror RLS "Przypisania -
+-- dodawanie/usuwanie" (tylko autor albo rodzic) - inaczej cala edycja jest
+-- odrzucana. Edycja zawsze odrywa wydarzenie od serii cyklicznej
+-- (series_id := null), zgodnie z decyzja: edytujemy tylko to wystapienie.
+-- Zwraca false (nie rzuca wyjatku) gdy brak uprawnien, tak jak usun_wydarzenie_bota.
+create or replace function public.edytuj_wydarzenie_bota(
+  p_member     uuid,
+  p_event      uuid,
+  p_tytul      text,
+  p_poczatek   timestamp,
+  p_koniec     timestamp,
+  p_calodniowe boolean,
+  p_osoby      uuid[] default null -- null = nie zmieniaj przypisanych osob
+) returns boolean
+  language plpgsql volatile security definer set search_path = public
+as $$
+declare
+  wlasny_dom uuid;
+  jest_rodzicem boolean;
+  event_dom uuid;
+  event_tworca uuid;
+  jest_przypisany boolean;
+begin
+  select household_id, (role = 'rodzic') into wlasny_dom, jest_rodzicem
+    from public.members where id = p_member;
+  if wlasny_dom is null then
+    raise exception 'Nieznany domownik.';
+  end if;
+
+  select household_id, created_by into event_dom, event_tworca
+    from public.events where id = p_event;
+  if event_dom is null or event_dom != wlasny_dom then
+    raise exception 'Nieznane wydarzenie.';
+  end if;
+
+  select exists(
+    select 1 from public.event_members where event_id = p_event and member_id = p_member
+  ) into jest_przypisany;
+
+  if not (event_tworca = p_member or jest_przypisany or jest_rodzicem) then
+    return false;
+  end if;
+
+  if p_osoby is not null and not (event_tworca = p_member or jest_rodzicem) then
+    return false;
+  end if;
+
+  update public.events
+     set title     = p_tytul,
+         starts_at = p_poczatek,
+         ends_at   = p_koniec,
+         all_day   = p_calodniowe,
+         series_id = null
+   where id = p_event;
+
+  if p_osoby is not null then
+    delete from public.event_members where event_id = p_event;
+    if array_length(p_osoby, 1) > 0 then
+      insert into public.event_members (event_id, member_id)
+      select p_event, unnest(p_osoby);
+    end if;
+  end if;
+
+  return true;
+end
+$$;
+
+revoke execute on function public.edytuj_wydarzenie_bota(uuid, uuid, text, timestamp, timestamp, boolean, uuid[])
+  from public, anon, authenticated;

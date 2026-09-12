@@ -6,8 +6,10 @@ import {
   nastepnyDzien,
   opisPropozycji,
   opisWydarzenia,
+  polaczZmiane,
   rozpoznajOdpowiedz,
   rozpoznajPotwierdzenie,
+  stanZWydarzenia,
   zlozTimestamp,
 } from './botAI'
 
@@ -18,13 +20,14 @@ describe('budujZapytanieBota', () => {
     expect(z.systemInstruction.parts[0].text).toContain('Marcin, Magda')
   })
 
-  it('wymusza wybor jednego z szesciu narzedzi', () => {
+  it('wymusza wybor jednego z siedmiu narzedzi', () => {
     const z = budujZapytanieBota(new Date('2026-09-11T10:00:00'), [], [], 'test')
     const nazwy = z.tools[0].functionDeclarations.map((n: { name: string }) => n.name)
     expect(nazwy).toEqual([
       'pokaz_podsumowanie',
       'zaproponuj_wydarzenie',
       'usun_wydarzenie',
+      'edytuj_wydarzenie',
       'dodaj_pozycje_zakupow',
       'dodaj_notatke',
       'odpowiedz_tekstem',
@@ -229,6 +232,118 @@ describe('rozpoznajOdpowiedz - usun_wydarzenie', () => {
   })
 })
 
+describe('rozpoznajOdpowiedz - edytuj_wydarzenie', () => {
+  it('opis + jedna zmiana (nowy start)', () => {
+    const w = rozpoznajOdpowiedz(
+      { nazwa: 'edytuj_wydarzenie', args: { opis: 'trening', nowy_start: '18:00' } },
+      [],
+    )
+    expect(w).toEqual({ rodzaj: 'edytuj_wydarzenie', opis: 'trening', dzien: null, zmiany: { start: '18:00' } })
+  })
+
+  it('opis + dzien + kilka zmian naraz', () => {
+    const w = rozpoznajOdpowiedz(
+      {
+        nazwa: 'edytuj_wydarzenie',
+        args: { opis: 'trening', dzien: '2026-09-18', nowy_start: '18:00', nowy_koniec: '19:00', nowy_tytul: 'Siłownia' },
+      },
+      [],
+    )
+    expect(w).toEqual({
+      rodzaj: 'edytuj_wydarzenie',
+      opis: 'trening',
+      dzien: '2026-09-18',
+      zmiany: { start: '18:00', koniec: '19:00', tytul: 'Siłownia' },
+    })
+  })
+
+  it('nowa_data trafia do zmiany "data"', () => {
+    const w = rozpoznajOdpowiedz(
+      { nazwa: 'edytuj_wydarzenie', args: { opis: 'trening', nowa_data: '2026-09-20' } },
+      [],
+    )
+    expect(w).toEqual({ rodzaj: 'edytuj_wydarzenie', opis: 'trening', dzien: null, zmiany: { data: '2026-09-20' } })
+  })
+
+  it('nowe_calodniowe trafia do zmiany "calodniowe"', () => {
+    const w = rozpoznajOdpowiedz(
+      { nazwa: 'edytuj_wydarzenie', args: { opis: 'wycieczka', nowe_calodniowe: true } },
+      [],
+    )
+    expect(w).toEqual({
+      rodzaj: 'edytuj_wydarzenie',
+      opis: 'wycieczka',
+      dzien: null,
+      zmiany: { calodniowe: true },
+    })
+  })
+
+  it('nowi_czlonkowie z listy domownikow', () => {
+    const w = rozpoznajOdpowiedz(
+      { nazwa: 'edytuj_wydarzenie', args: { opis: 'wycieczka', nowi_czlonkowie: ['Zuzia', 'Oliwier'] } },
+      ['Zuzia', 'Oliwier'],
+    )
+    expect(w).toEqual({
+      rodzaj: 'edytuj_wydarzenie',
+      opis: 'wycieczka',
+      dzien: null,
+      zmiany: { czlonkowie: ['Zuzia', 'Oliwier'] },
+    })
+  })
+
+  it('nowi_czlonkowie akceptuje pojedynczy string jako wygode', () => {
+    const w = rozpoznajOdpowiedz(
+      { nazwa: 'edytuj_wydarzenie', args: { opis: 'wycieczka', nowi_czlonkowie: 'Zuzia' } },
+      ['Zuzia'],
+    )
+    expect(w).toEqual({
+      rodzaj: 'edytuj_wydarzenie',
+      opis: 'wycieczka',
+      dzien: null,
+      zmiany: { czlonkowie: ['Zuzia'] },
+    })
+  })
+
+  it('odrzuca nieznana osobe w nowi_czlonkowie', () => {
+    expect(() =>
+      rozpoznajOdpowiedz(
+        { nazwa: 'edytuj_wydarzenie', args: { opis: 'wycieczka', nowi_czlonkowie: ['Ktoś Obcy'] } },
+        ['Zuzia'],
+      ),
+    ).toThrow('nieznaną osobę')
+  })
+
+  it('odrzuca brak opisu', () => {
+    expect(() =>
+      rozpoznajOdpowiedz({ nazwa: 'edytuj_wydarzenie', args: { nowy_start: '18:00' } }, []),
+    ).toThrow('opisu wydarzenia')
+  })
+
+  it('odrzuca nieprawidlowa date dnia', () => {
+    expect(() =>
+      rozpoznajOdpowiedz(
+        { nazwa: 'edytuj_wydarzenie', args: { opis: 'trening', dzien: 'nie-data', nowy_start: '18:00' } },
+        [],
+      ),
+    ).toThrow('Nieprawidłowa data')
+  })
+
+  it('odrzuca nieprawidlowa nowa_data', () => {
+    expect(() =>
+      rozpoznajOdpowiedz(
+        { nazwa: 'edytuj_wydarzenie', args: { opis: 'trening', nowa_data: 'nie-data' } },
+        [],
+      ),
+    ).toThrow('Nieprawidłowa data')
+  })
+
+  it('odrzuca brak jakiejkolwiek zmiany', () => {
+    expect(() =>
+      rozpoznajOdpowiedz({ nazwa: 'edytuj_wydarzenie', args: { opis: 'trening' } }, []),
+    ).toThrow('co mam zmienić')
+  })
+})
+
 describe('rozpoznajOdpowiedz - dodaj_pozycje_zakupow', () => {
   it('pelne dane', () => {
     const w = rozpoznajOdpowiedz(
@@ -402,5 +517,55 @@ describe('opisWydarzenia', () => {
         all_day: true,
       }),
     ).toBe('Wycieczka — 2026-09-20 (cały dzień)')
+  })
+})
+
+describe('stanZWydarzenia', () => {
+  it('rozbija wydarzenie z bazy na pola do edycji', () => {
+    expect(
+      stanZWydarzenia(
+        { title: 'Trening', starts_at: '2026-09-18T18:00:00', ends_at: '2026-09-18T19:00:00', all_day: false },
+        ['Marcin'],
+      ),
+    ).toEqual({
+      tytul: 'Trening', czlonkowie: ['Marcin'], data: '2026-09-18', start: '18:00', koniec: '19:00', calodniowe: false,
+    })
+  })
+})
+
+describe('polaczZmiane', () => {
+  const obecne = {
+    tytul: 'Trening', czlonkowie: ['Marcin'], data: '2026-09-18', start: '18:00', koniec: '19:00', calodniowe: false,
+  }
+
+  it('bez zmian zwraca dokladnie obecny stan (plus brak powtarzania)', () => {
+    expect(polaczZmiane(obecne, {})).toEqual({ ...obecne, powtarzanie: 'brak', powtarzajDo: null })
+  })
+
+  it('zmiana samej godziny zostawia reszte pol bez zmian', () => {
+    expect(polaczZmiane(obecne, { start: '20:00', koniec: '21:00' })).toEqual({
+      ...obecne, start: '20:00', koniec: '21:00', powtarzanie: 'brak', powtarzajDo: null,
+    })
+  })
+
+  it('zmiana tytulu zostawia reszte pol bez zmian', () => {
+    expect(polaczZmiane(obecne, { tytul: 'Siłownia' })).toEqual({
+      ...obecne, tytul: 'Siłownia', powtarzanie: 'brak', powtarzajDo: null,
+    })
+  })
+
+  it('zmiana czlonkow zostawia reszte pol bez zmian', () => {
+    expect(polaczZmiane(obecne, { czlonkowie: ['Zuzia', 'Oliwier'] })).toEqual({
+      ...obecne, czlonkowie: ['Zuzia', 'Oliwier'], powtarzanie: 'brak', powtarzajDo: null,
+    })
+  })
+
+  it('odrzuca koniec nie pozniejszy niz poczatek po polaczeniu', () => {
+    expect(() => polaczZmiane(obecne, { start: '20:00', koniec: '19:00' })).toThrow('późniejszy')
+  })
+
+  it('zmiana na calodniowe pomija sprawdzenie kolejnosci godzin', () => {
+    const w = polaczZmiane(obecne, { calodniowe: true })
+    expect(w.calodniowe).toBe(true)
   })
 })

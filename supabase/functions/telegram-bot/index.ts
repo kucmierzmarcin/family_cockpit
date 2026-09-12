@@ -6,13 +6,16 @@ import {
   nastepnyDzien,
   opisPropozycji,
   opisWydarzenia,
+  polaczZmiane,
   rozpoznajOdpowiedz,
   rozpoznajPotwierdzenie,
+  stanZWydarzenia,
   zlozTimestamp,
   type ProponowanaNotatka,
   type ProponowanaPozycjaZakupow,
   type ProponowaneWydarzenie,
   type WydarzenieZnalezione,
+  type ZmianaWydarzenia,
 } from '../_wspolne/botAI.ts'
 import { zapytajGeminiNarzedzie } from '../_wspolne/gemini.ts'
 import { zbudujPodsumowanie, type DanePodsumowania } from '../_wspolne/podsumowanie.ts'
@@ -23,12 +26,13 @@ const SZKIC_WAZNY_MINUT = 10
 type Domownik = { member_id: string; household_id: string; imie: string; rola: string }
 type ListaZakupow = { id: string; name: string }
 
-// Szkic czekajacy na tak/nie w telegram_drafts.event_data - albo propozycja
-// nowego wydarzenia, albo propozycja usuniecia istniejacego (rozroznione
-// tagiem "rodzaj", kolumna zostaje "event_data" bez zmiany nazwy/typu).
+// Szkic czekajacy na tak/nie w telegram_drafts.event_data - propozycja
+// nowego wydarzenia, usuniecia albo edycji istniejacego (rozroznione tagiem
+// "rodzaj", kolumna zostaje "event_data" bez zmiany nazwy/typu).
 type Szkic =
   | { rodzaj: 'wydarzenie'; wydarzenie: ProponowaneWydarzenie }
   | { rodzaj: 'usuniecie'; eventId: string; opis: string }
+  | { rodzaj: 'edycja'; eventId: string; wydarzenie: ProponowaneWydarzenie; zmianaCzlonkow: boolean }
 
 Deno.serve(async (req) => {
   const baza = createClient(
@@ -171,6 +175,42 @@ async function obsluzPotwierdzenie(
     return
   }
 
+  if (szkic.rodzaj === 'edycja') {
+    const czlonkowie = await pobierzCzlonkow(baza, domownik.household_id)
+    const idOsoby = szkic.zmianaCzlonkow
+      ? szkic.wydarzenie.czlonkowie.includes(WSPOLNE)
+        ? []
+        : szkic.wydarzenie.czlonkowie.map((nazwa) => czlonkowie.get(nazwa)).filter((id): id is string => Boolean(id))
+      : null
+
+    const { data: udalo, error } = await baza.rpc('edytuj_wydarzenie_bota', {
+      p_member: domownik.member_id,
+      p_event: szkic.eventId,
+      p_tytul: szkic.wydarzenie.tytul,
+      p_poczatek: zlozTimestamp(szkic.wydarzenie.data, szkic.wydarzenie.calodniowe ? '00:00' : szkic.wydarzenie.start),
+      p_koniec: szkic.wydarzenie.calodniowe
+        ? zlozTimestamp(nastepnyDzien(szkic.wydarzenie.data), '00:00')
+        : zlozTimestamp(szkic.wydarzenie.data, szkic.wydarzenie.koniec),
+      p_calodniowe: szkic.wydarzenie.calodniowe,
+      p_osoby: idOsoby,
+    })
+    if (error) throw new Error(error.message)
+
+    const { error: bladCzyszczenia } = await baza
+      .from('telegram_drafts')
+      .delete()
+      .eq('member_id', domownik.member_id)
+    if (bladCzyszczenia) console.error(bladCzyszczenia)
+
+    await wyslijWiadomosc(
+      chatId,
+      udalo
+        ? 'Zmienione ✅'
+        : 'Nie możesz tego zmienić — może to zrobić autor, przypisana osoba albo rodzic (zmianę osób tylko autor lub rodzic).',
+    )
+    return
+  }
+
   const wydarzenie = szkic.wydarzenie
   const czlonkowie = await pobierzCzlonkow(baza, domownik.household_id)
   const idOsoby = wydarzenie.czlonkowie.includes(WSPOLNE)
@@ -271,6 +311,11 @@ async function obsluzWiadomosc(
     return
   }
 
+  if (odpowiedz.rodzaj === 'edytuj_wydarzenie') {
+    await obsluzEdycje(baza, domownik, chatId, odpowiedz.opis, odpowiedz.dzien, odpowiedz.zmiany)
+    return
+  }
+
   if (odpowiedz.rodzaj === 'zakupy') {
     await obsluzZakupy(baza, domownik, chatId, listy, odpowiedz.pozycja)
     return
@@ -333,6 +378,58 @@ async function obsluzUsuniecie(
   })
   if (bladSzkicu) throw new Error(bladSzkicu.message)
   await wyslijWiadomosc(chatId, `Usunąć: ${opisWydarzenia(wydarzenie)}? (tak/nie)`)
+}
+
+/**
+ * Szuka wydarzenia do edycji (jak przy usuwaniu), po znalezieniu dokladnie
+ * jednego laczy jego obecny stan ze zmianami z Gemini i pyta o potwierdzenie
+ * pelnego nowego stanu. Edycja zawsze odrywa wydarzenie od ewentualnej serii
+ * cyklicznej - obsluguje to `edytuj_wydarzenie_bota` w bazie.
+ */
+async function obsluzEdycje(
+  baza: ReturnType<typeof createClient>,
+  domownik: Domownik,
+  chatId: number,
+  opis: string,
+  dzien: string | null,
+  zmiany: ZmianaWydarzenia,
+): Promise<void> {
+  const { data: znalezioneDb, error } = await baza.rpc('znajdz_wydarzenia_bota', {
+    p_member: domownik.member_id,
+    p_fraza: opis,
+    p_dzien: dzien,
+  })
+  if (error) throw new Error(error.message)
+  const znalezione = (znalezioneDb ?? []) as (WydarzenieZnalezione & { event_id: string })[]
+
+  if (znalezione.length === 0) {
+    await wyslijWiadomosc(chatId, `Nie znalazłem wydarzenia pasującego do „${opis}".`)
+    return
+  }
+
+  if (znalezione.length > 1) {
+    const lista = znalezione.map((w) => `- ${opisWydarzenia(w)}`).join('\n')
+    await wyslijWiadomosc(chatId, `Znalazłem kilka pasujących wydarzeń, doprecyzuj które:\n${lista}`)
+    return
+  }
+
+  const [znalezionyWydarzenie] = znalezione
+  const obecneOsoby = await pobierzOsobyWydarzenia(baza, znalezionyWydarzenie.event_id)
+  const nowyStan = polaczZmiane(stanZWydarzenia(znalezionyWydarzenie, obecneOsoby), zmiany)
+
+  const szkic: Szkic = {
+    rodzaj: 'edycja',
+    eventId: znalezionyWydarzenie.event_id,
+    wydarzenie: nowyStan,
+    zmianaCzlonkow: zmiany.czlonkowie !== undefined,
+  }
+  const { error: bladSzkicu } = await baza.from('telegram_drafts').upsert({
+    member_id: domownik.member_id,
+    event_data: szkic,
+    created_at: new Date().toISOString(),
+  })
+  if (bladSzkicu) throw new Error(bladSzkicu.message)
+  await wyslijWiadomosc(chatId, `Zmienić na: ${opisPropozycji(nowyStan)}? (tak/nie)`)
 }
 
 /**
@@ -424,6 +521,18 @@ async function pobierzCzlonkow(
 ): Promise<Map<string, string>> {
   const { data } = await baza.from('members').select('id, name').eq('household_id', householdId)
   return new Map((data ?? []).map((c: { id: string; name: string }) => [c.name, c.id]))
+}
+
+/** Imiona obecnie przypisanych do wydarzenia osob - [WSPOLNE], gdy nikt nie jest przypisany. */
+async function pobierzOsobyWydarzenia(
+  baza: ReturnType<typeof createClient>,
+  eventId: string,
+): Promise<string[]> {
+  const { data } = await baza.from('event_members').select('members(name)').eq('event_id', eventId)
+  const nazwy = (data ?? [])
+    .map((w: { members: { name: string } | null }) => w.members?.name)
+    .filter((n): n is string => Boolean(n))
+  return nazwy.length > 0 ? nazwy : [WSPOLNE]
 }
 
 function odpowiedzOk(): Response {

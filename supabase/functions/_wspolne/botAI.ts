@@ -24,6 +24,26 @@ export type ProponowaneWydarzenie = {
   powtarzajDo: string | null // 'RRRR-MM-DD' - wymagane, gdy powtarzanie !== 'brak'
 }
 
+/** Tylko pola, ktore uzytkownik faktycznie chce zmienic - reszta zostaje bez zmian. */
+export type ZmianaWydarzenia = {
+  tytul?: string
+  data?: string
+  start?: string
+  koniec?: string
+  calodniowe?: boolean
+  czlonkowie?: string[]
+}
+
+/** Obecny stan edytowanego wydarzenia - podstawa do polaczenia ze zmianami. */
+export type StanWydarzenia = {
+  tytul: string
+  czlonkowie: string[]
+  data: string
+  start: string
+  koniec: string
+  calodniowe: boolean
+}
+
 export type ProponowanaPozycjaZakupow = {
   nazwa: string
   ilosc: string | null
@@ -47,6 +67,7 @@ export type OdpowiedzBota =
   | { rodzaj: 'podsumowanie'; data: string }
   | { rodzaj: 'wydarzenie'; wydarzenie: ProponowaneWydarzenie }
   | { rodzaj: 'usun_wydarzenie'; opis: string; dzien: string | null }
+  | { rodzaj: 'edytuj_wydarzenie'; opis: string; dzien: string | null; zmiany: ZmianaWydarzenia }
   | { rodzaj: 'zakupy'; pozycja: ProponowanaPozycjaZakupow }
   | { rodzaj: 'notatka'; notatka: ProponowanaNotatka }
   | { rodzaj: 'tekst'; tresc: string }
@@ -58,6 +79,7 @@ const MODEL = 'gemini-3.6-flash'
 const NARZEDZIE_PODSUMOWANIE = 'pokaz_podsumowanie'
 const NARZEDZIE_WYDARZENIE = 'zaproponuj_wydarzenie'
 const NARZEDZIE_USUN = 'usun_wydarzenie'
+const NARZEDZIE_EDYCJA = 'edytuj_wydarzenie'
 const NARZEDZIE_ZAKUPY = 'dodaj_pozycje_zakupow'
 const NARZEDZIE_NOTATKA = 'dodaj_notatke'
 const NARZEDZIE_TEKST = 'odpowiedz_tekstem'
@@ -126,6 +148,54 @@ function schematNarzedzi(domownicy: string[], listyZakupow: string[]) {
           data: {
             type: 'string',
             description: 'RRRR-MM-DD, jesli uzytkownik podal dzien wydarzenia. Pomin, jesli nie podal.',
+          },
+        },
+        required: ['opis'],
+      },
+    },
+    {
+      name: NARZEDZIE_EDYCJA,
+      description:
+        'Uzytkownik prosi o zmiane (edycje) istniejacego wydarzenia - przesuniecie w czasie, zmiane tytulu, ' +
+        'dnia albo osob. NIE uzywaj tego narzedzia do usuwania wydarzenia.',
+      parameters: {
+        type: 'object',
+        properties: {
+          opis: { type: 'string', description: 'Fragment tytulu wydarzenia do znalezienia, np. "trening".' },
+          dzien: {
+            type: 'string',
+            description: 'RRRR-MM-DD, jesli uzytkownik podal dzien wydarzenia zeby je znalezc. Pomin, jesli nie podal.',
+          },
+          nowy_tytul: {
+            type: 'string',
+            description: 'Nowy tytul wydarzenia - tylko jesli uzytkownik chce go zmienic. Pomin w przeciwnym razie.',
+          },
+          nowa_data: {
+            type: 'string',
+            description:
+              'RRRR-MM-DD - nowy dzien wydarzenia, tylko jesli uzytkownik chce je przesunac na inny dzien. ' +
+              'Pomin w przeciwnym razie.',
+          },
+          nowy_start: {
+            type: 'string',
+            description: 'GG:MM - nowa godzina rozpoczecia, tylko jesli uzytkownik chce ja zmienic. Pomin w przeciwnym razie.',
+          },
+          nowy_koniec: {
+            type: 'string',
+            description: 'GG:MM - nowa godzina zakonczenia, tylko jesli uzytkownik chce ja zmienic. Pomin w przeciwnym razie.',
+          },
+          nowe_calodniowe: {
+            type: 'boolean',
+            description:
+              'Czy wydarzenie ma stac sie albo przestac byc calodniowe - tylko jesli uzytkownik o tym wspomnial. ' +
+              'Pomin w przeciwnym razie.',
+          },
+          nowi_czlonkowie: {
+            type: 'array',
+            items: { type: 'string', enum: [...domownicy, WSPOLNE] },
+            description:
+              'Nowa lista osob, ktorych ma dotyczyc wydarzenie - tylko jesli uzytkownik chce to zmienic. ' +
+              'Pomin w przeciwnym razie.',
           },
         },
         required: ['opis'],
@@ -205,7 +275,9 @@ export function budujZapytanieBota(
             'imię, kilka imion albo "Wspólne", dokładnie z podanych imion domowników; pole "powtarzanie" tylko, gdy mówią że coś się ' +
             'powtarza - np. "co tydzień", "co miesiąc" - wraz z "powtarzaj_do" jako datą końca powtarzania), ' +
             'usun_wydarzenie gdy proszą o usunięcie/skasowanie ' +
-            'istniejącego wydarzenia, dodaj_pozycje_zakupow gdy proszą o dopisanie ' +
+            'istniejącego wydarzenia, edytuj_wydarzenie gdy proszą o zmianę/przesunięcie/edycję istniejącego ' +
+            'wydarzenia (podaj tylko te pola nowy_/nowa_/nowe_, które użytkownik faktycznie chce zmienić - ' +
+            'pomiń resztę), dodaj_pozycje_zakupow gdy proszą o dopisanie ' +
             'czegoś na listę zakupów, dodaj_notatke gdy proszą o dopisanie notatki/ogłoszenia na tablicę, ' +
             'odpowiedz_tekstem w każdym innym przypadku - ' +
             'NIE odpowiadaj na pytanie, nawet jeśli znasz odpowiedź (np. wiedza ogólna, pogawędka) - zamiast tego ' +
@@ -307,6 +379,58 @@ export function rozpoznajOdpowiedz(
     return { rodzaj: 'usun_wydarzenie', opis: a.opis, dzien }
   }
 
+  if (wywolanie.nazwa === NARZEDZIE_EDYCJA) {
+    if (typeof a.opis !== 'string' || !a.opis.trim()) {
+      throw new Error('Brak opisu wydarzenia do edycji.')
+    }
+    const dzien = typeof a.dzien === 'string' && a.dzien.trim() ? a.dzien : null
+    if (dzien !== null && Number.isNaN(new Date(dzien).getTime())) {
+      throw new Error(`Nieprawidłowa data: "${dzien}".`)
+    }
+
+    const zmiany: ZmianaWydarzenia = {}
+
+    if (typeof a.nowy_tytul === 'string' && a.nowy_tytul.trim()) {
+      zmiany.tytul = a.nowy_tytul
+    }
+    if (typeof a.nowa_data === 'string' && a.nowa_data.trim()) {
+      if (Number.isNaN(new Date(a.nowa_data).getTime())) {
+        throw new Error(`Nieprawidłowa data: "${a.nowa_data}".`)
+      }
+      zmiany.data = a.nowa_data
+    }
+    if (typeof a.nowy_start === 'string' && a.nowy_start.trim()) {
+      zmiany.start = a.nowy_start
+    }
+    if (typeof a.nowy_koniec === 'string' && a.nowy_koniec.trim()) {
+      zmiany.koniec = a.nowy_koniec
+    }
+    if (typeof a.nowe_calodniowe === 'boolean') {
+      zmiany.calodniowe = a.nowe_calodniowe
+    }
+    if (a.nowi_czlonkowie !== undefined) {
+      const dozwoleni = new Set([...domownicy, WSPOLNE])
+      const czlonkowieRaw = Array.isArray(a.nowi_czlonkowie)
+        ? a.nowi_czlonkowie
+        : typeof a.nowi_czlonkowie === 'string'
+          ? [a.nowi_czlonkowie]
+          : []
+      if (
+        czlonkowieRaw.length === 0 ||
+        !czlonkowieRaw.every((c: unknown): c is string => typeof c === 'string' && dozwoleni.has(c))
+      ) {
+        throw new Error(`Rozpoznano nieznaną osobę: "${String(a.nowi_czlonkowie)}".`)
+      }
+      zmiany.czlonkowie = czlonkowieRaw as string[]
+    }
+
+    if (Object.keys(zmiany).length === 0) {
+      throw new Error('Nie wiem, co mam zmienić.')
+    }
+
+    return { rodzaj: 'edytuj_wydarzenie', opis: a.opis, dzien, zmiany }
+  }
+
   if (wywolanie.nazwa === NARZEDZIE_ZAKUPY) {
     if (typeof a.nazwa !== 'string' || !a.nazwa.trim()) {
       throw new Error('Brak nazwy pozycji do dodania na zakupy.')
@@ -401,4 +525,36 @@ export function opisWydarzenia(w: WydarzenieZnalezione): string {
   const start = w.starts_at.slice(11, 16)
   const koniec = w.ends_at.slice(11, 16)
   return `${w.title} — ${dzien}, ${start}–${koniec}`
+}
+
+/** Rozbija wydarzenie znalezione w bazie na pola do polaczenia ze zmianami z edycji. */
+export function stanZWydarzenia(w: WydarzenieZnalezione, czlonkowie: string[]): StanWydarzenia {
+  return {
+    tytul: w.title,
+    czlonkowie,
+    data: w.starts_at.slice(0, 10),
+    start: w.starts_at.slice(11, 16),
+    koniec: w.ends_at.slice(11, 16),
+    calodniowe: w.all_day,
+  }
+}
+
+/**
+ * Laczy obecny stan wydarzenia ze zmianami z edycji - pola pominiete w
+ * zmianach zostaja bez zmian. Edycja zawsze odrywa wydarzenie od serii
+ * cyklicznej (jesli byla), wiec wynik ma zawsze powtarzanie: 'brak'.
+ */
+export function polaczZmiane(obecne: StanWydarzenia, zmiany: ZmianaWydarzenia): ProponowaneWydarzenie {
+  const tytul = zmiany.tytul ?? obecne.tytul
+  const czlonkowie = zmiany.czlonkowie ?? obecne.czlonkowie
+  const data = zmiany.data ?? obecne.data
+  const start = zmiany.start ?? obecne.start
+  const koniec = zmiany.koniec ?? obecne.koniec
+  const calodniowe = zmiany.calodniowe ?? obecne.calodniowe
+
+  if (!calodniowe && koniec <= start) {
+    throw new Error('Koniec wydarzenia nie jest późniejszy niż początek.')
+  }
+
+  return { tytul, czlonkowie, data, start, koniec, calodniowe, powtarzanie: 'brak', powtarzajDo: null }
 }
