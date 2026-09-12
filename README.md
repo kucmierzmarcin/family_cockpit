@@ -117,6 +117,9 @@ wciągnąć do nowo założonego domu.
 | `src/style/` | Style rozbite na tokeny, wspólne, powłokę, kalendarz, listy i formularze |
 | `src/kolory.ts` | Paleta kolorów domowników |
 | `src/dates.ts` | Polskie nazwy miesięcy i dni, budowanie siatki kalendarza |
+| `src/Terminy.tsx` | Ekran „Terminy": lista, formularz, załączniki |
+| `src/useTerminy.ts` | Dane terminów, Realtime, upload/usuwanie w Storage |
+| `src/terminy.ts` | Sortowanie, przeterminowanie, walidacja załącznika |
 | `src/lib/supabase.ts` | Połączenie z bazą i typy danych |
 | `supabase/functions/poranne-podsumowanie/index.ts` | Spina bazę, treść i wysyłkę |
 | `supabase/functions/_wspolne/podsumowanie.ts` | Temat i treść maila z danych domu |
@@ -201,6 +204,23 @@ wspólnej tablicy, nie ingerencja w cudzą treść. Usunąć notatkę może jej 
 albo rodzic.
 
 Notatki nie znikają same. Wiszą, dopóki ktoś ich nie zdejmie.
+
+## Ważne terminy
+
+Zakładka **Terminy** to lista rzeczy z datą ważności, niezależna od
+kalendarza — „do kiedy ważne jest ubezpieczenie auta", „kiedy kończy się
+gwarancja" — razem z dokumentem, który do tego terminu należy (skan, zdjęcie,
+PDF, do 10 MB na plik).
+
+Przeterminowane i jeszcze nieodhaczone terminy są wyróżnione. Odhaczenie
+„załatwione" chowa kartę z głównej listy — wraca po włączeniu „Pokaż
+załatwione". Dodaje i widzi cały dom, odhacza każdy, usuwa autor albo rodzic.
+Terminy nie mają edycji pól — pomyłkę poprawia się usunięciem i dodaniem od
+nowa, tak jak przy notatkach i zakupach.
+
+Pliki leżą w prywatnym buckecie Supabase Storage, dostępnym wyłącznie
+domownikom tego samego domu — link do podglądu jest tymczasowy, generowany
+na żądanie.
 
 ## Podgląd na żywo
 
