@@ -30,6 +30,16 @@ function terminZBazy(t: TerminDb, zalaczniki: Zalacznik[]): Termin {
   }
 }
 
+/** Usuwa znaki, ktorych Supabase Storage nie akceptuje w kluczu obiektu (spacje,
+ * polskie znaki itp.) - `plik.name` w nienaruszonej postaci zostaje osobno w kolumnie
+ * `file_name` i w UI, to dotyczy tylko sciezki w buckecie. */
+function bezpiecznaNazwaPliku(nazwa: string): string {
+  return nazwa
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9.-]/g, '_')
+}
+
 /** Ważne terminy domu i ich załączniki, odświeżane na żywo. */
 export function useTerminy(householdId: string, onBlad: (tekst: string) => void) {
   const [terminy, setTerminy] = useState<Termin[]>([])
@@ -151,7 +161,7 @@ export function useTerminy(householdId: string, onBlad: (tekst: string) => void)
 
   const wgrajZalacznik = useCallback(
     async (terminId: string, plik: File) => {
-      const sciezka = `${householdId}/${terminId}/${crypto.randomUUID()}-${plik.name}`
+      const sciezka = `${householdId}/${terminId}/${crypto.randomUUID()}-${bezpiecznaNazwaPliku(plik.name)}`
       const { error: bladUploadu } = await supabase.storage
         .from(BUCKET)
         .upload(sciezka, plik, { contentType: plik.type })
