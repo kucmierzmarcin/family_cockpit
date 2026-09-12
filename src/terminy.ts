@@ -54,3 +54,13 @@ export function bladZalacznika(plik: { type: string; size: number }): string | n
   }
   return null
 }
+
+/** Usuwa znaki, ktorych Supabase Storage nie akceptuje w kluczu obiektu (spacje,
+ * polskie znaki itp.) - `plik.name` w nienaruszonej postaci zostaje osobno w kolumnie
+ * `file_name` i w UI, to dotyczy tylko sciezki w buckecie. */
+export function bezpiecznaNazwaPliku(nazwa: string): string {
+  return nazwa
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9.-]/g, '_')
+}

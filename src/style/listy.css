@@ -344,6 +344,10 @@
   opacity: 0.6;
 }
 
+.karta-terminu.przeterminowany {
+  border-left: 3px solid var(--blad);
+}
+
 .karta-terminu.zalatwiony .tytul-terminu {
   text-decoration: line-through;
 }

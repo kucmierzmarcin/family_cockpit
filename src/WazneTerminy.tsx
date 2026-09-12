@@ -45,8 +45,13 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, osobaPoId, onBlad
   }
 
   async function otworzZalacznik(zalacznik: Zalacznik) {
+    const okno = window.open('', '_blank', 'noopener')
     const url = await dane.linkDoZalacznika(zalacznik)
-    if (url) window.open(url, '_blank', 'noopener')
+    if (url && okno) {
+      okno.location.href = url
+    } else {
+      okno?.close()
+    }
   }
 
   return (

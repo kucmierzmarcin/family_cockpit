@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase, type TerminDb, type ZalacznikDb } from './lib/supabase'
 import { useNaZywo } from './useNaZywo'
-import type { Termin, Zalacznik } from './terminy'
+import { bezpiecznaNazwaPliku, type Termin, type Zalacznik } from './terminy'
 
 const BUCKET = 'deadline-attachments'
 const WAZNOSC_LINKU_S = 60
@@ -28,16 +28,6 @@ function terminZBazy(t: TerminDb, zalaczniki: Zalacznik[]): Termin {
     dodano: t.created_at,
     zalaczniki,
   }
-}
-
-/** Usuwa znaki, ktorych Supabase Storage nie akceptuje w kluczu obiektu (spacje,
- * polskie znaki itp.) - `plik.name` w nienaruszonej postaci zostaje osobno w kolumnie
- * `file_name` i w UI, to dotyczy tylko sciezki w buckecie. */
-function bezpiecznaNazwaPliku(nazwa: string): string {
-  return nazwa
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9.-]/g, '_')
 }
 
 /** Ważne terminy domu i ich załączniki, odświeżane na żywo. */
@@ -138,11 +128,14 @@ export function useTerminy(householdId: string, onBlad: (tekst: string) => void)
   const usunTermin = useCallback(
     async (termin: Termin) => {
       if (termin.zalaczniki.length > 0) {
-        const { error: bladStorage } = await supabase.storage
-          .from(BUCKET)
-          .remove(termin.zalaczniki.map((z) => z.sciezka))
+        const sciezki = termin.zalaczniki.map((z) => z.sciezka)
+        const { data: usuniete, error: bladStorage } = await supabase.storage.from(BUCKET).remove(sciezki)
         if (bladStorage) {
           onBlad(`Nie udało się usunąć załączników: ${bladStorage.message}`)
+          return
+        }
+        if ((usuniete?.length ?? 0) < sciezki.length) {
+          onBlad('Nie udało się usunąć wszystkich załączników - brak uprawnień do części plików. Poproś rodzica.')
           return
         }
       }
@@ -191,9 +184,13 @@ export function useTerminy(householdId: string, onBlad: (tekst: string) => void)
 
   const usunZalacznik = useCallback(
     async (zalacznik: Zalacznik) => {
-      const { error: bladStorage } = await supabase.storage.from(BUCKET).remove([zalacznik.sciezka])
+      const { data: usuniete, error: bladStorage } = await supabase.storage.from(BUCKET).remove([zalacznik.sciezka])
       if (bladStorage) {
         onBlad(`Nie udało się usunąć pliku: ${bladStorage.message}`)
+        return
+      }
+      if ((usuniete?.length ?? 0) < 1) {
+        onBlad('Nie udało się usunąć pliku - brak uprawnień. Poproś rodzica.')
         return
       }
 

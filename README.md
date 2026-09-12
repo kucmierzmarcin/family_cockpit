@@ -117,7 +117,7 @@ wciągnąć do nowo założonego domu.
 | `src/style/` | Style rozbite na tokeny, wspólne, powłokę, kalendarz, listy i formularze |
 | `src/kolory.ts` | Paleta kolorów domowników |
 | `src/dates.ts` | Polskie nazwy miesięcy i dni, budowanie siatki kalendarza |
-| `src/Terminy.tsx` | Ekran „Terminy": lista, formularz, załączniki |
+| `src/WazneTerminy.tsx` | Ekran „Terminy": lista, formularz, załączniki |
 | `src/useTerminy.ts` | Dane terminów, Realtime, upload/usuwanie w Storage |
 | `src/terminy.ts` | Sortowanie, przeterminowanie, walidacja załącznika |
 | `src/lib/supabase.ts` | Połączenie z bazą i typy danych |
@@ -132,12 +132,12 @@ wciągnąć do nowo założonego domu.
 
 ## Układ na telefonie
 
-Poniżej 768 px aplikacja przełącza się na osobny układ: cztery zakładki na
+Poniżej 768 px aplikacja przełącza się na osobny układ: pięć zakładek na
 dolnym pasku, okrągły przycisk „+" nad nimi i formularze w arkuszu wysuwanym
 z dołu. Powyżej tego progu — a więc na tablecie w pionie i na komputerze —
 wygląda i działa dokładnie tak, jak wyglądała zawsze.
 
-Nie są to dwie aplikacje. Ekrany (kalendarz, zakupy, tablica, mój dom) to te
+Nie są to dwie aplikacje. Ekrany (kalendarz, zakupy, tablica, terminy, mój dom) to te
 same komponenty w obu układach; różni się tylko rama wokół nich —
 [`src/uklad/UkladTelefon.tsx`](src/uklad/UkladTelefon.tsx) albo
 [`src/uklad/UkladBiurko.tsx`](src/uklad/UkladBiurko.tsx). O tym, co robi „+" na
@@ -224,7 +224,7 @@ na żądanie.
 
 ## Podgląd na żywo
 
-Kalendarz, domownicy, zakupy i tablica odświeżają się **bez przeładowania
+Kalendarz, domownicy, zakupy, tablica i terminy odświeżają się **bez przeładowania
 strony** — aplikacja słucha zmian przez Supabase Realtime. Dopisanie czegoś na
 jednym urządzeniu pojawia się na pozostałych w kilka sekund.
 

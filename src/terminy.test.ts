@@ -1,6 +1,12 @@
 // src/terminy.test.ts
 import { describe, expect, it } from 'vitest'
-import { bladZalacznika, czyPrzeterminowany, formatujTermin, posortujTerminy } from './terminy'
+import {
+  bezpiecznaNazwaPliku,
+  bladZalacznika,
+  czyPrzeterminowany,
+  formatujTermin,
+  posortujTerminy,
+} from './terminy'
 
 function t(id: string, termin: string) {
   return { id, termin }
@@ -66,5 +72,19 @@ describe('bladZalacznika', () => {
 
   it('odrzuca niedozwolony typ pliku', () => {
     expect(bladZalacznika({ type: 'application/zip', size: 1024 })).toContain('Dozwolone')
+  })
+})
+
+describe('bezpiecznaNazwaPliku', () => {
+  it('usuwa spacje i polskie znaki diakrytyczne', () => {
+    expect(bezpiecznaNazwaPliku('Oliwier Kućmierz 1a.jpg')).toBe('Oliwier_Kucmierz_1a.jpg')
+  })
+
+  it('nie zmienia nazwy juz bezpiecznej', () => {
+    expect(bezpiecznaNazwaPliku('IMG_9168.jpg')).toBe('IMG_9168.jpg')
+  })
+
+  it('zamienia na podkreslnik znak, ktory nie ma rozkladu NFD (np. Ł)', () => {
+    expect(bezpiecznaNazwaPliku('Łódź.pdf')).toBe('_odz.pdf')
   })
 })
