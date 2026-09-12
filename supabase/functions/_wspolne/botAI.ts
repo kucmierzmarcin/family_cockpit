@@ -10,6 +10,9 @@ import { naglowekDnia } from './podsumowanie.ts'
 
 export const WSPOLNE = 'Wspólne'
 
+/** Ten sam zestaw opcji co formularz wydarzenia w aplikacji (src/czas.ts). */
+export type Powtarzanie = 'brak' | 'tydzien' | 'dwa-tygodnie' | 'miesiac'
+
 export type ProponowaneWydarzenie = {
   tytul: string
   czlonek: string // dokladnie jedno z podanych imion domownikow albo WSPOLNE
@@ -17,6 +20,8 @@ export type ProponowaneWydarzenie = {
   start: string    // 'GG:MM' - ignorowane, gdy calodniowe === true
   koniec: string   // 'GG:MM' - ignorowane, gdy calodniowe === true
   calodniowe: boolean
+  powtarzanie: Powtarzanie
+  powtarzajDo: string | null // 'RRRR-MM-DD' - wymagane, gdy powtarzanie !== 'brak'
 }
 
 export type ProponowanaPozycjaZakupow = {
@@ -92,6 +97,15 @@ function schematNarzedzi(domownicy: string[], listyZakupow: string[]) {
           start: { type: 'string', description: 'GG:MM, dowolne przy calodniowe=true' },
           koniec: { type: 'string', description: 'GG:MM, dowolne przy calodniowe=true' },
           calodniowe: { type: 'boolean' },
+          powtarzanie: {
+            type: 'string',
+            enum: ['brak', 'tydzien', 'dwa-tygodnie', 'miesiac'],
+            description: 'Czy wydarzenie sie powtarza. "brak", gdy jednorazowe (pomin pole, jesli nie podano).',
+          },
+          powtarzaj_do: {
+            type: 'string',
+            description: 'RRRR-MM-DD - do kiedy powtarzac. Wymagane tylko, gdy powtarzanie != "brak".',
+          },
         },
         required: ['tytul', 'czlonek', 'data', 'start', 'koniec', 'calodniowe'],
       },
@@ -182,7 +196,9 @@ export function budujZapytanieBota(
             'Użyj narzędzia pasującego do wiadomości: pokaz_podsumowanie gdy pytają o kalendarz/tablicę/zakupy na ' +
             'dowolny dzień (pole "data" musi być policzoną datą RRRR-MM-DD, nie nazwą dnia), ' +
             'zaproponuj_wydarzenie gdy proszą o dodanie czegoś do kalendarza (pole "czlonek" musi być dokładnie ' +
-            'jednym z podanych imion domowników albo "Wspólne"), usun_wydarzenie gdy proszą o usunięcie/skasowanie ' +
+            'jednym z podanych imion domowników albo "Wspólne"; pole "powtarzanie" tylko, gdy mówią że coś się ' +
+            'powtarza - np. "co tydzień", "co miesiąc" - wraz z "powtarzaj_do" jako datą końca powtarzania), ' +
+            'usun_wydarzenie gdy proszą o usunięcie/skasowanie ' +
             'istniejącego wydarzenia, dodaj_pozycje_zakupow gdy proszą o dopisanie ' +
             'czegoś na listę zakupów, dodaj_notatke gdy proszą o dopisanie notatki/ogłoszenia na tablicę, ' +
             'odpowiedz_tekstem w każdym innym przypadku - ' +
@@ -237,9 +253,29 @@ export function rozpoznajOdpowiedz(
     if (!calodniowe && koniec <= start) {
       throw new Error('Koniec wydarzenia nie jest późniejszy niż początek.')
     }
+
+    const powtarzanieRaw = typeof a.powtarzanie === 'string' ? a.powtarzanie : 'brak'
+    if (powtarzanieRaw !== 'brak' && powtarzanieRaw !== 'tydzien' && powtarzanieRaw !== 'dwa-tygodnie' && powtarzanieRaw !== 'miesiac') {
+      throw new Error(`Nieprawidłowa wartość powtarzania: "${powtarzanieRaw}".`)
+    }
+    const powtarzanie = powtarzanieRaw as Powtarzanie
+    let powtarzajDo: string | null = null
+    if (powtarzanie !== 'brak') {
+      if (typeof a.powtarzaj_do !== 'string' || !a.powtarzaj_do.trim()) {
+        throw new Error('Brak daty końca powtarzania (powtarzaj_do).')
+      }
+      if (Number.isNaN(new Date(a.powtarzaj_do).getTime())) {
+        throw new Error(`Nieprawidłowa data w powtarzaj_do: "${a.powtarzaj_do}".`)
+      }
+      if (a.powtarzaj_do < a.data) {
+        throw new Error('Data w powtarzaj_do jest wcześniejsza niż data wydarzenia.')
+      }
+      powtarzajDo = a.powtarzaj_do
+    }
+
     return {
       rodzaj: 'wydarzenie',
-      wydarzenie: { tytul: a.tytul, czlonek: a.czlonek, data: a.data, start, koniec, calodniowe },
+      wydarzenie: { tytul: a.tytul, czlonek: a.czlonek, data: a.data, start, koniec, calodniowe, powtarzanie, powtarzajDo },
     }
   }
 
@@ -324,9 +360,19 @@ export function zlozTimestamp(data: string, godzina: string): string {
   return `${data}T${godzina}:00`
 }
 
+const OPIS_POWTARZANIA: Record<Exclude<Powtarzanie, 'brak'>, string> = {
+  tydzien: 'tydzień',
+  'dwa-tygodnie': 'dwa tygodnie',
+  miesiac: 'miesiąc',
+}
+
 /** Tekst pytania "zapisac: ...?" pokazywany domownikowi przed zapisem. */
 export function opisPropozycji(w: ProponowaneWydarzenie): string {
-  const kiedy = w.calodniowe ? `${w.data} (cały dzień)` : `${w.data}, ${w.start}–${w.koniec}`
+  const kiedyData =
+    w.powtarzanie === 'brak'
+      ? w.data
+      : `co ${OPIS_POWTARZANIA[w.powtarzanie]} od ${w.data} do ${w.powtarzajDo}`
+  const kiedy = w.calodniowe ? `${kiedyData} (cały dzień)` : `${kiedyData}, ${w.start}–${w.koniec}`
   const dla = w.czlonek === WSPOLNE ? '' : ` (${w.czlonek})`
   return `${w.tytul}${dla} — ${kiedy}`
 }

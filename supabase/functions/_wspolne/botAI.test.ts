@@ -72,9 +72,50 @@ describe('rozpoznajOdpowiedz - zaproponuj_wydarzenie', () => {
     calodniowe: false,
   }
 
-  it('domownik z listy', () => {
+  it('domownik z listy - bez powtarzania domyslnie "brak"', () => {
     const w = rozpoznajOdpowiedz({ nazwa: 'zaproponuj_wydarzenie', args: argumenty }, ['Marcin', 'Magda'])
-    expect(w).toEqual({ rodzaj: 'wydarzenie', wydarzenie: argumenty })
+    expect(w).toEqual({
+      rodzaj: 'wydarzenie',
+      wydarzenie: { ...argumenty, powtarzanie: 'brak', powtarzajDo: null },
+    })
+  })
+
+  it('powtarzanie co tydzien z data konca', () => {
+    const w = rozpoznajOdpowiedz(
+      { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, powtarzanie: 'tydzien', powtarzaj_do: '2026-12-01' } },
+      ['Marcin'],
+    )
+    expect(w).toEqual({
+      rodzaj: 'wydarzenie',
+      wydarzenie: { ...argumenty, powtarzanie: 'tydzien', powtarzajDo: '2026-12-01' },
+    })
+  })
+
+  it('odrzuca powtarzanie bez daty konca', () => {
+    expect(() =>
+      rozpoznajOdpowiedz(
+        { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, powtarzanie: 'miesiac' } },
+        ['Marcin'],
+      ),
+    ).toThrow('powtarzaj_do')
+  })
+
+  it('odrzuca nieprawidlowa wartosc powtarzania', () => {
+    expect(() =>
+      rozpoznajOdpowiedz(
+        { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, powtarzanie: 'codziennie', powtarzaj_do: '2026-12-01' } },
+        ['Marcin'],
+      ),
+    ).toThrow('powtarzania')
+  })
+
+  it('odrzuca date konca powtarzania wczesniejsza niz data wydarzenia', () => {
+    expect(() =>
+      rozpoznajOdpowiedz(
+        { nazwa: 'zaproponuj_wydarzenie', args: { ...argumenty, powtarzanie: 'tydzien', powtarzaj_do: '2026-09-01' } },
+        ['Marcin'],
+      ),
+    ).toThrow('powtarzaj_do')
   })
 
   it('akceptuje Wspólne jako czlonka', () => {
@@ -265,14 +306,38 @@ describe('zlozTimestamp', () => {
 describe('opisPropozycji', () => {
   it('wydarzenie godzinowe z osoba', () => {
     expect(
-      opisPropozycji({ tytul: 'Dentysta', czlonek: 'Marcin', data: '2026-09-18', start: '15:00', koniec: '16:00', calodniowe: false }),
+      opisPropozycji({
+        tytul: 'Dentysta', czlonek: 'Marcin', data: '2026-09-18', start: '15:00', koniec: '16:00',
+        calodniowe: false, powtarzanie: 'brak', powtarzajDo: null,
+      }),
     ).toBe('Dentysta (Marcin) — 2026-09-18, 15:00–16:00')
   })
 
   it('wydarzenie calodniowe, wspolne (bez osoby w nawiasie)', () => {
     expect(
-      opisPropozycji({ tytul: 'Wycieczka', czlonek: WSPOLNE, data: '2026-09-20', start: '00:00', koniec: '23:59', calodniowe: true }),
+      opisPropozycji({
+        tytul: 'Wycieczka', czlonek: WSPOLNE, data: '2026-09-20', start: '00:00', koniec: '23:59',
+        calodniowe: true, powtarzanie: 'brak', powtarzajDo: null,
+      }),
     ).toBe('Wycieczka — 2026-09-20 (cały dzień)')
+  })
+
+  it('wydarzenie co tydzien dopisuje regule powtarzania', () => {
+    expect(
+      opisPropozycji({
+        tytul: 'Trening', czlonek: 'Marcin', data: '2026-09-15', start: '18:00', koniec: '19:00',
+        calodniowe: false, powtarzanie: 'tydzien', powtarzajDo: '2026-12-01',
+      }),
+    ).toBe('Trening (Marcin) — co tydzień od 2026-09-15 do 2026-12-01, 18:00–19:00')
+  })
+
+  it('wydarzenie co miesiac, calodniowe', () => {
+    expect(
+      opisPropozycji({
+        tytul: 'Plyta czynszowa', czlonek: WSPOLNE, data: '2026-09-01', start: '00:00', koniec: '23:59',
+        calodniowe: true, powtarzanie: 'miesiac', powtarzajDo: '2027-03-01',
+      }),
+    ).toBe('Plyta czynszowa — co miesiąc od 2026-09-01 do 2027-03-01 (cały dzień)')
   })
 })
 

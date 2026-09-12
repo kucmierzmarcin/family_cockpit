@@ -178,7 +178,7 @@ async function obsluzPotwierdzenie(
       ? []
       : [czlonkowie.get(wydarzenie.czlonek)].filter((id): id is string => Boolean(id))
 
-  const { error: bladDodania } = await baza.rpc('dodaj_wydarzenie_bota', {
+  const { data: utworzoneDb, error: bladDodania } = await baza.rpc('dodaj_wydarzenie_bota', {
     p_member: domownik.member_id,
     p_tytul: wydarzenie.tytul,
     p_poczatek: zlozTimestamp(wydarzenie.data, wydarzenie.calodniowe ? '00:00' : wydarzenie.start),
@@ -187,6 +187,8 @@ async function obsluzPotwierdzenie(
       : zlozTimestamp(wydarzenie.data, wydarzenie.koniec),
     p_calodniowe: wydarzenie.calodniowe,
     p_osoby: idOsoby,
+    p_powtarzanie: wydarzenie.powtarzanie === 'brak' ? null : wydarzenie.powtarzanie,
+    p_do_kiedy: wydarzenie.powtarzajDo,
   })
   if (bladDodania) throw new Error(bladDodania.message)
 
@@ -200,7 +202,11 @@ async function obsluzPotwierdzenie(
     .eq('member_id', domownik.member_id)
   if (bladCzyszczenia) console.error(bladCzyszczenia)
 
-  await wyslijWiadomosc(chatId, 'Dodane ✅')
+  const utworzone = (utworzoneDb as number | null) ?? 1
+  await wyslijWiadomosc(
+    chatId,
+    utworzone > 1 ? `Dodane ✅ (${utworzone} wystąpień)` : 'Dodane ✅',
+  )
 }
 
 async function obsluzWiadomosc(

@@ -853,39 +853,88 @@ revoke execute on function public.domownik_po_czacie(bigint) from public, anon, 
 -- weryfikowany wzgledem zadnej sesji - ufa mu tylko Edge Function, ktora
 -- wczesniej ustalila je przez domownik_po_czacie(). household_id bierzemy
 -- z domownika, nie z argumentu, zeby nie dalo sie podac cudzego domu.
+-- p_powtarzanie/p_do_kiedy: opcjonalna seria, ten sam algorytm co seria()
+-- w src/czas.ts (co tydzien/dwa tygodnie/miesiac, dzien miesiaca zachowany
+-- z pominieciem nieistniejacych dat jak 31 lutego, limit 400 wystapien).
+-- Zwraca liczbe utworzonych wystapien (1 dla zwyklego wydarzenia) -
+-- poprzedni zwracany typ (uuid) nigdy nie byl uzywany przez wolajacy kod.
 create or replace function public.dodaj_wydarzenie_bota(
-  p_member     uuid,
-  p_tytul      text,
-  p_poczatek   timestamp,
-  p_koniec     timestamp,
-  p_calodniowe boolean,
-  p_osoby      uuid[]
-) returns uuid
+  p_member      uuid,
+  p_tytul       text,
+  p_poczatek    timestamp,
+  p_koniec      timestamp,
+  p_calodniowe  boolean,
+  p_osoby       uuid[],
+  p_powtarzanie text default null, -- null | 'tydzien' | 'dwa-tygodnie' | 'miesiac'
+  p_do_kiedy    date default null  -- wymagane, gdy p_powtarzanie nie jest null
+) returns int
   language plpgsql volatile security definer set search_path = public
 as $$
 declare
   wlasny_dom uuid;
   nowe_id uuid;
+  seria_id uuid;
+  dlugosc interval;
+  i int := 0;
+  poczatek_i timestamp;
+  koniec_i timestamp;
+  utworzone int := 0;
 begin
   select household_id into wlasny_dom from public.members where id = p_member;
   if wlasny_dom is null then
     raise exception 'Nieznany domownik.';
   end if;
 
-  insert into public.events (title, starts_at, ends_at, all_day, household_id, created_by)
-  values (p_tytul, p_poczatek, p_koniec, p_calodniowe, wlasny_dom, p_member)
-  returning id into nowe_id;
+  if p_powtarzanie is null then
+    insert into public.events (title, starts_at, ends_at, all_day, household_id, created_by)
+    values (p_tytul, p_poczatek, p_koniec, p_calodniowe, wlasny_dom, p_member)
+    returning id into nowe_id;
 
-  if p_osoby is not null and array_length(p_osoby, 1) > 0 then
-    insert into public.event_members (event_id, member_id)
-    select nowe_id, unnest(p_osoby);
+    if p_osoby is not null and array_length(p_osoby, 1) > 0 then
+      insert into public.event_members (event_id, member_id)
+      select nowe_id, unnest(p_osoby);
+    end if;
+
+    return 1;
   end if;
 
-  return nowe_id;
+  seria_id := gen_random_uuid();
+  dlugosc := p_koniec - p_poczatek;
+
+  loop
+    poczatek_i := case p_powtarzanie
+      when 'miesiac' then p_poczatek + (i || ' months')::interval
+      when 'dwa-tygodnie' then p_poczatek + (i * 14 || ' days')::interval
+      else p_poczatek + (i * 7 || ' days')::interval
+    end;
+
+    exit when poczatek_i::date > p_do_kiedy or i >= 400;
+
+    if p_powtarzanie = 'miesiac' and extract(day from poczatek_i) != extract(day from p_poczatek) then
+      i := i + 1;
+      continue;
+    end if;
+
+    koniec_i := poczatek_i + dlugosc;
+
+    insert into public.events (title, starts_at, ends_at, all_day, household_id, created_by, series_id)
+    values (p_tytul, poczatek_i, koniec_i, p_calodniowe, wlasny_dom, p_member, seria_id)
+    returning id into nowe_id;
+
+    if p_osoby is not null and array_length(p_osoby, 1) > 0 then
+      insert into public.event_members (event_id, member_id)
+      select nowe_id, unnest(p_osoby);
+    end if;
+
+    utworzone := utworzone + 1;
+    i := i + 1;
+  end loop;
+
+  return utworzone;
 end
 $$;
 
-revoke execute on function public.dodaj_wydarzenie_bota(uuid, text, timestamp, timestamp, boolean, uuid[])
+revoke execute on function public.dodaj_wydarzenie_bota(uuid, text, timestamp, timestamp, boolean, uuid[], text, date)
   from public, anon, authenticated;
 
 -- "Dzisiaj" liczone w bazie, w strefie Europe/Warsaw - nie w Deno (kod
