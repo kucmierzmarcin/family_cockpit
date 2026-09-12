@@ -564,6 +564,25 @@ describe('polaczZmiane', () => {
     expect(() => polaczZmiane(obecne, { start: '20:00', koniec: '19:00' })).toThrow('późniejszy')
   })
 
+  it('zmiana samego startu przesuwa koniec, zachowujac dlugosc wydarzenia', () => {
+    expect(polaczZmiane(obecne, { start: '20:00' })).toEqual({
+      ...obecne, start: '20:00', koniec: '21:00', powtarzanie: 'brak', powtarzajDo: null,
+    })
+  })
+
+  it('zmiana samego konca przesuwa start, zachowujac dlugosc wydarzenia', () => {
+    expect(polaczZmiane(obecne, { koniec: '21:00' })).toEqual({
+      ...obecne, start: '20:00', koniec: '21:00', powtarzanie: 'brak', powtarzajDo: null,
+    })
+  })
+
+  it('przesuniecie startu daleko za stary koniec nie rzuca bledu (koniec przesuwa sie razem)', () => {
+    const trening = { tytul: 'Trening', czlonkowie: ['Marcin'], data: '2026-09-18', start: '09:00', koniec: '10:00', calodniowe: false }
+    expect(polaczZmiane(trening, { start: '19:00' })).toEqual({
+      ...trening, start: '19:00', koniec: '20:00', powtarzanie: 'brak', powtarzajDo: null,
+    })
+  })
+
   it('zmiana na calodniowe pomija sprawdzenie kolejnosci godzin', () => {
     const w = polaczZmiane(obecne, { calodniowe: true })
     expect(w.calodniowe).toBe(true)

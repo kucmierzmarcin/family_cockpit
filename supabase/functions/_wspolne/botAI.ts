@@ -539,18 +539,42 @@ export function stanZWydarzenia(w: WydarzenieZnalezione, czlonkowie: string[]): 
   }
 }
 
+function doMinut(godzina: string): number {
+  const [h, m] = godzina.split(':').map(Number)
+  return h * 60 + m
+}
+
+function przesunGodzine(godzina: string, deltaMinut: number): string {
+  const minuty = doMinut(godzina) + deltaMinut
+  const h = String(Math.floor(minuty / 60)).padStart(2, '0')
+  const m = String(minuty % 60).padStart(2, '0')
+  return `${h}:${m}`
+}
+
 /**
  * Laczy obecny stan wydarzenia ze zmianami z edycji - pola pominiete w
- * zmianach zostaja bez zmian. Edycja zawsze odrywa wydarzenie od serii
- * cyklicznej (jesli byla), wiec wynik ma zawsze powtarzanie: 'brak'.
+ * zmianach zostaja bez zmian. Gdy uzytkownik poda tylko jedna z godzin
+ * (np. "przesun trening na 19" bez podania nowego konca), druga godzina
+ * przesuwa sie o tyle samo, zeby zachowac dlugosc wydarzenia - inaczej stara
+ * godzina konca moglaby wypasc przed nowym poczatkiem (znalezione w zywym
+ * teście: "Trening" 09:00-10:00 -> "na 19" rzucalo blad kolejnosci godzin).
+ * Edycja zawsze odrywa wydarzenie od serii cyklicznej (jesli byla), wiec
+ * wynik ma zawsze powtarzanie: 'brak'.
  */
 export function polaczZmiane(obecne: StanWydarzenia, zmiany: ZmianaWydarzenia): ProponowaneWydarzenie {
   const tytul = zmiany.tytul ?? obecne.tytul
   const czlonkowie = zmiany.czlonkowie ?? obecne.czlonkowie
   const data = zmiany.data ?? obecne.data
-  const start = zmiany.start ?? obecne.start
-  const koniec = zmiany.koniec ?? obecne.koniec
   const calodniowe = zmiany.calodniowe ?? obecne.calodniowe
+
+  let start = zmiany.start ?? obecne.start
+  let koniec = zmiany.koniec ?? obecne.koniec
+
+  if (!calodniowe && zmiany.start !== undefined && zmiany.koniec === undefined) {
+    koniec = przesunGodzine(obecne.koniec, doMinut(zmiany.start) - doMinut(obecne.start))
+  } else if (!calodniowe && zmiany.koniec !== undefined && zmiany.start === undefined) {
+    start = przesunGodzine(obecne.start, doMinut(zmiany.koniec) - doMinut(obecne.koniec))
+  }
 
   if (!calodniowe && koniec <= start) {
     throw new Error('Koniec wydarzenia nie jest późniejszy niż początek.')
