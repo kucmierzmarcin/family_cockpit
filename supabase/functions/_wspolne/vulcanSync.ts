@@ -259,7 +259,18 @@ export async function synchronizujDom(
   }
 
   const wynikWiadomosci = await synchronizujWiadomosci(baza, householdId, polaczenie as WierszPolaczenia, listaUczniow)
-  if (!wynikWiadomosci.ok) return wynikWiadomosci
+  if (!wynikWiadomosci.ok) {
+    // Sesja wygasła jest wspólna dla całego połączenia (nie tylko wiadomości)
+    // - to trzeba zgłosić, bo bez ponownej rejestracji reszta synchronizacji
+    // i tak by się nie udała. Każdy INNY błąd wiadomości (np. jeszcze
+    // niezdiagnozowany kształt odpowiedzi eduVULCAN dla skrzynek - TYMCZASOWE,
+    // do usunięcia po zdiagnozowaniu) jest drugorzędny względem planu lekcji/
+    // zadań, który w tym miejscu już się poprawnie zapisał - nie cofamy tego
+    // sukcesu z powodu wiadomości.
+    const sesjaNiewazna = wynikWiadomosci.blad?.startsWith('Sesja Vulcan wygasła')
+    if (sesjaNiewazna) return wynikWiadomosci
+    console.error(`[diagnostyka] Synchronizacja wiadomości nie powiodła się dla domu ${householdId}: ${wynikWiadomosci.blad}`)
+  }
 
   const { error: bladCzyszczeniaBledu } = await baza
     .from('vulcan_connections')
@@ -357,6 +368,10 @@ async function synchronizujWiadomosci(
       throw new Error(`Czyszczenie zduplikowanych wiadomości nie powiodło się: ${bladKasowania.message}`)
     }
   } catch (e) {
+    // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
+    // pełny stos pokaże, czy to getMessageBoxes czy getMessages i na jakim
+    // dokładnie polu/wywołaniu.
+    console.error(`[diagnostyka] Błąd synchronizacji wiadomości (dom ${householdId}):`, e instanceof Error ? e.stack : e)
     return await bladSynchronizacji(baza, householdId, e, 'Błąd synchronizacji wiadomości')
   }
 
