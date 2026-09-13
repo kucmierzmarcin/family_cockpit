@@ -377,11 +377,13 @@ function WierszTerminu({
 
       <td className="opis-terminu">{termin.opis ?? '—'}</td>
 
-      <td className="data-terminu">
-        {formatujTermin(termin.termin)}
-        {przeterminowany && (
-          <span className="dni-po-terminie">{dniPoTerminie(termin.termin, dzisiaj)} dni po terminie</span>
-        )}
+      <td>
+        <div className="data-terminu">
+          {formatujTermin(termin.termin)}
+          {przeterminowany && (
+            <span className="dni-po-terminie">{dniPoTerminie(termin.termin, dzisiaj)} dni po terminie</span>
+          )}
+        </div>
       </td>
 
       <td>
