@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { EKRANY, TYTULY, etykietaDodania } from './nawigacja'
 
 describe('EKRANY', () => {
-  it('pięć ekranów w kolejności zakładek', () => {
-    expect(EKRANY).toEqual(['kalendarz', 'zakupy', 'tablica', 'terminy', 'dom'])
+  it('sześć ekranów w kolejności zakładek', () => {
+    expect(EKRANY).toEqual(['kalendarz', 'zakupy', 'tablica', 'terminy', 'szkola', 'dom'])
   })
 
   it('każdy ekran ma tytuł', () => {
@@ -24,6 +24,11 @@ describe('etykietaDodania', () => {
   it('domownika dodaje tylko rodzic', () => {
     expect(etykietaDodania('dom', true)).toBe('Dodaj domownika')
     expect(etykietaDodania('dom', false)).toBeNull()
+  })
+
+  it('ekran „Szkoła" jest wyłącznie do odczytu', () => {
+    expect(etykietaDodania('szkola', true)).toBeNull()
+    expect(etykietaDodania('szkola', false)).toBeNull()
   })
 
   it('rola nie zmienia nic poza ekranem „Mój dom"', () => {

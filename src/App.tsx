@@ -10,6 +10,7 @@ import {
 } from './dates'
 import { nastepnyDzien, opisCzasu, poczatekDnia } from './czas'
 import { MojDom } from './MojDom'
+import { Szkola } from './Szkola'
 import { Zakupy } from './Zakupy'
 import { Tablica } from './Tablica'
 import { Terminy } from './WazneTerminy'
@@ -19,6 +20,7 @@ import { Dzien } from './widoki/Dzien'
 import { FormularzWydarzenia } from './FormularzWydarzenia'
 import { ImportAI } from './ImportAI'
 import { useDomownicy } from './useDomownicy'
+import { useVulcan } from './useVulcan'
 import { useWydarzenia, type Wydarzenie } from './useWydarzenia'
 import { BEZ_OSOBY, osobyWydarzenia, widocznePrzyFiltrze } from './osoby'
 import { kolor } from './kolory'
@@ -60,6 +62,7 @@ function App({ profil, email }: Props) {
   const [pokazImportAI, setPokazImportAI] = useState(false)
 
   const osoby = useDomownicy(setBlad)
+  const vulcan = useVulcan(setBlad)
   const telefon = useTelefon()
   const szerokiKalendarz = useSzerokiKalendarz()
   const [dodawanie, setDodawanie] = useState<Ekran | null>(null)
@@ -357,6 +360,15 @@ function App({ profil, email }: Props) {
           householdId={profil.household_id}
           onBlad={setBlad}
           dodawanie={trybDodawania('terminy')}
+        />
+      ) : ekran === 'szkola' ? (
+        <Szkola
+          domownicy={osoby.domownicy}
+          status={vulcan.status}
+          lekcje={vulcan.lekcje}
+          wpisy={vulcan.wpisy}
+          wiadomosci={vulcan.wiadomosci}
+          ladowanie={vulcan.ladowanie}
         />
       ) : ekran === 'dom' ? (
         <MojDom

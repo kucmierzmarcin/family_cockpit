@@ -547,3 +547,122 @@
 .menu-akcji-niebezpieczna:hover {
   background: var(--blad-tlo);
 }
+
+/* --- Ekran "Szkoła" --- */
+
+.szkola {
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.plan-lekcji {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dzien-planu-naglowek {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.lista-lekcji {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lekcja {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  font-size: 14px;
+}
+
+.lekcja-zmieniona {
+  border-color: var(--blad);
+  background: var(--blad-tlo);
+}
+
+.lekcja-godziny {
+  flex-shrink: 0;
+  min-width: 92px;
+  font-variant-numeric: tabular-nums;
+  color: var(--tekst-drugi);
+}
+
+.lekcja-przedmiot {
+  font-weight: 600;
+}
+
+.lekcja-detale {
+  color: var(--tekst-drugi);
+  font-size: 13px;
+}
+
+.lekcja-zmiana-etykieta {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--blad);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.lista-wiadomosci-vulcan {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wiadomosc-vulcan {
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  overflow: hidden;
+}
+
+.wiadomosc-vulcan-naglowek {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.wiadomosc-vulcan-nadawca {
+  font-weight: 600;
+}
+
+.wiadomosc-vulcan-temat {
+  flex: 1;
+  min-width: 0;
+  color: var(--tekst-drugi);
+}
+
+.wiadomosc-vulcan-tresc {
+  margin: 0;
+  padding: 0 12px 12px;
+  white-space: pre-wrap;
+  font-size: 14px;
+}
