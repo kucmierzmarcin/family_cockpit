@@ -101,8 +101,9 @@ którego `vulcan-api-js` już używa transitywnie — potwierdzone działające 
 - Utworzenie: `supabase/functions/_wspolne/vulcanPodpis.test.ts`
 
 **Interfejsy:**
-- Produkuje: `podpiszZadanie(fingerprint: string, privateKeyPem: string, cialo: string | null, pelnyUrl: string, dataUTC: string): { digest: string; canonicalUrl: string; signature: string }`,
-  `zbudujNaglowki(fingerprint: string, privateKeyPem: string, deviceModel: string, cialo: string | null, pelnyUrl: string): Record<string,string>`.
+- Produkuje: `podpiszZadanie(fingerprint: string, privateKeyPem: string, cialo: string, pelnyUrl: string, dataUTC: string): { digest: string; canonicalUrl: string; signature: string }`,
+  `zbudujNaglowki(fingerprint: string, privateKeyPem: string, deviceModel: string, cialo: string, pelnyUrl: string): Record<string,string>`
+  (`cialo` to zawsze string — dla GET przekaż `''`, nigdy `null`, patrz uwaga w kodzie niżej).
 
 To PORT algorytmu z `vulcan-api-js@3.5.4` (funkcje `getDigest`/`getSignatureValue`/
 `getEncodedPath`/`getHeadersList`/`getSignatureValues`/nagłówki z `Api.buildHeaders`
@@ -127,8 +128,7 @@ import forge from 'npm:node-forge@1.3.1'
  * "z pamięci".
  */
 
-function getDigest(cialo: string | null): string {
-  if (cialo == null) return ''
+function getDigest(cialo: string): string {
   const md = forge.md.sha256.create()
   md.update(cialo, 'utf8')
   return forge.util.encode64(md.digest().bytes())
@@ -143,14 +143,21 @@ function getEncodedPath(pelnyUrl: string): string {
 }
 
 function getHeadersList(
-  cialo: string | null,
   digest: string,
   canonicalUrl: string,
   dataUTC: string,
 ): { headers: string; values: string } {
-  const wpisy: Array<[string, string]> = [['vCanonicalUrl', canonicalUrl]]
-  if (cialo != null) wpisy.push(['Digest', digest])
-  wpisy.push(['vDate', dataUTC])
+  // Digest jest ZAWSZE obecny, nawet dla GET bez ciała - prawdziwy klient
+  // (vulcan-api-js) podpisuje bezciałowe żądania pustym stringiem `''`, nie
+  // `null` (`payload === null ? "" : payload` w jego kodzie), więc zawsze
+  // liczy prawdziwy hash (SHA256 pustego stringa) i zawsze dołącza Digest.
+  // `cialo` w tym module jest dlatego typu `string`, nigdy `string | null` -
+  // wołający przekazuje `''` dla GET, nie `null` (patrz `zbudujNaglowki`).
+  const wpisy: Array<[string, string]> = [
+    ['vCanonicalUrl', canonicalUrl],
+    ['Digest', digest],
+    ['vDate', dataUTC],
+  ]
   return {
     headers: wpisy.map((w) => w[0]).join(' '),
     values: wpisy.map((w) => w[1]).join(''),
@@ -171,13 +178,13 @@ function getSignatureValue(wartosci: string, privateKeyPem: string): string {
 export function podpiszZadanie(
   fingerprint: string,
   privateKeyPem: string,
-  cialo: string | null,
+  cialo: string,
   pelnyUrl: string,
   dataUTC: string,
 ): { digest: string; canonicalUrl: string; signature: string } {
   const canonicalUrl = getEncodedPath(pelnyUrl)
   const digest = getDigest(cialo)
-  const { headers, values } = getHeadersList(cialo, digest, canonicalUrl, dataUTC)
+  const { headers, values } = getHeadersList(digest, canonicalUrl, dataUTC)
   const wartoscPodpisu = getSignatureValue(values, privateKeyPem)
   return {
     digest: `SHA-256=${digest}`,
@@ -188,30 +195,34 @@ export function podpiszZadanie(
 
 /**
  * Komplet nagłówków HTTP dla jednego podpisanego żądania do API Vulcan/eduVULCAN.
- * `cialo` to już zserializowany JSON string (albo `null` dla GET bez ciała).
+ * `cialo` to już zserializowany JSON string - dla GET bez ciała przekaż `''`
+ * (pusty string), NIE `null`: prawdziwy klient (vulcan-api-js) zawsze podpisuje
+ * i wysyła nagłówek Digest, nawet dla bezciałowych żądań, licząc go z pustego
+ * stringa - `null` pominąłby Digest całkowicie, co jest realną, cichą różnicą
+ * protokołu (złapane w recenzji Zadania 1, zweryfikowane różnicowym testem
+ * względem prawdziwej biblioteki).
  */
 export function zbudujNaglowki(
   fingerprint: string,
   privateKeyPem: string,
   deviceModel: string,
-  cialo: string | null,
+  cialo: string,
   pelnyUrl: string,
 ): Record<string, string> {
   const teraz = new Date()
   const dataUTC = teraz.toUTCString()
   const { digest, canonicalUrl, signature } = podpiszZadanie(fingerprint, privateKeyPem, cialo, pelnyUrl, dataUTC)
-  const naglowki: Record<string, string> = {
+  return {
     'Content-Type': 'application/json',
-    'User-Agent': 'Dart/3.3 (dart:io)',
+    'User-Agent': 'Dart/2.10 (dart:io)',
     vOS: 'Android',
     vDeviceModel: deviceModel,
     vAPI: '1',
     vDate: dataUTC,
     vCanonicalUrl: canonicalUrl,
     Signature: signature,
+    Digest: digest,
   }
-  if (cialo != null) naglowki['Digest'] = digest
-  return naglowki
 }
 ```
 
@@ -228,7 +239,7 @@ import { podpiszZadanie } from './vulcanPodpis.ts'
 
 Deno.test('podpiszZadanie - rzuca dla URL bez segmentu api/mobile', () => {
   assertThrows(
-    () => podpiszZadanie('fp', 'klucz', null, 'https://lekcjaplus.vulcan.net.pl/milanowek/inny/segment', 'x'),
+    () => podpiszZadanie('fp', 'klucz', '', 'https://lekcjaplus.vulcan.net.pl/milanowek/inny/segment', 'x'),
     Error,
     'nie pasuje',
   )
@@ -391,7 +402,7 @@ export async function pobierzUczniowEdu(
       daneKeystore.fingerprint!,
       daneKeystore.privateKey!,
       daneKeystore.deviceModel!,
-      null,
+      '', // GET bez ciała - pusty string, NIE null (patrz uwaga przy zbudujNaglowki w Zadaniu 1)
       pelnyUrl,
     )
     const odpowiedz = await fetch(pelnyUrl, { method: 'GET', headers: naglowki })
