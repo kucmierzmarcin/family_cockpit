@@ -155,12 +155,12 @@ wciągnąć do nowo założonego domu.
 
 ## Układ na telefonie
 
-Poniżej 768 px aplikacja przełącza się na osobny układ: pięć zakładek na
+Poniżej 768 px aplikacja przełącza się na osobny układ: sześć zakładek na
 dolnym pasku, okrągły przycisk „+" nad nimi i formularze w arkuszu wysuwanym
 z dołu. Powyżej tego progu — a więc na tablecie w pionie i na komputerze —
 wygląda i działa dokładnie tak, jak wyglądała zawsze.
 
-Nie są to dwie aplikacje. Ekrany (kalendarz, zakupy, tablica, terminy, mój dom) to te
+Nie są to dwie aplikacje. Ekrany (kalendarz, zakupy, tablica, terminy, szkoła, mój dom) to te
 same komponenty w obu układach; różni się tylko rama wokół nich —
 [`src/uklad/UkladTelefon.tsx`](src/uklad/UkladTelefon.tsx) albo
 [`src/uklad/UkladBiurko.tsx`](src/uklad/UkladBiurko.tsx). O tym, co robi „+" na
