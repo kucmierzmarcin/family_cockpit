@@ -134,12 +134,20 @@ export async function synchronizujDom(
     try {
       const daneUcznia = uczen.student_data as { __restUrl?: string }
       if (!daneUcznia.__restUrl) {
-        return { ok: false, blad: `Brak zapisanego adresu REST dla ucznia ${uczen.id} - połącz Vulcan ponownie.` }
+        console.error(`Pomijam ucznia ${uczen.id} w tej synchronizacji: brak zapisanego adresu REST - połącz Vulcan ponownie.`)
+        continue
       }
       vulcan = await zbudujVulcanHebe(polaczenie as WierszPolaczenia, daneUcznia.__restUrl)
       await vulcan.selectStudent(uczen.student_data as Student)
     } catch (e) {
-      return await bladSynchronizacji(baza, householdId, e, `Nie udało się zbudować klienta Vulcan dla ucznia ${uczen.id}`)
+      // Błąd JEDNEGO ucznia (np. brak Periods w danych z eduVULCAN - patrz
+      // łatka w pobierzUczniowEdu) nie powinien przerywać synchronizacji
+      // rodzeństwa, które mogłoby się udać. Wyjątek: utrata sesji dotyczy
+      // całego połączenia, więc tam nadal przerywamy i zgłaszamy od razu.
+      const wynik = await bladSynchronizacji(baza, householdId, e, `Nie udało się zbudować klienta Vulcan dla ucznia ${uczen.id}`)
+      if (wynik.blad?.startsWith('Sesja Vulcan wygasła')) return wynik
+      console.error(`Pomijam ucznia ${uczen.id} w tej synchronizacji: ${wynik.blad}`)
+      continue
     }
 
     try {
@@ -165,8 +173,17 @@ export async function synchronizujDom(
       // unikalności student_id+lesson_date+start_time), dlatego lądują w
       // scalonej tablicy PO zwykłych lekcjach - `bezDuplikatow` zostawia
       // ostatni wiersz, czyli zmianę.
-      const wierszeZmian = zmiany
-        .filter((z) => z.lessonDate?.date && z.time?.start && z.time?.end)
+      const zmianyPrzefiltrowane = zmiany.filter((z) => z.lessonDate?.date && z.time?.start && z.time?.end)
+      if (zmiany.length > 0 && zmianyPrzefiltrowane.length === 0) {
+        // Ten sam wzorzec cichego bledu, ktory ukrywal Lesson.date przez dwie
+        // rundy diagnozy na zywo (eduVULCAN potrafi nazwac pole daty inaczej,
+        // niz zaklada biblioteka) - tu nie mamy jeszcze dowodu na konkretna
+        // przyczyne, wiec tylko ostrzegamy zamiast zgadywac poprawke.
+        console.error(
+          `Ostrzeżenie: ${zmiany.length} zmian planu dla ucznia ${uczen.id} odrzuconych przez filtr daty/godzin - możliwy brak/inna nazwa pola.`,
+        )
+      }
+      const wierszeZmian = zmianyPrzefiltrowane
         .map((z) => ({
           student_id: uczen.id,
           household_id: householdId,
@@ -207,9 +224,14 @@ export async function synchronizujDom(
       }
 
       const sprawdziany = await vulcan.getExams()
+      const sprawdzianyPrzefiltrowane = sprawdziany.filter((e) => e.deadline?.date)
+      if (sprawdziany.length > 0 && sprawdzianyPrzefiltrowane.length === 0) {
+        console.error(
+          `Ostrzeżenie: ${sprawdziany.length} sprawdzianów dla ucznia ${uczen.id} odrzuconych przez filtr terminu - możliwy brak/inna nazwa pola.`,
+        )
+      }
       const wierszeSprawdzianow = bezDuplikatow(
-        sprawdziany
-          .filter((e) => e.deadline?.date)
+        sprawdzianyPrzefiltrowane
           .map((e) => ({
             student_id: uczen.id,
             household_id: householdId,
@@ -229,9 +251,14 @@ export async function synchronizujDom(
       }
 
       const zadania = await vulcan.getHomework()
+      const zadaniaPrzefiltrowane = (zadania as Array<Record<string, unknown>>).filter((z) => z.deadline)
+      if (zadania.length > 0 && zadaniaPrzefiltrowane.length === 0) {
+        console.error(
+          `Ostrzeżenie: ${zadania.length} zadań domowych dla ucznia ${uczen.id} odrzuconych przez filtr terminu - możliwy brak/inna nazwa pola.`,
+        )
+      }
       const wierszeZadan = bezDuplikatow(
-        (zadania as Array<Record<string, unknown>>)
-          .filter((z) => z.deadline)
+        zadaniaPrzefiltrowane
           .map((z) => ({
             student_id: uczen.id,
             household_id: householdId,
@@ -250,7 +277,14 @@ export async function synchronizujDom(
         if (bladZapisu) throw new Error(`Zapis zadań domowych nie powiódł się: ${bladZapisu.message}`)
       }
     } catch (e) {
-      return await bladSynchronizacji(baza, householdId, e, `Błąd synchronizacji ucznia ${uczen.id}`)
+      // Tak samo jak przy budowie klienta wyżej: błąd JEDNEGO ucznia (np.
+      // brak Periods -> `Api.setStudent` ustawia `period=undefined` ->
+      // kolejne wywołanie rzuca przy budowaniu zapytania) nie przerywa
+      // synchronizacji rodzeństwa. Sesja wygasła nadal przerywa od razu.
+      const wynik = await bladSynchronizacji(baza, householdId, e, `Błąd synchronizacji ucznia ${uczen.id}`)
+      if (wynik.blad?.startsWith('Sesja Vulcan wygasła')) return wynik
+      console.error(`Pomijam ucznia ${uczen.id} w tej synchronizacji: ${wynik.blad}`)
+      continue
     }
   }
 

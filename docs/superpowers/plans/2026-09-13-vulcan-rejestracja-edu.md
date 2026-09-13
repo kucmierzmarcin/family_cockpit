@@ -3,6 +3,18 @@
 > **Dla agentów:** WYMAGANY SUB-SKILL: użyj `superpowers:subagent-driven-development`
 > (zalecane) albo `superpowers:executing-plans`, żeby wykonać ten plan zadanie po
 > zadaniu. Kroki mają checkboxy (`- [ ]`) do odhaczania.
+>
+> **WYKONANE (2026-09-13) - ten plan jest historycznym zapisem projektu, NIE
+> aktualnym opisem kodu.** Recenzje zadań i dalsza diagnoza na żywym koncie
+> zmieniły fragmenty kodu podanego niżej - konkretnie: Zadanie 2 (kod poniżej
+> ma pierwotny, błędny warunek `Status.Code < 0` i `dane.Envelope ?? []` -
+> naprawione w recenzji, commit `ab0b52e`) i Zadanie 4 (kod poniżej ma
+> pierwotny regex `wyciagnijApJson`, zastąpiony wersją odporną na kolejność
+> atrybutów HTML w commicie `36023c4`). Pełna, ostateczna historia zmian
+> (włącznie z poprawkami znalezionymi dopiero na żywym koncie użytkownika już
+> po wdrożeniu) jest w `.superpowers/sdd/2026-09-13-vulcan-rejestracja-edu/progress.md`
+> i w `git log`. **W razie wątpliwości ufaj kodowi w repo, nie temu
+> dokumentowi.**
 
 **Cel:** Zamienić rejestrację Vulcan (Token/Symbol/PIN) na rejestrację przez
 eduVULCAN — rodzic loguje się w przeglądarce na `eduvulcan.pl`, wchodzi na
@@ -113,7 +125,7 @@ samego zaplecza. Używamy `node-forge` (ta sama biblioteka, transitywna zależno
 `vulcan-api-js`, już potwierdzona jako działająca w tym środowisku Edge
 Function w spike'u z poprzedniej integracji).
 
-- [ ] **Krok 1: Napisz `supabase/functions/_wspolne/vulcanPodpis.ts`**
+- [x] **Krok 1: Napisz `supabase/functions/_wspolne/vulcanPodpis.ts`**
 
 ```ts
 import forge from 'npm:node-forge@1.3.1'
@@ -226,7 +238,7 @@ export function zbudujNaglowki(
 }
 ```
 
-- [ ] **Krok 2: Napisz `supabase/functions/_wspolne/vulcanPodpis.test.ts`**
+- [x] **Krok 2: Napisz `supabase/functions/_wspolne/vulcanPodpis.test.ts`**
 
 Testy tylko na `getEncodedPath` (jedyna czysto tekstowa, deterministyczna
 część algorytmu bez klucza kryptograficznego) — reszta wymaga prawdziwej
@@ -250,7 +262,7 @@ Uruchom: `cd supabase/functions/_wspolne && deno test vulcanPodpis.test.ts`
 (jeśli `deno` niedostępne lokalnie, pomiń - `npm test`/`lint`/`build` i tak
 nie obejmują plików Deno).
 
-- [ ] **Krok 3: Commit**
+- [x] **Krok 3: Commit**
 
 ```bash
 git add supabase/functions/_wspolne/vulcanPodpis.ts supabase/functions/_wspolne/vulcanPodpis.test.ts
@@ -274,7 +286,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 - `zbudujVulcanHebe` zmienia sygnaturę: bierze jawny `restUrl` zamiast czytać
   go z `polaczenie.account`.
 
-- [ ] **Krok 1: Zaktualizuj `supabase/functions/_wspolne/vulcanApi.ts`**
+- [x] **Krok 1: Zaktualizuj `supabase/functions/_wspolne/vulcanApi.ts`**
 
 Zamień całą zawartość pliku na:
 
@@ -431,7 +443,7 @@ występują) - jeśli w Zadaniu 5 (żywy test) odpowiedź ma inny kształt, popr
 warunek błędu/odczyt `dane.Envelope` w tym pliku na podstawie realnej
 odpowiedzi zalogowanej w konsoli.
 
-- [ ] **Krok 2: Commit**
+- [x] **Krok 2: Commit**
 
 ```bash
 git add supabase/functions/_wspolne/vulcanApi.ts
@@ -450,7 +462,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 **Interfejsy:**
 - Konsumuje: nową sygnaturę `zbudujVulcanHebe(polaczenie, restUrl)` z Zadania 2.
 
-- [ ] **Krok 1: Zaktualizuj OBA wywołania `zbudujVulcanHebe` w `vulcanSync.ts`**
+- [x] **Krok 1: Zaktualizuj OBA wywołania `zbudujVulcanHebe` w `vulcanSync.ts`**
 
 Plik ma dziś DWA wywołania tej funkcji (jedno-argumentowe, ze starszej wersji
 kodu) - oba trzeba dopasować do nowej, dwuargumentowej sygnatury z Zadania 2.
@@ -488,7 +500,7 @@ funkcji (`selectStudent`, pobieranie danych, upsert do tabel) **zostaje bez
 zmian** - `Student` z `__restUrl`/`__tenant` nadal ma wszystkie pola, których
 `selectStudent` potrzebuje.
 
-- [ ] **Krok 2: Sprawdź, że plik nie odwołuje się już nigdzie do starego,
+- [x] **Krok 2: Sprawdź, że plik nie odwołuje się już nigdzie do starego,
       jednoargumentowego `zbudujVulcanHebe`**
 
 ```bash
@@ -497,7 +509,7 @@ grep -n "zbudujVulcanHebe" supabase/functions/_wspolne/vulcanSync.ts supabase/fu
 
 Każde wywołanie musi mieć teraz dwa argumenty.
 
-- [ ] **Krok 3: Commit**
+- [x] **Krok 3: Commit**
 
 ```bash
 git add supabase/functions/_wspolne/vulcanSync.ts
@@ -518,7 +530,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 - Produkuje: HTTP POST przyjmujący `{ apContent: string }`, reszta kontraktu
   (`{ok:true, liczbaUczniow}` / `{blad}`) bez zmian.
 
-- [ ] **Krok 1: Napisz `supabase/functions/vulcan-polacz/index.ts`**
+- [x] **Krok 1: Napisz `supabase/functions/vulcan-polacz/index.ts`**
 
 Zastąp całą zawartość pliku:
 
@@ -701,7 +713,7 @@ Deno.serve(async (req) => {
 uda" co poprzednio — świadomie zachowany bez zmian logiki, zmienia się tylko
 co go poprzedza (rejestracja JWT zamiast Token/Symbol/PIN).
 
-- [ ] **Krok 2: Commit**
+- [x] **Krok 2: Commit**
 
 ```bash
 git add supabase/functions/vulcan-polacz/index.ts
@@ -723,7 +735,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 - Zmienia: `polacz(apContent: string): Promise<boolean>` (było
   `polacz(token, symbol, pin)`).
 
-- [ ] **Krok 1: `src/useVulcan.ts`**
+- [x] **Krok 1: `src/useVulcan.ts`**
 
 Znajdź:
 
@@ -743,7 +755,7 @@ Zamień na:
 
 (Reszta funkcji `polacz` bez zmian.)
 
-- [ ] **Krok 2: `src/MojDom.tsx` - typ propsa**
+- [x] **Krok 2: `src/MojDom.tsx` - typ propsa**
 
 Znajdź w `Props['vulcan']`:
 
@@ -757,7 +769,7 @@ Zamień na:
   polacz: (apContent: string) => Promise<boolean>
 ```
 
-- [ ] **Krok 3: `src/MojDom.tsx` - komponent `PolaczenieVulcan`**
+- [x] **Krok 3: `src/MojDom.tsx` - komponent `PolaczenieVulcan`**
 
 Znajdź stan i funkcję `polacz`:
 
@@ -801,7 +813,7 @@ Zamień oba na:
   }
 ```
 
-- [ ] **Krok 4: `src/MojDom.tsx` - formularz JSX**
+- [x] **Krok 4: `src/MojDom.tsx` - formularz JSX**
 
 Znajdź blok formularza (opis + trzy pola + przycisk):
 
@@ -877,7 +889,7 @@ Zamień na:
           </form>
 ```
 
-- [ ] **Krok 5: `src/style/formularze.css`**
+- [x] **Krok 5: `src/style/formularze.css`**
 
 Znajdź:
 
@@ -915,7 +927,7 @@ Zamień na:
 }
 ```
 
-- [ ] **Krok 6: Testy, lint, build**
+- [x] **Krok 6: Testy, lint, build**
 
 ```bash
 npm test -- --run
@@ -925,7 +937,7 @@ npm run build
 
 Wszystko musi przejść czysto.
 
-- [ ] **Krok 7: Commit**
+- [x] **Krok 7: Commit**
 
 ```bash
 git add src/useVulcan.ts src/MojDom.tsx src/style/formularze.css
@@ -941,14 +953,14 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 **Pliki:**
 - Brak zmian w repo poza ewentualnymi poprawkami wynikłymi z testu na żywo.
 
-- [ ] **Krok 1: Wdróż obie zmienione funkcje**
+- [x] **Krok 1: Wdróż obie zmienione funkcje**
 
 ```bash
 supabase functions deploy vulcan-polacz --project-ref fqviwnzinpndyprcovxw
 supabase functions deploy vulcan-sync --project-ref fqviwnzinpndyprcovxw
 ```
 
-- [ ] **Krok 2: Poinformuj kontrolera/użytkownika, że kod jest gotowy do
+- [x] **Krok 2: Poinformuj kontrolera/użytkownika, że kod jest gotowy do
       żywego testu**
 
 To zadanie KOŃCZY SIĘ tutaj dla subagenta — rzeczywiste zalogowanie na

@@ -1,4 +1,4 @@
-import { Keystore, Student, VulcanHebe } from 'npm:vulcan-api-js@3.5.4'
+import { Keystore, Lesson, Student, VulcanHebe } from 'npm:vulcan-api-js@3.5.4'
 import { zbudujNaglowki } from './vulcanPodpis.ts'
 
 const BASE_URL = 'https://lekcjaplus.vulcan.net.pl/'
@@ -36,9 +36,27 @@ const BASE_URL = 'https://lekcjaplus.vulcan.net.pl/'
  * (`l.date!.date`). Tylko dla klasy `Lesson` i tylko gdy `Date` faktycznie
  * brakuje - jeśli kiedyś endpoint zacznie zwracać `Date` wprost, ta gałąź
  * się nie uruchomi.
+ *
+ * Obie łatki wyżej opierają się na kształcie biblioteki, którego typy
+ * publiczne (`index.d.ts`) nie gwarantują (wspólny, nieeksportowany
+ * prototyp; nazwa klasy `Lesson` zachowana w skompilowanym kodzie).
+ * Wersja jest przypięta na sztywno (`npm:vulcan-api-js@3.5.4`), więc
+ * ryzyko cichej zmiany jest niskie, ale asercje niżej zamieniają
+ * ewentualne rozjechanie się założeń w GŁOŚNY błąd przy starcie funkcji
+ * (zamiast cichego `date: null` i zsynchronizowanego "sukcesu" z zerem
+ * wierszy - dokładnie tak ukrywał się błąd `Lesson.date` przez dwie rundy
+ * diagnozy na żywo).
  */
+if (Lesson.name !== 'Lesson') {
+  throw new Error(
+    'vulcan-api-js: klasa Lesson zmieniła nazwę w skompilowanym kodzie (możliwa minifikacja) - łatka pola DateAt przestałaby cicho działać.',
+  )
+}
 ;(() => {
   const wspolnyPrototyp = Object.getPrototypeOf(Student.prototype) as { serialize: (source: unknown) => unknown }
+  if (typeof wspolnyPrototyp.serialize !== 'function') {
+    throw new Error('vulcan-api-js: nieoczekiwany kształt Serializable.prototype - biblioteka mogła się zmienić.')
+  }
   const oryginalnySerialize = wspolnyPrototyp.serialize
   wspolnyPrototyp.serialize = function (this: unknown, source: unknown) {
     let poprawioneZrodlo = source
@@ -123,12 +141,21 @@ type WewnetrzneApi = {
  * Podmieniamy `request` na równoważną reimplementację - używa TYCH SAMYCH,
  * już wyeksponowanych przez bibliotekę `buildPayload`/`buildHeaders`/
  * `restUrl` (więc podpis żądania wychodzi identyczny, zweryfikowane
- * różnicowo względem oryginału), z dwiema zmianami: (1) jawne sprawdzenie
- * kodu HTTP z czytelnym komunikatem błędu zamiast ślepego czytania treści;
- * (2) brak pola `Status` w treści (przy poprawnym kodzie HTTP) liczy się
- * jako sukces zamiast rzucać - inne konto/tenant może kiedyś zwrócić dane
- * bez tego pola tam, gdzie dziś go nie brakuje. Prawdziwy błąd logiczny
- * (`Status` obecny, `Code !== 0`) rzuca dokładnie tak samo jak oryginał.
+ * różnicowo względem oryginału), z trzema zmianami względem oryginału:
+ * (1) czytamy odpowiedź jako tekst i dopiero potem próbujemy JSON.parse
+ * (tak samo jak `sparsujOdpowiedz` niżej) - błąd 502/504/WAF zwraca zwykle
+ * HTML, nie JSON, a wołanie `.json()` wprost dałoby nieczytelny
+ * `SyntaxError` zamiast informacji o kodzie HTTP; (2) jawne sprawdzenie
+ * kodu HTTP z czytelnym komunikatem błędu zamiast ślepego czytania treści -
+ * HTTP 401/403 dostaje w komunikacie dosłowne słowo "Unauthorized", żeby
+ * `bladSynchronizacji` w `vulcanSync.ts` (dopasowanie po treści błędu -
+ * biblioteka nie ma własnych klas wyjątków) nadal rozpoznawało utratę sesji
+ * i włączało tryb "wymaga ponownej rejestracji", tak jak wcześniej robiło to
+ * dla błędów samej biblioteki; (3) brak pola `Status` w treści (przy
+ * poprawnym kodzie HTTP) liczy się jako sukces zamiast rzucać - inne konto/
+ * tenant może kiedyś zwrócić dane bez tego pola tam, gdzie dziś go nie
+ * brakuje. Prawdziwy błąd logiczny (`Status` obecny, `Code !== 0`) rzuca
+ * dokładnie tak samo jak oryginał.
  */
 function zlagodzBrakStatusu(vulcan: VulcanHebe): void {
   const api = (vulcan as unknown as { api: WewnetrzneApi }).api
@@ -140,13 +167,22 @@ function zlagodzBrakStatusu(vulcan: VulcanHebe): void {
     const options: RequestInit = { headers, method }
     if (payload !== null) options.body = payload
     const rawRes = await fetch(fullUrl, options)
-    const jsonRes = (await rawRes.json()) as Record<string, unknown>
+    const tekstOdpowiedzi = await rawRes.text()
+    let jsonRes: Record<string, unknown>
+    try {
+      jsonRes = JSON.parse(tekstOdpowiedzi)
+    } catch {
+      throw new Error(
+        `HTTP ${rawRes.status} dla ${url}: odpowiedź nie jest poprawnym JSON-em: ${tekstOdpowiedzi.slice(0, 300)}`,
+      )
+    }
     if (!rawRes.ok) {
       const opis =
         (jsonRes['MessageDetail'] as string | undefined) ??
         (jsonRes['Message'] as string | undefined) ??
         JSON.stringify(jsonRes).slice(0, 300)
-      throw new Error(`HTTP ${rawRes.status} dla ${url}: ${opis}`)
+      const sesyjny = rawRes.status === 401 || rawRes.status === 403 ? 'Unauthorized - ' : ''
+      throw new Error(`${sesyjny}HTTP ${rawRes.status} dla ${url}: ${opis}`)
     }
     const status = jsonRes['Status'] as { Code?: number; Message?: string } | undefined
     if (status && status.Code !== 0) {
@@ -232,7 +268,7 @@ export async function zarejestrujPrzezJwt(keystore: Keystore, jwty: string[]): P
     // logiczne również jako HTTP 200 z dodatnim `Status.Code`.
     if (!odpowiedz.ok || (dane?.Status?.Code ?? 0) !== 0) {
       throw new Error(
-        `Rejestracja JWT nie powiodła się dla tenanta ${tenant}: HTTP ${odpowiedz.status}, ${JSON.stringify(dane)}`,
+        `Rejestracja JWT nie powiodła się dla tenanta ${tenant}: HTTP ${odpowiedz.status}, ${JSON.stringify(dane).slice(0, 500)}`,
       )
     }
     wyniki.push({ tenant, restUrl })
@@ -271,7 +307,7 @@ export async function pobierzUczniowEdu(
     const dane = await sparsujOdpowiedz(odpowiedz, tenant, 'Pobranie uczniów')
     if (!odpowiedz.ok || (dane?.Status?.Code ?? 0) !== 0) {
       throw new Error(
-        `Pobranie uczniów nie powiodło się dla tenanta ${tenant}: HTTP ${odpowiedz.status}, ${JSON.stringify(dane)}`,
+        `Pobranie uczniów nie powiodło się dla tenanta ${tenant}: HTTP ${odpowiedz.status}, ${JSON.stringify(dane).slice(0, 500)}`,
       )
     }
     // Jawne rozróżnienie "brak pola Envelope" (błąd - rzuć wyjątek) od

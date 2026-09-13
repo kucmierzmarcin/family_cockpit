@@ -1368,8 +1368,11 @@ alter table public.deadlines add column if not exists notify_date date;
 
 -- Jedno polaczenie na dom. Poswiadczenia dostepne WYLACZNIE przez
 -- service_role (Edge Function) - RLS bez zadnej polityki, jak digest_log.
--- `account` to zserializowany wynik registerAccount() z vulcan-api-js -
--- potrzebny obok Keystore przy KAZDYM kolejnym polaczeniu z API.
+-- `account` (historycznie: zserializowany wynik registerAccount() ze starego
+-- Token/Symbol/PIN) po przejsciu na rejestracje przez JWT (eduVULCAN) trzyma
+-- tablice {tenant, restUrl}[] z zarejestrujPrzezJwt() - obecnie zapisywana,
+-- ale niczytana (kazde polaczenie z API dostaje restUrl jawnie, z
+-- student_data.__restUrl). Zostaje dla ew. przyszlej diagnostyki.
 create table if not exists public.vulcan_connections (
   id                  uuid primary key default gen_random_uuid(),
   household_id        uuid not null references public.households(id) on delete cascade,
