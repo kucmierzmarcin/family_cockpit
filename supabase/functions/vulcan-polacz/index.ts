@@ -19,15 +19,23 @@ function bladJson(tekst: string, status: number): Response {
 }
 
 /**
- * Wyciąga JSON z ukrytego pola `<input id="ap" value="...">` na stronie
- * https://eduvulcan.pl/api/ap (dokładnie ten format - zweryfikowane na żywo
- * przed napisaniem tego kodu). Parsowanie przez regex, nie przez DOM -
- * Deno nie ma wbudowanego parsera HTML, a potrzebujemy tylko jednej wartości
- * atrybutu.
+ * Wyciąga JSON z ukrytego pola `<input id="ap" ... value="...">` na stronie
+ * https://eduvulcan.pl/api/ap. Weryfikacja na żywo (2026-09-13) pokazała
+ * realny znacznik `<input id='ap' type='hidden' value='...' />` -
+ * pojedyncze cudzysłowy i atrybut `type` MIĘDZY `id` a `value`, inaczej niż
+ * pierwotnie zakładano. Dlatego: (1) najpierw wyodrębniamy cały znacznik
+ * `<input ...>` zawierający `id="ap"` gdziekolwiek w nim (lookahead - nie
+ * wymuszamy kolejności atrybutów), (2) dopiero w nim szukamy `value=`,
+ * dopasowując wartość do TEGO SAMEGO znaku cudzysłowu, którym się zaczęła
+ * (wsteczne odwołanie `\1`), żeby poprawnie obsłużyć oba warianty
+ * cudzysłowu. Parsowanie przez regex, nie przez DOM - Deno nie ma
+ * wbudowanego parsera HTML, a potrzebujemy tylko jednej wartości atrybutu.
  */
 function wyciagnijApJson(apContent: string): Record<string, unknown> {
-  const dopasowanie = apContent.match(/id=["']ap["']\s+value=["']([\s\S]*?)["']\s*\/?>/)
-  const surowyJson = dopasowanie ? dopasowanie[1] : apContent.trim()
+  const dopasowanieTagu = apContent.match(/<input\b(?=[^>]*\bid=["']ap["'])[^>]*>/i)
+  const tag = dopasowanieTagu ? dopasowanieTagu[0] : apContent
+  const dopasowanieWartosci = tag.match(/\bvalue=(["'])([\s\S]*?)\1/i)
+  const surowyJson = dopasowanieWartosci ? dopasowanieWartosci[2] : apContent.trim()
   const odHtmlEntities = surowyJson
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
