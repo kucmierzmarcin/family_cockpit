@@ -39,7 +39,7 @@ type Props = {
   vulcan: {
     status: StatusPolaczenia | null
     ladowanie: boolean
-    polacz: (token: string, symbol: string, pin: string) => Promise<boolean>
+    polacz: (apContent: string) => Promise<boolean>
     rozlacz: () => Promise<boolean>
     ustawGodzinySync: (godziny: string[]) => Promise<boolean>
     odswiezTeraz: () => Promise<boolean>
@@ -427,9 +427,7 @@ type PolaczenieVulcanProps = {
  * Widoczne tylko rodzicowi (patrz warunek w `MojDom`).
  */
 function PolaczenieVulcan({ vulcan, domownicy }: PolaczenieVulcanProps) {
-  const [token, setToken] = useState('')
-  const [symbol, setSymbol] = useState('')
-  const [pin, setPin] = useState('')
+  const [apContent, setApContent] = useState('')
   const [laczenie, setLaczenie] = useState(false)
   const [bladFormularza, setBladFormularza] = useState<string | null>(null)
   const [godziny, setGodziny] = useState<string[]>([])
@@ -458,13 +456,9 @@ function PolaczenieVulcan({ vulcan, domownicy }: PolaczenieVulcanProps) {
     e.preventDefault()
     setBladFormularza(null)
     setLaczenie(true)
-    const ok = await vulcan.polacz(token.trim(), symbol.trim(), pin.trim())
+    const ok = await vulcan.polacz(apContent.trim())
     setLaczenie(false)
-    if (ok) {
-      setToken('')
-      setSymbol('')
-      setPin('')
-    }
+    if (ok) setApContent('')
   }
 
   async function zapiszGodziny() {
@@ -487,21 +481,33 @@ function PolaczenieVulcan({ vulcan, domownicy }: PolaczenieVulcanProps) {
 
       {!status?.istnieje ? (
         <>
-          <p className="panel-dzien">
-            Połącz konto Vulcan rodzica, żeby widzieć plan lekcji, sprawdziany,
-            zadania domowe i wiadomości dzieci w zakładce „Szkoła". Token,
-            Symbol i PIN wygenerujesz w oficjalnej aplikacji Vulcan (Dostęp
-            Mobilny) — są jednorazowe.
-          </p>
+          <ol className="instrukcja-vulcan">
+            <li>
+              Zaloguj się na{' '}
+              <a href="https://eduvulcan.pl" target="_blank" rel="noreferrer">
+                eduvulcan.pl
+              </a>{' '}
+              (tak jak zwykle).
+            </li>
+            <li>
+              W tej samej, zalogowanej karcie wejdź na{' '}
+              <a href="https://eduvulcan.pl/api/ap" target="_blank" rel="noreferrer">
+                eduvulcan.pl/api/ap
+              </a>
+              .
+            </li>
+            <li>Zaznacz i skopiuj całą zawartość tej strony (Ctrl+A, Ctrl+C).</li>
+            <li>Wklej ją poniżej i kliknij „Połącz".</li>
+          </ol>
           <form className="formularz formularz-vulcan" onSubmit={(e) => void polacz(e)}>
-            <label htmlFor="vulcan-token">Token</label>
-            <input id="vulcan-token" value={token} onChange={(e) => setToken(e.target.value)} maxLength={10} />
-
-            <label htmlFor="vulcan-symbol">Symbol</label>
-            <input id="vulcan-symbol" value={symbol} onChange={(e) => setSymbol(e.target.value)} />
-
-            <label htmlFor="vulcan-pin">PIN</label>
-            <input id="vulcan-pin" value={pin} onChange={(e) => setPin(e.target.value)} maxLength={8} />
+            <label htmlFor="vulcan-ap-content">Zawartość strony eduvulcan.pl/api/ap</label>
+            <textarea
+              id="vulcan-ap-content"
+              value={apContent}
+              onChange={(e) => setApContent(e.target.value)}
+              rows={4}
+              placeholder="Wklej tutaj..."
+            />
 
             {bladFormularza && (
               <p className="blad" role="alert">
@@ -509,7 +515,7 @@ function PolaczenieVulcan({ vulcan, domownicy }: PolaczenieVulcanProps) {
               </p>
             )}
 
-            <button type="submit" disabled={laczenie || !token.trim() || !symbol.trim() || !pin.trim()}>
+            <button type="submit" disabled={laczenie || !apContent.trim()}>
               {laczenie ? 'Łączę…' : 'Połącz'}
             </button>
           </form>

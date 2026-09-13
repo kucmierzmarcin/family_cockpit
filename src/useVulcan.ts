@@ -103,8 +103,8 @@ export function useVulcan(onBlad: (tekst: string) => void) {
   )
 
   const polacz = useCallback(
-    async (token: string, symbol: string, pin: string): Promise<boolean> => {
-      const { error } = await supabase.functions.invoke('vulcan-polacz', { body: { token, symbol, pin } })
+    async (apContent: string): Promise<boolean> => {
+      const { error } = await supabase.functions.invoke('vulcan-polacz', { body: { apContent } })
       if (error) {
         onBlad(`Nie udało się połączyć z Vulcan: ${await komunikatBledu(error)}`)
         return false

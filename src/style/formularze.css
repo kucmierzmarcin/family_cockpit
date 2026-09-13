@@ -482,7 +482,27 @@
 /* --- Połączenie z Vulcan --- */
 
 .formularz-vulcan {
-  max-width: 320px;
+  max-width: 480px;
+}
+
+.formularz-vulcan textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  color: var(--tekst);
+  font: inherit;
+  font-size: 13px;
+  font-family: monospace;
+  resize: vertical;
+}
+
+.instrukcja-vulcan {
+  margin: 0 0 14px;
+  padding-left: 20px;
+  font-size: 14px;
+  color: var(--tekst-drugi);
+  line-height: 1.6;
 }
 
 .lista-uczniow-vulcan {
