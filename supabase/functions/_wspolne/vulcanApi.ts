@@ -107,18 +107,28 @@ type WewnetrzneApi = {
 /**
  * `Api.request()` w bibliotece (własność INSTANCJI, ustawiana w
  * konstruktorze - nie prototypu, więc łata się każdą instancję z osobna,
- * w tej funkcji, a nie modułowo jak łatka na `Serializable` wyżej) rzuca
- * "Cannot read properties of undefined (reading 'Code')", gdy odpowiedź
- * nie ma pola `Status` - potwierdzone na żywo 2026-09-13 dla endpointu
- * skrzynek wiadomości (`getMessageBoxes`/`getMessages`); pozostałe
- * wywołania (plan lekcji, sprawdziany, zadania) zawsze miały `Status`.
- * Podmieniamy `request` na równoważną reimplementację - używa TYCH
- * SAMYCH, już wyeksponowanych przez bibliotekę `buildPayload`/
- * `buildHeaders`/`restUrl` (więc podpis żądania wychodzi identyczny,
- * zweryfikowane różnicowo względem oryginału), z jedyną zmianą: brak pola
- * `Status` liczy się jako sukces (zwraca `Envelope` jeśli jest, inaczej
- * całą odpowiedź) zamiast rzucać. Prawdziwy błąd (`Status` obecny,
- * `Code !== 0`) rzuca dokładnie tak samo jak oryginał.
+ * w tej funkcji, a nie modułowo jak łatka na `Serializable` wyżej) nigdy
+ * nie sprawdzała kodu HTTP odpowiedzi - tylko obecność i wartość pola
+ * `Status` w treści. Endpoint skrzynek wiadomości (`api/mobile/messagebox`,
+ * używany przez `getMessageBoxes`/`getMessages`) odpowiada dla tego konta
+ * HTTP 404 z treścią `{Message, MessageDetail}` w typowym kształcie błędu
+ * ASP.NET Web API "brak takiego kontrolera" - potwierdzone na żywo
+ * 2026-09-13. Przyczyna: eduVULCAN wymaga płatnego konta "Premium" do
+ * wiadomości przez to API (potwierdzone w dokumentacji `hebece`, biblioteki
+ * dedykowanej eduVULCAN - bez Premium te wywołania w ogóle nie działają).
+ * Bez sprawdzenia `rawRes.ok` biblioteka próbowała czytać `Status`/`Code`
+ * z treści błędu HTTP, co dawało nieczytelny `TypeError` zamiast jasnego
+ * komunikatu.
+ *
+ * Podmieniamy `request` na równoważną reimplementację - używa TYCH SAMYCH,
+ * już wyeksponowanych przez bibliotekę `buildPayload`/`buildHeaders`/
+ * `restUrl` (więc podpis żądania wychodzi identyczny, zweryfikowane
+ * różnicowo względem oryginału), z dwiema zmianami: (1) jawne sprawdzenie
+ * kodu HTTP z czytelnym komunikatem błędu zamiast ślepego czytania treści;
+ * (2) brak pola `Status` w treści (przy poprawnym kodzie HTTP) liczy się
+ * jako sukces zamiast rzucać - inne konto/tenant może kiedyś zwrócić dane
+ * bez tego pola tam, gdzie dziś go nie brakuje. Prawdziwy błąd logiczny
+ * (`Status` obecny, `Code !== 0`) rzuca dokładnie tak samo jak oryginał.
  */
 function zlagodzBrakStatusu(vulcan: VulcanHebe): void {
   const api = (vulcan as unknown as { api: WewnetrzneApi }).api
@@ -131,26 +141,16 @@ function zlagodzBrakStatusu(vulcan: VulcanHebe): void {
     if (payload !== null) options.body = payload
     const rawRes = await fetch(fullUrl, options)
     const jsonRes = (await rawRes.json()) as Record<string, unknown>
-    // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
-    // getMessageBoxes dostawał odpowiedź z kluczami Message/MessageDetail
-    // (typowy kształt błędu ASP.NET Web API "brak takiego zasobu"), a
-    // request() nigdy nie sprawdzał kodu HTTP - tylko pola Status w treści.
-    // Sprawdzamy jawnie i pokazujemy dokładny błąd, żeby ustalić, czy to zła
-    // ścieżka URL, czy coś innego.
     if (!rawRes.ok) {
       const opis =
         (jsonRes['MessageDetail'] as string | undefined) ??
         (jsonRes['Message'] as string | undefined) ??
         JSON.stringify(jsonRes).slice(0, 300)
-      console.error(`[diagnostyka] HTTP ${rawRes.status} dla ${url}: ${opis}`)
       throw new Error(`HTTP ${rawRes.status} dla ${url}: ${opis}`)
     }
     const status = jsonRes['Status'] as { Code?: number; Message?: string } | undefined
     if (status && status.Code !== 0) {
       throw new Error(status.Message ?? 'Nieznany błąd Vulcan.')
-    }
-    if (jsonRes['Envelope'] === undefined) {
-      console.error(`[diagnostyka] brak Envelope dla ${url}, klucze odpowiedzi:`, Object.keys(jsonRes).join(','))
     }
     return jsonRes['Envelope'] ?? jsonRes
   }
