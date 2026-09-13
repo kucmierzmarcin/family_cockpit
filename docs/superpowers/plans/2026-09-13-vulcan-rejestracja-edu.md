@@ -943,3 +943,28 @@ instrukcji UI z Zadania 5).
 **Nie zgaduj wyniku żywego testu. Nie zamykaj tego zadania jako w pełni
 zweryfikowane, dopóki kontroler nie potwierdzi realnego przebiegu z
 użytkownikiem.**
+
+### Checklista rzeczy do sprawdzenia/poprawienia, jeśli żywy test się nie powiedzie
+
+Te elementy `zarejestrujPrzejJwt`/`pobierzUczniowEdu` (Zadanie 2) są oparte
+na znanym kształcie starego protokołu Vulcan, nie na potwierdzonej,
+żywej odpowiedzi eduVULCAN — jeśli rejestracja/pobranie uczniów zwróci błąd
+albo dziwny wynik, sprawdź po kolei (od najbardziej prawdopodobnego):
+
+1. Dokładny kształt odpowiedzi `POST api/mobile/register/jwt` i
+   `GET api/mobile/register/hebe?mode=2` — zaloguj surową treść odpowiedzi
+   (`console.log` w Edge Function, potem `supabase functions logs`) i
+   porównaj z założeniami w kodzie (`Status.Code`, `Envelope`).
+2. `Timestamp`/`TimestampFormatted` w ciele `register/jwt` — dziś sekundy
+   Unix + ISO UTC; `vulcan-api-js` dla STAREGO endpointu używa milisekund
+   (`Date.now()`) i lokalnego formatu `moment().format('YYYY-MM-DD HH:mm:ss')`
+   - jeśli serwer odrzuca żądanie z powodu znacznika czasu, spróbuj tej
+   konwencji.
+3. `selfIdentifier: crypto.randomUUID()` (losowy, jak w `hebece`) vs.
+   deterministyczny `uuid5(fingerprint)` używany przez `vulcan-api-js` dla
+   STAREGO endpointu — jeśli powtórna rejestracja tego samego urządzenia
+   jest odrzucana albo tworzy duplikaty, to pierwsze podejrzane miejsce.
+4. Brakujące pola w Envelope względem starego protokołu: `CertificateId`
+   (obecne w `vulcan-api-js`, pominięte tu) i `FirebaseToken` (`hebece`
+   wysyła `NotificationToken: ''` zamiast tego pola) - jeśli serwer wymaga
+   któregoś z nich, dodaj.
