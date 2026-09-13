@@ -193,7 +193,7 @@ export async function synchronizujDom(
       // komunikacie błędu. Błędna klasyfikacja tutaj nie gubi danych - w
       // najgorszym razie wymusza ręczną ponowną rejestrację, którą da się
       // doprecyzować po zobaczeniu prawdziwych błędów z logów (Zadanie 5/8).
-      const sesjaNiewazna = /\b(Unauthorized|ExpiredToken|InvalidSignature)\b/.test(tekst)
+      const sesjaNiewazna = /\b(Unauthorized|ExpiredToken|InvalidSignature)\b/i.test(tekst)
       if (sesjaNiewazna) {
         const { error: bladAktualizacjiStatusu } = await baza
           .from('vulcan_connections')
