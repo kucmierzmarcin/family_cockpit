@@ -25,6 +25,17 @@ const BASE_URL = 'https://lekcjaplus.vulcan.net.pl/'
   const wspolnyPrototyp = Object.getPrototypeOf(Student.prototype) as { serialize: (source: unknown) => unknown }
   const oryginalnySerialize = wspolnyPrototyp.serialize
   wspolnyPrototyp.serialize = function (this: unknown, source: unknown) {
+    // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
+    // getLessons zwraca pozycje, ale pole `date` wychodzi `null` - biblioteka
+    // czyta klucz "Date", którego eduVULCAN najwyraźniej nie używa. Pokazujemy
+    // prawdziwe klucze surowego obiektu Lesson raz, żeby znaleźć właściwą nazwę.
+    if (
+      (this as { constructor?: { name?: string } })?.constructor?.name === 'Lesson' &&
+      source &&
+      typeof source === 'object'
+    ) {
+      console.error('[diagnostyka] surowe klucze Lesson:', Object.keys(source as object).join(','))
+    }
     return oryginalnySerialize.call(this, source ?? null)
   }
 })()
