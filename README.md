@@ -83,6 +83,22 @@ wciągnąć do nowo założonego domu.
    - W `.env`: `VITE_TELEGRAM_BOT_USERNAME=<nazwa_bota_bez_@>` (żeby ekran
      „Mój dom" pokazywał link do bota).
 
+7. **Integracja z Vulcan** (opcjonalne — bez tego reszta aplikacji działa):
+
+   - SQL Editor: załóż sekret Vault z URL-em funkcji `vulcan-sync`
+     (`kokpit_klucz_serwisowy` już istnieje z porannego podsumowania):
+
+     ```sql
+     select vault.create_secret(
+       'https://TWOJ-PROJEKT.supabase.co/functions/v1/vulcan-sync',
+       'kokpit_url_funkcji_vulcan_sync');
+     ```
+
+   - Wdróż obie funkcje: `supabase functions deploy vulcan-sync` i
+     `supabase functions deploy vulcan-polacz`.
+   - Rodzic łączy konto w „Mój dom" Tokenem/Symbolem/PIN-em z oficjalnej
+     aplikacji Vulcan, potem przypisuje uczniów do domowników.
+
 ## Struktura
 
 | Plik | Do czego służy |
@@ -120,6 +136,9 @@ wciągnąć do nowo założonego domu.
 | `src/WazneTerminy.tsx` | Ekran „Terminy": tabela, formularz dodawania/edycji, menu akcji, załączniki |
 | `src/useTerminy.ts` | Dane terminów, Realtime, upload/usuwanie w Storage |
 | `src/terminy.ts` | Sortowanie, przeterminowanie, walidacja załącznika |
+| `src/Szkola.tsx` | Ekran „Szkoła": plan lekcji, sprawdziany/zadania domowe, wiadomości, filtr po uczniu |
+| `src/useVulcan.ts` | Status połączenia i dane szkolne z Vulcan, Realtime, połącz/rozłącz/odśwież |
+| `src/vulcan.ts` | Mapowanie z bazy, sortowanie i grupowanie planu/wpisów, walidacja godzin synchronizacji |
 | `src/lib/supabase.ts` | Połączenie z bazą i typy danych |
 | `supabase/functions/poranne-podsumowanie/index.ts` | Spina bazę, treść i wysyłkę |
 | `supabase/functions/_wspolne/podsumowanie.ts` | Temat i treść maila z danych domu |
@@ -127,6 +146,10 @@ wciągnąć do nowo założonego domu.
 | `supabase/functions/telegram-bot/index.ts` | Webhook bota - parowanie, pytania, propozycje, potwierdzenia |
 | `supabase/functions/_wspolne/botAI.ts` | Zapytanie do Gemini (3 narzędzia) i walidacja - silnik bota |
 | `supabase/functions/_wspolne/telegram.ts` | Wysyłka wiadomości - jedyne miejsce z Telegram Bot API |
+| `supabase/functions/vulcan-polacz/index.ts` | Rejestracja urządzenia Tokenem/Symbolem/PIN-em, zapis połączenia, pierwsza synchronizacja |
+| `supabase/functions/vulcan-sync/index.ts` | Synchronizacja zaplanowana (cron, wiele domów) i na żądanie (przycisk „Odśwież teraz") |
+| `supabase/functions/_wspolne/vulcanApi.ts` | Odtwarza klienta Vulcan (`VulcanHebe`) z zapisanych poświadczeń |
+| `supabase/functions/_wspolne/vulcanSync.ts` | Pobiera plan lekcji, sprawdziany, zadania domowe i wiadomości z Vulcan, zapisuje do tabel domu |
 | `supabase/schema.sql` | Pełny schemat: tabele, funkcje i reguły dostępu |
 | `supabase/start.sql` | Skrypt uruchamiany raz — zakłada pierwszy dom |
 
@@ -283,6 +306,27 @@ dostępu do maila/hasła, więc to jedyny sposób, żeby bot wiedział, kto pisz
 
 Bot na razie tylko dodaje pojedyncze wydarzenia - edycja, usuwanie i
 wydarzenia powtarzające się zostają w samej aplikacji.
+
+## Integracja z Vulcan
+
+Rodzic może połączyć konto Vulcan (dziennik elektroniczny UONET+) w ekranie
+„Mój dom" — Token, Symbol i PIN generuje się w oficjalnej aplikacji Vulcan
+(Dostęp Mobilny), są jednorazowe. Jedno połączenie obejmuje wszystkie dzieci
+widoczne na tym koncie; każde trzeba osobno przypisać do domownika, żeby
+pojawiło się w zakładce „Szkoła".
+
+Zakładka „Szkoła" pokazuje (tylko do odczytu — Kokpit nic nie wysyła z
+powrotem do Vulcan): plan lekcji na bieżący tydzień ze zmianami/zastępstwami
+wyróżnionymi kolorem, sprawdziany i zadania domowe, oraz wiadomości od
+nauczycieli. Widoczna dla każdego domownika z kontem.
+
+Dane odświeżają się automatycznie w tle w skonfigurowanych godzinach (do 3
+dziennie, ustawiane w „Mój dom" przez rodzica) oraz na żądanie przyciskiem
+„Odśwież teraz". Jeśli połączenie wygaśnie (certyfikat/token nieważny),
+Kokpit pokaże to w „Mój dom" — trzeba połączyć się ponownie nowym
+Tokenem/Symbolem/PIN-em.
+
+Poza zakresem: oceny, frekwencja, odpowiadanie na wiadomości z Kokpitu.
 
 ## Role i dostęp
 
