@@ -146,6 +146,15 @@ export async function synchronizujDom(
       const lekcje = await vulcan.getLessons(poczatek, koniec)
       const zmiany = await vulcan.getChangedLessons(poczatek, koniec)
 
+      // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
+      // sprawdzamy, czy getLessons w ogóle coś zwrócił i czy pole `date` (po
+      // łatce na Serializable) ma prawdziwą wartość, czy `null` - odróżnia
+      // "eduVULCAN nie ma nic w tym tygodniu" od "pole daty ma inną nazwę,
+      // niż zakłada biblioteka, więc wszystko wypada z filtra".
+      console.error(
+        `[diagnostyka] uczeń ${uczen.id}: getLessons=${lekcje.length}, getChangedLessons=${zmiany.length}, pierwsza lekcja date=${JSON.stringify(lekcje[0]?.date)} timeSlot=${JSON.stringify(lekcje[0]?.timeSlot)} klucze=${lekcje[0] ? Object.keys(lekcje[0]).join(',') : 'brak'}`,
+      )
+
       const wierszeLekcji = lekcje
         .filter((l) => l.date?.date && l.timeSlot?.start && l.timeSlot?.end)
         .map((l) => ({
