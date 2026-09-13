@@ -8,35 +8,44 @@ const BASE_URL = 'https://lekcjaplus.vulcan.net.pl/'
  * bezpiecznie (zwraca `null`), ale NIE `undefined` - a eduVULCAN potrafi
  * pominąć pole zagnieżdżonego obiektu/daty całkowicie (klucz nieobecny w
  * JSON, nie `null`), co dla każdego pola typu `DateTime`/`TimeSlot`/itd.
- * (np. `Lesson.Date`, `Exam.Deadline`, `ChangedLesson.LessonDate`) rzuca
- * "Cannot read properties of undefined". Potwierdzone na żywo 2026-09-13
- * (`getLessons` -> `Lesson.serialize` -> `DateTime.serialize` na
- * `Timestamp`). Biblioteka NIE eksportuje klasy `Serializable` wprost, ale
- * wszystkie modele (`Student`, `Lesson`, `Exam`, ...) dzielą JEDEN wspólny
- * prototyp przez łańcuch dziedziczenia - łatamy go raz, w miejscu
- * ładowania modułu, zamiast pola po polu. To rozszerza JUŻ ISTNIEJĄCE
- * zachowanie biblioteki (traktowanie braku danych jako `null`) na
- * `undefined`, nie zmienia semantyki dla żadnych prawdziwych danych.
+ * rzuca "Cannot read properties of undefined". Potwierdzone na żywo
+ * 2026-09-13 (`getLessons` -> `Lesson.serialize` -> `DateTime.serialize`
+ * na `Timestamp`, dla `Student.periods` analogicznie - patrz łatka niżej).
+ * Biblioteka NIE eksportuje klasy `Serializable` wprost, ale wszystkie
+ * modele (`Student`, `Lesson`, `Exam`, ...) dzielą JEDEN wspólny prototyp
+ * przez łańcuch dziedziczenia - łatamy go raz, w miejscu ładowania modułu,
+ * zamiast pola po polu. To rozszerza JUŻ ISTNIEJĄCE zachowanie biblioteki
+ * (traktowanie braku danych jako `null`) na `undefined`, nie zmienia
+ * semantyki dla żadnych prawdziwych danych.
  * (Osobny przypadek: pola budowane przez `customBind`, np. `Student.periods`
  * z `Periods`, NIE przechodzą przez `serialize()` i mają własną łatkę w
  * `pobierzUczniowEdu` niżej - ta poprawka ich nie obejmuje.)
+ *
+ * DRUGI, NIEZALEŻNY problem znaleziony na tym samym żywym koncie: nawet z
+ * powyższą łatką `Lesson.date` wychodził `null` dla WSZYSTKICH 30 realnych
+ * lekcji (nie brak danych - klucz istnieje pod INNĄ nazwą). Zrzut prawdziwych
+ * kluczy surowego obiektu Lesson (tymczasowy log, usunięty po zdiagnozowaniu)
+ * pokazał `DateAt`, nie `Date`, którego szuka `bind("Date")` w bibliotece
+ * (zbudowanej pod starego Vulcan). Podmieniamy klucz na wejściu do
+ * `serialize()` TYLKO dla klasy `Lesson` i TYLKO gdy `Date` faktycznie
+ * brakuje - jeśli kiedyś biblioteka/endpoint zacznie zwracać `Date`
+ * wprost, ta gałąź się nie uruchomi.
  */
 ;(() => {
   const wspolnyPrototyp = Object.getPrototypeOf(Student.prototype) as { serialize: (source: unknown) => unknown }
   const oryginalnySerialize = wspolnyPrototyp.serialize
   wspolnyPrototyp.serialize = function (this: unknown, source: unknown) {
-    // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
-    // getLessons zwraca pozycje, ale pole `date` wychodzi `null` - biblioteka
-    // czyta klucz "Date", którego eduVULCAN najwyraźniej nie używa. Pokazujemy
-    // prawdziwe klucze surowego obiektu Lesson raz, żeby znaleźć właściwą nazwę.
+    let poprawioneZrodlo = source
     if (
       (this as { constructor?: { name?: string } })?.constructor?.name === 'Lesson' &&
       source &&
-      typeof source === 'object'
+      typeof source === 'object' &&
+      (source as Record<string, unknown>).Date == null &&
+      (source as Record<string, unknown>).DateAt != null
     ) {
-      console.error('[diagnostyka] surowe klucze Lesson:', Object.keys(source as object).join(','))
+      poprawioneZrodlo = { ...(source as Record<string, unknown>), Date: (source as Record<string, unknown>).DateAt }
     }
-    return oryginalnySerialize.call(this, source ?? null)
+    return oryginalnySerialize.call(this, poprawioneZrodlo ?? null)
   }
 })()
 
