@@ -422,8 +422,9 @@ type PolaczenieVulcanProps = {
 }
 
 /**
- * Połączenie z dziennikiem Vulcan - rejestracja Tokenem/Symbolem/PIN-em,
- * przypisanie uczniów do domowników, godziny synchronizacji, rozłączenie.
+ * Połączenie z dziennikiem Vulcan - rejestracja przez wklejenie zawartości
+ * eduvulcan.pl/api/ap, przypisanie uczniów do domowników, godziny
+ * synchronizacji, rozłączenie.
  * Widoczne tylko rodzicowi (patrz warunek w `MojDom`).
  */
 function PolaczenieVulcan({ vulcan, domownicy }: PolaczenieVulcanProps) {
@@ -524,7 +525,7 @@ function PolaczenieVulcan({ vulcan, domownicy }: PolaczenieVulcanProps) {
         <>
           {status.status === 'wymaga_ponownej_rejestracji' ? (
             <p className="blad" role="alert">
-              Połączenie wygasło ({status.ostatniBlad ?? 'nieznany błąd'}) — połącz się ponownie Tokenem/Symbolem/PIN-em.
+              Połączenie wygasło ({status.ostatniBlad ?? 'nieznany błąd'}) — rozłącz i połącz ponownie, wklejając nową zawartość eduvulcan.pl/api/ap.
             </p>
           ) : (
             <p className="polaczono">✓ Połączono{status.polaczylImie ? ` przez ${status.polaczylImie}` : ''}</p>
