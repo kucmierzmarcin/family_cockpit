@@ -3,6 +3,32 @@ import { zbudujNaglowki } from './vulcanPodpis.ts'
 
 const BASE_URL = 'https://lekcjaplus.vulcan.net.pl/'
 
+/**
+ * `Serializable.serialize()` z vulcan-api-js traktuje `source === null`
+ * bezpiecznie (zwraca `null`), ale NIE `undefined` - a eduVULCAN potrafi
+ * pominąć pole zagnieżdżonego obiektu/daty całkowicie (klucz nieobecny w
+ * JSON, nie `null`), co dla każdego pola typu `DateTime`/`TimeSlot`/itd.
+ * (np. `Lesson.Date`, `Exam.Deadline`, `ChangedLesson.LessonDate`) rzuca
+ * "Cannot read properties of undefined". Potwierdzone na żywo 2026-09-13
+ * (`getLessons` -> `Lesson.serialize` -> `DateTime.serialize` na
+ * `Timestamp`). Biblioteka NIE eksportuje klasy `Serializable` wprost, ale
+ * wszystkie modele (`Student`, `Lesson`, `Exam`, ...) dzielą JEDEN wspólny
+ * prototyp przez łańcuch dziedziczenia - łatamy go raz, w miejscu
+ * ładowania modułu, zamiast pola po polu. To rozszerza JUŻ ISTNIEJĄCE
+ * zachowanie biblioteki (traktowanie braku danych jako `null`) na
+ * `undefined`, nie zmienia semantyki dla żadnych prawdziwych danych.
+ * (Osobny przypadek: pola budowane przez `customBind`, np. `Student.periods`
+ * z `Periods`, NIE przechodzą przez `serialize()` i mają własną łatkę w
+ * `pobierzUczniowEdu` niżej - ta poprawka ich nie obejmuje.)
+ */
+;(() => {
+  const wspolnyPrototyp = Object.getPrototypeOf(Student.prototype) as { serialize: (source: unknown) => unknown }
+  const oryginalnySerialize = wspolnyPrototyp.serialize
+  wspolnyPrototyp.serialize = function (this: unknown, source: unknown) {
+    return oryginalnySerialize.call(this, source ?? null)
+  }
+})()
+
 /** Wiersz `vulcan_connections` - dokładnie te kolumny, których potrzebuje ta warstwa. */
 export type WierszPolaczenia = {
   certificate: string

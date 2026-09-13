@@ -250,6 +250,10 @@ export async function synchronizujDom(
         if (bladZapisu) throw new Error(`Zapis zadań domowych nie powiódł się: ${bladZapisu.message}`)
       }
     } catch (e) {
+      // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
+      // e.message sam nie mówi, które z 4 wywołań (getLessons/getChangedLessons/
+      // getExams/getHomework) rzuciło - pełny stos w logach to pokaże.
+      console.error(`[diagnostyka] Błąd synchronizacji ucznia ${uczen.id}:`, e instanceof Error ? e.stack : e)
       return await bladSynchronizacji(baza, householdId, e, `Błąd synchronizacji ucznia ${uczen.id}`)
     }
   }
