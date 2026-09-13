@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import type { DomownikDb } from './lib/supabase'
 import { useTerminy } from './useTerminy'
 import {
   DOZWOLONE_TYPY_ZALACZNIKA,
@@ -11,7 +10,6 @@ import {
   type Zalacznik,
 } from './terminy'
 import { klucz } from './dates'
-import { kolor } from './kolory'
 import { Arkusz } from './uklad/Arkusz'
 import type { TrybDodawania } from './uklad/nawigacja'
 
@@ -19,13 +17,12 @@ type Props = {
   jestemRodzicem: boolean
   mojeId: string
   householdId: string
-  osobaPoId: Map<string, DomownikDb>
   onBlad: (tekst: string) => void
   dodawanie: TrybDodawania
 }
 
 /** Ekran „Terminy": ważne daty (np. koniec ubezpieczenia) z załącznikami, w tabeli. */
-export function Terminy({ jestemRodzicem, mojeId, householdId, osobaPoId, onBlad, dodawanie }: Props) {
+export function Terminy({ jestemRodzicem, mojeId, householdId, onBlad, dodawanie }: Props) {
   const dane = useTerminy(householdId, onBlad)
   const [pokazZalatwione, setPokazZalatwione] = useState(false)
 
@@ -88,7 +85,6 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, osobaPoId, onBlad
                 <th>Powiadom</th>
                 <th>Załatwione</th>
                 <th>Załączniki</th>
-                <th>Autor</th>
                 <th aria-label="Akcje" />
               </tr>
             </thead>
@@ -97,7 +93,6 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, osobaPoId, onBlad
                 <WierszTerminu
                   key={t.id}
                   termin={t}
-                  autor={t.autorId ? osobaPoId.get(t.autorId) : undefined}
                   przeterminowany={!t.zalatwiony && czyPrzeterminowany(t.termin, dzisiaj)}
                   mogeUsunacTermin={jestemRodzicem || t.autorId === mojeId}
                   mojeId={mojeId}
@@ -120,7 +115,6 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, osobaPoId, onBlad
 
 type WierszTerminuProps = {
   termin: Termin
-  autor: DomownikDb | undefined
   przeterminowany: boolean
   mogeUsunacTermin: boolean
   mojeId: string
@@ -135,7 +129,6 @@ type WierszTerminuProps = {
 
 function WierszTerminu({
   termin,
-  autor,
   przeterminowany,
   mogeUsunacTermin,
   mojeId,
@@ -217,19 +210,6 @@ function WierszTerminu({
             onChange={wybranoPliki}
           />
         </div>
-      </td>
-
-      <td>
-        <span className="autor-terminu">
-          {autor && (
-            <span
-              className="kropka"
-              style={{ background: kolor(autor.color).kropka }}
-              aria-hidden="true"
-            />
-          )}
-          {autor?.name ?? 'ktoś'}
-        </span>
       </td>
 
       <td>

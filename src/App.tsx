@@ -355,7 +355,6 @@ function App({ profil, email }: Props) {
           jestemRodzicem={jestemRodzicem}
           mojeId={profil.id}
           householdId={profil.household_id}
-          osobaPoId={osobaPoId}
           onBlad={setBlad}
           dodawanie={trybDodawania('terminy')}
         />

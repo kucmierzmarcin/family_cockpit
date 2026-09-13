@@ -327,7 +327,7 @@
 
 .tabela-terminow {
   width: 100%;
-  min-width: 960px;
+  min-width: 820px;
   border-collapse: collapse;
   background: var(--karta);
   border: 1px solid var(--kreska);
@@ -417,11 +417,4 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 140px;
-}
-
-.autor-terminu {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
 }

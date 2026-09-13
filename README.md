@@ -211,8 +211,8 @@ Zakładka **Terminy** to tabela rzeczy z datą ważności, niezależna od
 kalendarza — „do kiedy ważne jest ubezpieczenie auta", „kiedy kończy się
 gwarancja" — razem z dokumentem, który do tego terminu należy (skan, zdjęcie,
 PDF, do 10 MB na plik). Kolumny: tytuł, opis, do kiedy, powiadom, załatwione,
-załączniki, autor. Na wąskim ekranie tabela przewija się w poziomie zamiast
-zmieniać układ.
+załączniki. Na wąskim ekranie tabela przewija się w poziomie zamiast zmieniać
+układ.
 
 Kolumna **Powiadom** to data przypomnienia, ustawiana i zmieniana przez
 każdego domownika — na razie sama w sobie, żaden mail ani bot jeszcze z niej
