@@ -131,14 +131,25 @@ function zlagodzBrakStatusu(vulcan: VulcanHebe): void {
     if (payload !== null) options.body = payload
     const rawRes = await fetch(fullUrl, options)
     const jsonRes = (await rawRes.json()) as Record<string, unknown>
+    // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
+    // getMessageBoxes dostawał odpowiedź z kluczami Message/MessageDetail
+    // (typowy kształt błędu ASP.NET Web API "brak takiego zasobu"), a
+    // request() nigdy nie sprawdzał kodu HTTP - tylko pola Status w treści.
+    // Sprawdzamy jawnie i pokazujemy dokładny błąd, żeby ustalić, czy to zła
+    // ścieżka URL, czy coś innego.
+    if (!rawRes.ok) {
+      const opis =
+        (jsonRes['MessageDetail'] as string | undefined) ??
+        (jsonRes['Message'] as string | undefined) ??
+        JSON.stringify(jsonRes).slice(0, 300)
+      console.error(`[diagnostyka] HTTP ${rawRes.status} dla ${url}: ${opis}`)
+      throw new Error(`HTTP ${rawRes.status} dla ${url}: ${opis}`)
+    }
     const status = jsonRes['Status'] as { Code?: number; Message?: string } | undefined
     if (status && status.Code !== 0) {
       throw new Error(status.Message ?? 'Nieznany błąd Vulcan.')
     }
     if (jsonRes['Envelope'] === undefined) {
-      // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
-      // getMessageBoxes rzucił "data.map is not a function" - ani Status, ani
-      // Envelope nie pasują dla tego endpointu. Pokazujemy prawdziwe klucze.
       console.error(`[diagnostyka] brak Envelope dla ${url}, klucze odpowiedzi:`, Object.keys(jsonRes).join(','))
     }
     return jsonRes['Envelope'] ?? jsonRes
