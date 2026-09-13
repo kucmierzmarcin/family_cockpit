@@ -146,15 +146,6 @@ export async function synchronizujDom(
       const lekcje = await vulcan.getLessons(poczatek, koniec)
       const zmiany = await vulcan.getChangedLessons(poczatek, koniec)
 
-      // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
-      // sprawdzamy, czy getLessons w ogóle coś zwrócił i czy pole `date` (po
-      // łatce na Serializable) ma prawdziwą wartość, czy `null` - odróżnia
-      // "eduVULCAN nie ma nic w tym tygodniu" od "pole daty ma inną nazwę,
-      // niż zakłada biblioteka, więc wszystko wypada z filtra".
-      console.error(
-        `[diagnostyka] uczeń ${uczen.id}: getLessons=${lekcje.length}, getChangedLessons=${zmiany.length}, pierwsza lekcja date=${JSON.stringify(lekcje[0]?.date)} timeSlot=${JSON.stringify(lekcje[0]?.timeSlot)} klucze=${lekcje[0] ? Object.keys(lekcje[0]).join(',') : 'brak'}`,
-      )
-
       const wierszeLekcji = lekcje
         .filter((l) => l.date?.date && l.timeSlot?.start && l.timeSlot?.end)
         .map((l) => ({
@@ -259,10 +250,6 @@ export async function synchronizujDom(
         if (bladZapisu) throw new Error(`Zapis zadań domowych nie powiódł się: ${bladZapisu.message}`)
       }
     } catch (e) {
-      // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
-      // e.message sam nie mówi, które z 4 wywołań (getLessons/getChangedLessons/
-      // getExams/getHomework) rzuciło - pełny stos w logach to pokaże.
-      console.error(`[diagnostyka] Błąd synchronizacji ucznia ${uczen.id}:`, e instanceof Error ? e.stack : e)
       return await bladSynchronizacji(baza, householdId, e, `Błąd synchronizacji ucznia ${uczen.id}`)
     }
   }
@@ -271,14 +258,16 @@ export async function synchronizujDom(
   if (!wynikWiadomosci.ok) {
     // Sesja wygasła jest wspólna dla całego połączenia (nie tylko wiadomości)
     // - to trzeba zgłosić, bo bez ponownej rejestracji reszta synchronizacji
-    // i tak by się nie udała. Każdy INNY błąd wiadomości (np. jeszcze
-    // niezdiagnozowany kształt odpowiedzi eduVULCAN dla skrzynek - TYMCZASOWE,
-    // do usunięcia po zdiagnozowaniu) jest drugorzędny względem planu lekcji/
-    // zadań, który w tym miejscu już się poprawnie zapisał - nie cofamy tego
-    // sukcesu z powodu wiadomości.
+    // i tak by się nie udała. Każdy INNY błąd wiadomości (np. nieznany kształt
+    // odpowiedzi eduVULCAN dla skrzynek - endpoint skrzynek nie zwraca
+    // oczekiwanego przez bibliotekę pola Status, potwierdzone na żywo
+    // 2026-09-13, jeszcze nie naprawione) jest drugorzędny względem planu
+    // lekcji/zadań, który w tym miejscu już się poprawnie zapisał - nie
+    // cofamy tego sukcesu z powodu wiadomości. Logujemy, żeby nie stracić
+    // widoczności na wciąż otwarty problem.
     const sesjaNiewazna = wynikWiadomosci.blad?.startsWith('Sesja Vulcan wygasła')
     if (sesjaNiewazna) return wynikWiadomosci
-    console.error(`[diagnostyka] Synchronizacja wiadomości nie powiodła się dla domu ${householdId}: ${wynikWiadomosci.blad}`)
+    console.error(`Synchronizacja wiadomości nie powiodła się dla domu ${householdId}: ${wynikWiadomosci.blad}`)
   }
 
   const { error: bladCzyszczeniaBledu } = await baza
@@ -377,10 +366,11 @@ async function synchronizujWiadomosci(
       throw new Error(`Czyszczenie zduplikowanych wiadomości nie powiodło się: ${bladKasowania.message}`)
     }
   } catch (e) {
-    // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
-    // pełny stos pokaże, czy to getMessageBoxes czy getMessages i na jakim
-    // dokładnie polu/wywołaniu.
-    console.error(`[diagnostyka] Błąd synchronizacji wiadomości (dom ${householdId}):`, e instanceof Error ? e.stack : e)
+    // Endpoint skrzynek wiadomości eduVULCAN nie zawsze zwraca oczekiwane
+    // przez bibliotekę pole Status (patrz komentarz przy wywołaniu tej
+    // funkcji w synchronizujDom) - błąd tu jest nieszkodliwy dla reszty
+    // synchronizacji, ale pełny stos zostaje w logach do przyszłej naprawy.
+    console.error(`Błąd synchronizacji wiadomości (dom ${householdId}):`, e instanceof Error ? e.stack : e)
     return await bladSynchronizacji(baza, householdId, e, 'Błąd synchronizacji wiadomości')
   }
 
