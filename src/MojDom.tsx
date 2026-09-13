@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   OPISY_ROL,
   stanKonta,
@@ -438,8 +438,20 @@ function PolaczenieVulcan({ vulcan, domownicy }: PolaczenieVulcanProps) {
 
   const status = vulcan.status
 
+  // `status` przychodzi na nowo przy KAŻDYM odświeżeniu z Realtime (patrz
+  // `useVulcan`), także dla zmian niezwiązanych z godzinami synchronizacji
+  // (np. nowa wiadomość). Porównujemy zapamiętaną wartość `godzinySync`, żeby
+  // niezwiązany event nie nadpisał niezapisanej edycji rodzica w formularzu.
+  const ostatnieGodzinySync = useRef<string | null>(null)
+
   useEffect(() => {
-    if (status) setGodziny(status.godzinySync)
+    if (!status) return
+    const aktualne = JSON.stringify(status.godzinySync)
+    if (aktualne !== ostatnieGodzinySync.current) {
+      ostatnieGodzinySync.current = aktualne
+      // oxlint-disable-next-line react/set-state-in-effect -- synchronizacja pozycji startowej formularza z zewnętrznym źródłem (Realtime), tylko gdy wartość faktycznie się zmieniła
+      setGodziny(status.godzinySync)
+    }
   }, [status])
 
   async function polacz(e: React.FormEvent) {
