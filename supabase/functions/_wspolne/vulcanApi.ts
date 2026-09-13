@@ -44,7 +44,29 @@ function dekodujJwtPayload(jwt: string): { tenant: string } {
   const czesci = jwt.split('.')
   if (czesci.length !== 3) throw new Error('Nieprawidłowy JWT (oczekiwano 3 segmentów).')
   const uzupelnione = czesci[1].replace(/-/g, '+').replace(/_/g, '/')
-  return JSON.parse(atob(uzupelnione))
+  const payload = JSON.parse(atob(uzupelnione))
+  if (typeof payload?.tenant !== 'string' || !payload.tenant) {
+    throw new Error('JWT bez pola tenant.')
+  }
+  return payload
+}
+
+/**
+ * Czyta odpowiedź jako tekst (nie od razu `.json()` - błąd 404/502 zwykle
+ * zwraca HTML, nie JSON, a `.json()` rzuciłby wtedy nieczytelny `SyntaxError`
+ * bez informacji o tenancie/statusie) i próbuje ją sparsować. Przy błędzie
+ * parsowania rzuca czytelny wyjątek z kodem HTTP, tenantem i (przyciętą)
+ * surową treścią odpowiedzi.
+ */
+async function sparsujOdpowiedz(odpowiedz: Response, tenant: string, opis: string): Promise<any> {
+  const tekstOdpowiedzi = await odpowiedz.text()
+  try {
+    return JSON.parse(tekstOdpowiedzi)
+  } catch {
+    throw new Error(
+      `${opis} nie powiodło się dla tenanta ${tenant}: HTTP ${odpowiedz.status}, odpowiedź nie jest poprawnym JSON-em: ${tekstOdpowiedzi.slice(0, 500)}`,
+    )
+  }
 }
 
 /**
@@ -88,9 +110,14 @@ export async function zarejestrujPrzezJwt(keystore: Keystore, jwty: string[]): P
       pelnyUrl,
     )
     const odpowiedz = await fetch(pelnyUrl, { method: 'POST', headers: naglowki, body: cialo })
-    const dane = await odpowiedz.json()
-    if (!odpowiedz.ok || dane?.Status?.Code < 0) {
-      throw new Error(`Rejestracja JWT nie powiodła się dla tenanta ${tenant}: ${JSON.stringify(dane)}`)
+    const dane = await sparsujOdpowiedz(odpowiedz, tenant, 'Rejestracja JWT')
+    // Prawdziwa biblioteka (`vulcan-api-js`) traktuje sukces jako `Status.Code === 0`,
+    // a rzuca na KAŻDY niezerowy kod (nie tylko ujemny) - backend zgłasza błędy
+    // logiczne również jako HTTP 200 z dodatnim `Status.Code`.
+    if (!odpowiedz.ok || (dane?.Status?.Code ?? 0) !== 0) {
+      throw new Error(
+        `Rejestracja JWT nie powiodła się dla tenanta ${tenant}: HTTP ${odpowiedz.status}, ${JSON.stringify(dane)}`,
+      )
     }
     wyniki.push({ tenant, restUrl })
   }
@@ -125,11 +152,20 @@ export async function pobierzUczniowEdu(
       pelnyUrl,
     )
     const odpowiedz = await fetch(pelnyUrl, { method: 'GET', headers: naglowki })
-    const dane = await odpowiedz.json()
-    if (!odpowiedz.ok) {
-      throw new Error(`Pobranie uczniów nie powiodło się dla tenanta ${tenant}: ${JSON.stringify(dane)}`)
+    const dane = await sparsujOdpowiedz(odpowiedz, tenant, 'Pobranie uczniów')
+    if (!odpowiedz.ok || (dane?.Status?.Code ?? 0) !== 0) {
+      throw new Error(
+        `Pobranie uczniów nie powiodło się dla tenanta ${tenant}: HTTP ${odpowiedz.status}, ${JSON.stringify(dane)}`,
+      )
     }
-    const surowiUczniowie: unknown[] = dane.Envelope ?? []
+    // Jawne rozróżnienie "brak pola Envelope" (błąd - rzuć wyjątek) od
+    // "puste Envelope" (poprawny wynik - zero uczniów dla tego tenanta).
+    if (!Array.isArray(dane?.Envelope)) {
+      throw new Error(
+        `Pobranie uczniów nie powiodło się dla tenanta ${tenant}: brak pola Envelope w odpowiedzi: ${JSON.stringify(dane).slice(0, 500)}`,
+      )
+    }
+    const surowiUczniowie: unknown[] = dane.Envelope
     for (const surowy of surowiUczniowie) {
       const uczen = new Student().serialize(surowy) as Student & { __tenant: string; __restUrl: string }
       uczen.__tenant = tenant
