@@ -4,14 +4,27 @@ import { synchronizujDom } from '../_wspolne/vulcanSync.ts'
 
 type Cialo = { token?: string; symbol?: string; pin?: string }
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 function bladJson(tekst: string, status: number): Response {
   return new Response(JSON.stringify({ blad: tekst }), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   })
 }
 
 Deno.serve(async (req) => {
+  // Formularz "Połącz" w Mój dom woła tę funkcję z przeglądarki przez
+  // supabase.functions.invoke - to poprzedza preflight OPTIONS, który trzeba
+  // obsłużyć samodzielnie (Deno.serve nie robi tego automatycznie).
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: CORS_HEADERS })
+  }
+
   if (req.method !== 'POST') return bladJson('Tylko POST.', 405)
 
   let cialo: Cialo
@@ -135,6 +148,6 @@ Deno.serve(async (req) => {
   })
 
   return new Response(JSON.stringify({ ok: true, liczbaUczniow: wierszeUczniow.length }), {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   })
 })
