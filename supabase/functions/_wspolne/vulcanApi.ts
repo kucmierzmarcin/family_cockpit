@@ -24,12 +24,18 @@ const BASE_URL = 'https://lekcjaplus.vulcan.net.pl/'
  * DRUGI, NIEZALEŻNY problem znaleziony na tym samym żywym koncie: nawet z
  * powyższą łatką `Lesson.date` wychodził `null` dla WSZYSTKICH 30 realnych
  * lekcji (nie brak danych - klucz istnieje pod INNĄ nazwą). Zrzut prawdziwych
- * kluczy surowego obiektu Lesson (tymczasowy log, usunięty po zdiagnozowaniu)
- * pokazał `DateAt`, nie `Date`, którego szuka `bind("Date")` w bibliotece
- * (zbudowanej pod starego Vulcan). Podmieniamy klucz na wejściu do
- * `serialize()` TYLKO dla klasy `Lesson` i TYLKO gdy `Date` faktycznie
- * brakuje - jeśli kiedyś biblioteka/endpoint zacznie zwracać `Date`
- * wprost, ta gałąź się nie uruchomi.
+ * kluczy surowego obiektu Lesson pokazał `DateAt`, nie `Date`, którego szuka
+ * `bind("Date")` w bibliotece (zbudowanej pod starego Vulcan). `DateAt` to
+ * jednak zwykły string `"RRRR-MM-DD"` (potwierdzone: `"2026-09-08"`), NIE
+ * obiekt w kształcie, jakiego oczekuje zagnieżdżony model `DateTime`
+ * (`{Timestamp, Date, DateDisplay, Time}`) - podstawienie go wprost pod klucz
+ * `Date` dawało puste `{}` (`DateTime.serialize` czyta `source["Date"]` z
+ * obiektu, a string nie ma takiej właściwości). Owijamy więc string w obiekt
+ * `{Date: <string>}`, żeby trafił we właściwe pole `DateTime.date` - jedyne
+ * pole tego modelu, którego `vulcanSync.ts` faktycznie używa
+ * (`l.date!.date`). Tylko dla klasy `Lesson` i tylko gdy `Date` faktycznie
+ * brakuje - jeśli kiedyś endpoint zacznie zwracać `Date` wprost, ta gałąź
+ * się nie uruchomi.
  */
 ;(() => {
   const wspolnyPrototyp = Object.getPrototypeOf(Student.prototype) as { serialize: (source: unknown) => unknown }
@@ -43,15 +49,10 @@ const BASE_URL = 'https://lekcjaplus.vulcan.net.pl/'
       (source as Record<string, unknown>).Date == null &&
       (source as Record<string, unknown>).DateAt != null
     ) {
-      poprawioneZrodlo = { ...(source as Record<string, unknown>), Date: (source as Record<string, unknown>).DateAt }
-      // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
-      // `date` po podmianie klucza wychodzi `{}` - DateAt to zagnieżdżony
-      // obiekt, ale jego WŁASNE klucze (Timestamp/Date/DateDisplay/Time)
-      // najwyraźniej też nie pasują. Pokazujemy całą jego zawartość raz.
-      console.error(
-        '[diagnostyka] surowa wartość DateAt:',
-        JSON.stringify((source as Record<string, unknown>).DateAt),
-      )
+      poprawioneZrodlo = {
+        ...(source as Record<string, unknown>),
+        Date: { Date: (source as Record<string, unknown>).DateAt },
+      }
     }
     return oryginalnySerialize.call(this, poprawioneZrodlo ?? null)
   }
