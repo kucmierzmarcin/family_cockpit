@@ -132,7 +132,11 @@ export async function synchronizujDom(
     // więc to tanie.
     let vulcan
     try {
-      vulcan = await zbudujVulcanHebe(polaczenie as WierszPolaczenia)
+      const daneUcznia = uczen.student_data as { __restUrl?: string }
+      if (!daneUcznia.__restUrl) {
+        return { ok: false, blad: `Brak zapisanego adresu REST dla ucznia ${uczen.id} - połącz Vulcan ponownie.` }
+      }
+      vulcan = await zbudujVulcanHebe(polaczenie as WierszPolaczenia, daneUcznia.__restUrl)
       await vulcan.selectStudent(uczen.student_data as Student)
     } catch (e) {
       return await bladSynchronizacji(baza, householdId, e, `Nie udało się zbudować klienta Vulcan dla ucznia ${uczen.id}`)
@@ -299,7 +303,11 @@ async function synchronizujWiadomosci(
     // Endpoint skrzynek jest pod adresem jednostki ucznia (`restUrl` dostaje
     // symbol jednostki dopiero w `selectStudent`), więc wybieramy jednego
     // ucznia - ale pobieramy dane tylko raz na cały dom.
-    const vulcan = await zbudujVulcanHebe(polaczenie)
+    const daneWlasciciela = wlasciciel.student_data as { __restUrl?: string }
+    if (!daneWlasciciela.__restUrl) {
+      return { ok: false, blad: `Brak zapisanego adresu REST dla ucznia ${wlasciciel.id} - połącz Vulcan ponownie.` }
+    }
+    const vulcan = await zbudujVulcanHebe(polaczenie, daneWlasciciela.__restUrl)
     await vulcan.selectStudent(wlasciciel.student_data as Student)
 
     const skrzynki = await vulcan.getMessageBoxes()
