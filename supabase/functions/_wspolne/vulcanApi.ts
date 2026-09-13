@@ -168,12 +168,18 @@ function zlagodzBrakStatusu(vulcan: VulcanHebe): void {
     if (payload !== null) options.body = payload
     const rawRes = await fetch(fullUrl, options)
     const tekstOdpowiedzi = await rawRes.text()
+    // Prefiks liczony PRZED próbą JSON.parse - błąd 401/403 z ciałem, które
+    // nie jest poprawnym JSON-em (pusta odpowiedź, strona HTML z WAF-a), musi
+    // dalej zawierać dosłowne "Unauthorized", żeby `bladSynchronizacji` w
+    // vulcanSync.ts (dopasowanie po treści błędu) rozpoznało utratę sesji
+    // niezależnie od kształtu ciała odpowiedzi.
+    const sesyjny = rawRes.status === 401 || rawRes.status === 403 ? 'Unauthorized - ' : ''
     let jsonRes: Record<string, unknown>
     try {
       jsonRes = JSON.parse(tekstOdpowiedzi)
     } catch {
       throw new Error(
-        `HTTP ${rawRes.status} dla ${url}: odpowiedź nie jest poprawnym JSON-em: ${tekstOdpowiedzi.slice(0, 300)}`,
+        `${sesyjny}HTTP ${rawRes.status} dla ${url}: odpowiedź nie jest poprawnym JSON-em: ${tekstOdpowiedzi.slice(0, 300)}`,
       )
     }
     if (!rawRes.ok) {
@@ -181,7 +187,6 @@ function zlagodzBrakStatusu(vulcan: VulcanHebe): void {
         (jsonRes['MessageDetail'] as string | undefined) ??
         (jsonRes['Message'] as string | undefined) ??
         JSON.stringify(jsonRes).slice(0, 300)
-      const sesyjny = rawRes.status === 401 || rawRes.status === 403 ? 'Unauthorized - ' : ''
       throw new Error(`${sesyjny}HTTP ${rawRes.status} dla ${url}: ${opis}`)
     }
     const status = jsonRes['Status'] as { Code?: number; Message?: string } | undefined

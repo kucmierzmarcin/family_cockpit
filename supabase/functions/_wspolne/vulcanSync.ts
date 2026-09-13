@@ -123,6 +123,10 @@ export async function synchronizujDom(
   const listaUczniow = (uczniowie ?? []) as WierszUcznia[]
   const poczatek = poczatekTygodnia(new Date())
   const koniec = koniecTygodnia(poczatek)
+  // Błędy pominiętych uczniów (patrz `continue` niżej) - zebrane, żeby wynik
+  // funkcji uczciwie odzwierciedlał częściowe niepowodzenie zamiast cichego
+  // `{ok:true}` z zerem zapisanych wierszy dla pominiętych uczniów.
+  const bledyUczniow: string[] = []
 
   for (const uczen of listaUczniow) {
     // Świeży klient na każdego ucznia: `Api.setStudent()` w bibliotece
@@ -134,7 +138,9 @@ export async function synchronizujDom(
     try {
       const daneUcznia = uczen.student_data as { __restUrl?: string }
       if (!daneUcznia.__restUrl) {
-        console.error(`Pomijam ucznia ${uczen.id} w tej synchronizacji: brak zapisanego adresu REST - połącz Vulcan ponownie.`)
+        const opis = `Brak zapisanego adresu REST dla ucznia ${uczen.id} - połącz Vulcan ponownie.`
+        console.error(`Pomijam ucznia ${uczen.id} w tej synchronizacji: ${opis}`)
+        bledyUczniow.push(opis)
         continue
       }
       vulcan = await zbudujVulcanHebe(polaczenie as WierszPolaczenia, daneUcznia.__restUrl)
@@ -147,6 +153,7 @@ export async function synchronizujDom(
       const wynik = await bladSynchronizacji(baza, householdId, e, `Nie udało się zbudować klienta Vulcan dla ucznia ${uczen.id}`)
       if (wynik.blad?.startsWith('Sesja Vulcan wygasła')) return wynik
       console.error(`Pomijam ucznia ${uczen.id} w tej synchronizacji: ${wynik.blad}`)
+      if (wynik.blad) bledyUczniow.push(wynik.blad)
       continue
     }
 
@@ -154,8 +161,16 @@ export async function synchronizujDom(
       const lekcje = await vulcan.getLessons(poczatek, koniec)
       const zmiany = await vulcan.getChangedLessons(poczatek, koniec)
 
-      const wierszeLekcji = lekcje
-        .filter((l) => l.date?.date && l.timeSlot?.start && l.timeSlot?.end)
+      const lekcjePrzefiltrowane = lekcje.filter((l) => l.date?.date && l.timeSlot?.start && l.timeSlot?.end)
+      if (lekcje.length > 0 && lekcjePrzefiltrowane.length === 0) {
+        // To DOKŁADNIE ten wzorzec cichego błędu, który ukrywał problem z
+        // Lesson.date/DateAt przez dwie rundy diagnozy na żywo - zostaje jako
+        // stały alarm na wypadek, gdyby eduVULCAN znów zmienił nazwę pola.
+        console.error(
+          `Ostrzeżenie: ${lekcje.length} lekcji dla ucznia ${uczen.id} odrzuconych przez filtr daty/godzin - możliwy brak/inna nazwa pola.`,
+        )
+      }
+      const wierszeLekcji = lekcjePrzefiltrowane
         .map((l) => ({
           student_id: uczen.id,
           household_id: householdId,
@@ -284,8 +299,17 @@ export async function synchronizujDom(
       const wynik = await bladSynchronizacji(baza, householdId, e, `Błąd synchronizacji ucznia ${uczen.id}`)
       if (wynik.blad?.startsWith('Sesja Vulcan wygasła')) return wynik
       console.error(`Pomijam ucznia ${uczen.id} w tej synchronizacji: ${wynik.blad}`)
+      if (wynik.blad) bledyUczniow.push(wynik.blad)
       continue
     }
+  }
+
+  // Co najmniej jeden uczeń pominięty - nie zgłaszamy fałszywego sukcesu.
+  // Dane uczniów, którzy się udali, już są zapisane (zapis dzieje się w
+  // pętli, per uczeń) - to jest ostrzeżenie o CZĘŚCIOWYM niepowodzeniu, nie
+  // cofnięcie tego, co się udało.
+  if (bledyUczniow.length > 0) {
+    return { ok: false, blad: `Nie udało się zsynchronizować ${bledyUczniow.length} z ${listaUczniow.length} uczniów: ${bledyUczniow.join(' | ')}` }
   }
 
   const wynikWiadomosci = await synchronizujWiadomosci(baza, householdId, polaczenie as WierszPolaczenia, listaUczniow)
