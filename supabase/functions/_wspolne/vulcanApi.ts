@@ -135,6 +135,12 @@ function zlagodzBrakStatusu(vulcan: VulcanHebe): void {
     if (status && status.Code !== 0) {
       throw new Error(status.Message ?? 'Nieznany błąd Vulcan.')
     }
+    if (jsonRes['Envelope'] === undefined) {
+      // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
+      // getMessageBoxes rzucił "data.map is not a function" - ani Status, ani
+      // Envelope nie pasują dla tego endpointu. Pokazujemy prawdziwe klucze.
+      console.error(`[diagnostyka] brak Envelope dla ${url}, klucze odpowiedzi:`, Object.keys(jsonRes).join(','))
+    }
     return jsonRes['Envelope'] ?? jsonRes
   }
 }
