@@ -450,9 +450,14 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 **Interfejsy:**
 - Konsumuje: nową sygnaturę `zbudujVulcanHebe(polaczenie, restUrl)` z Zadania 2.
 
-- [ ] **Krok 1: Znajdź wywołanie `zbudujVulcanHebe` w `synchronizujDom`**
+- [ ] **Krok 1: Zaktualizuj OBA wywołania `zbudujVulcanHebe` w `vulcanSync.ts`**
 
-Dziś wygląda tak: `vulcan = await zbudujVulcanHebe(polaczenie as WierszPolaczenia)`.
+Plik ma dziś DWA wywołania tej funkcji (jedno-argumentowe, ze starszej wersji
+kodu) - oba trzeba dopasować do nowej, dwuargumentowej sygnatury z Zadania 2.
+
+**Miejsce 1 — `synchronizujDom` (pętla po uczniach):**
+
+Dziś: `vulcan = await zbudujVulcanHebe(polaczenie as WierszPolaczenia)`.
 Zamień na:
 
 ```ts
@@ -463,11 +468,24 @@ if (!daneUcznia.__restUrl) {
 vulcan = await zbudujVulcanHebe(polaczenie as WierszPolaczenia, daneUcznia.__restUrl)
 ```
 
-(Umieść to w tym samym miejscu pętli po uczniach, gdzie dziś jest budowany
-`vulcan` - dokładna nazwa zmiennej/wcięcie zależy od obecnego kodu, przeczytaj
-plik przed edycją.) Reszta funkcji (`selectStudent`, pobieranie
-lekcji/sprawdzianów/zadań/wiadomości, upsert do tabel) **zostaje bez zmian** -
-`Student` z `__restUrl`/`__tenant` nadal ma wszystkie pola, których
+**Miejsce 2 — `synchronizujWiadomosci` (jeden „właściciel" skrzynek na cały dom):**
+
+Dziś: `const vulcan = await zbudujVulcanHebe(polaczenie)` (zaraz przed
+`await vulcan.selectStudent(wlasciciel.student_data as Student)`). Ten sam
+wzorzec, inna nazwa zmiennej ucznia (`wlasciciel`, nie `uczen`):
+
+```ts
+const daneWlasciciela = wlasciciel.student_data as { __restUrl?: string }
+if (!daneWlasciciela.__restUrl) {
+  return { ok: false, blad: `Brak zapisanego adresu REST dla ucznia ${wlasciciel.id} - połącz Vulcan ponownie.` }
+}
+const vulcan = await zbudujVulcanHebe(polaczenie, daneWlasciciela.__restUrl)
+```
+
+(Dokładne nazwy zmiennych/wcięcie w obu miejscach zależą od bieżącego stanu
+pliku - przeczytaj go przed edycją, to tylko wzorzec zmiany.) Reszta obu
+funkcji (`selectStudent`, pobieranie danych, upsert do tabel) **zostaje bez
+zmian** - `Student` z `__restUrl`/`__tenant` nadal ma wszystkie pola, których
 `selectStudent` potrzebuje.
 
 - [ ] **Krok 2: Sprawdź, że plik nie odwołuje się już nigdzie do starego,
