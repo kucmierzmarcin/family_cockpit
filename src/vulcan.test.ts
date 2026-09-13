@@ -64,8 +64,8 @@ describe('bladGodzinySync', () => {
     expect(bladGodzinySync(['06:00', '13:30', '19:00'])).toBeNull()
   })
 
-  it('odrzuca pustą listę', () => {
-    expect(bladGodzinySync([])).toContain('przynajmniej jedną')
+  it('akceptuje pustą listę - to wyłączenie automatycznej synchronizacji', () => {
+    expect(bladGodzinySync([])).toBeNull()
   })
 
   it('odrzuca więcej niż 3 godziny', () => {

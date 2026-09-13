@@ -1709,6 +1709,13 @@ revoke execute on function public.zamknij_sync_vulcan(uuid, text)       from pub
 --     'kokpit_url_funkcji_vulcan_sync');
 --
 -- `kokpit_klucz_serwisowy` jest juz zalozony (poranne podsumowanie).
+--
+-- UWAGA: ten sekret trzyma klucz service_role w formacie legacy JWT, a
+-- `Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')` w Edge Function zwraca po
+-- migracji API keys nowy format `sb_secret_...`. Dlatego `vulcan-sync` NIE
+-- porownuje naglowka Authorization ze zmienna srodowiskowa (takie porownanie
+-- nigdy nie bylo prawdziwe i kazdy tick crona konczyl sie 401) - odczytuje
+-- role z ladunku JWT, ktorego podpis zweryfikowala juz bramka (verify_jwt).
 
 select cron.schedule('vulcan-sync', '*/15 * * * *', $$
   select net.http_post(

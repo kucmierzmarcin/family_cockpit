@@ -9,7 +9,7 @@ import {
   type Wiadomosc,
   type Wpis,
 } from './vulcan'
-import { dlugaData } from './dates'
+import { dlugaData, klucz } from './dates'
 
 type Props = {
   domownicy: DomownikDb[]
@@ -32,6 +32,7 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
   const [podZakladka, setPodZakladka] = useState<PodZakladka>('plan')
   const [wybranyUczen, setWybranyUczen] = useState<string | null>(null)
   const [rozwinieta, setRozwinieta] = useState<string | null>(null)
+  const [pokazMinione, setPokazMinione] = useState(false)
 
   const uczniowie = status?.uczniowie.filter((u) => u.memberId !== null) ?? []
   const nazwaDomownika = new Map(domownicy.map((d) => [d.id, d.name]))
@@ -42,14 +43,23 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
     () => (filtrUczniaId ? lekcje.filter((l) => l.uczenId === filtrUczniaId) : lekcje),
     [lekcje, filtrUczniaId],
   )
-  const wpisyWidoczne = useMemo(
+  const wpisyUcznia = useMemo(
     () => posortujWpisy(filtrUczniaId ? wpisy.filter((w) => w.uczenId === filtrUczniaId) : wpisy),
     [wpisy, filtrUczniaId],
   )
-  const wiadomosciWidoczne = useMemo(
-    () => posortujWiadomosci(filtrUczniaId ? wiadomosci.filter((w) => w.uczenId === filtrUczniaId) : wiadomosci),
-    [wiadomosci, filtrUczniaId],
+  // Domyślnie tylko nadchodzące - historia sprawdzianów i zadań rośnie w
+  // nieskończoność i spychała najbliższe terminy poza widok. Minione wciąż
+  // można pokazać przełącznikiem.
+  const dzisiaj = klucz(new Date())
+  const wpisyMinione = useMemo(() => wpisyUcznia.filter((w) => w.data < dzisiaj), [wpisyUcznia, dzisiaj])
+  const wpisyWidoczne = useMemo(
+    () => (pokazMinione ? wpisyUcznia : wpisyUcznia.filter((w) => w.data >= dzisiaj)),
+    [wpisyUcznia, pokazMinione, dzisiaj],
   )
+  // Skrzynki wiadomości należą do konta RODZICA, nie do dziecka (patrz
+  // `synchronizujWiadomosci` w Edge Function) - pokazujemy je dla całego domu,
+  // niezależnie od wybranego ucznia.
+  const wiadomosciWidoczne = useMemo(() => posortujWiadomosci(wiadomosci), [wiadomosci])
   const dniPlanu = useMemo(() => pogrupujLekcjePoDniu(lekcjeWidoczne), [lekcjeWidoczne])
 
   function nazwaUcznia(uczenId: string): string {
@@ -161,9 +171,21 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
           </div>
         ))}
 
+      {podZakladka === 'wpisy' && wpisyMinione.length > 0 && (
+        <div className="akcje-wpisow">
+          <button type="button" className="drobny" onClick={() => setPokazMinione(!pokazMinione)}>
+            {pokazMinione ? 'Ukryj minione' : `Pokaż też minione (${wpisyMinione.length})`}
+          </button>
+        </div>
+      )}
+
       {podZakladka === 'wpisy' &&
         (wpisyWidoczne.length === 0 ? (
-          <p className="pusto">Brak sprawdzianów i zadań domowych.</p>
+          <p className="pusto">
+            {pokazMinione || wpisyMinione.length === 0
+              ? 'Brak sprawdzianów i zadań domowych.'
+              : 'Brak nadchodzących sprawdzianów i zadań domowych.'}
+          </p>
         ) : (
           <div className="tabela-terminow-kontener">
             <table className="tabela-terminow">

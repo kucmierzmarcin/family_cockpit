@@ -3,6 +3,7 @@ import type { Student } from 'npm:vulcan-api-js@3.5.4'
 import { zbudujVulcanHebe, type WierszPolaczenia } from './vulcanApi.ts'
 
 type WierszUcznia = { id: string; student_data: unknown }
+type WynikSync = { ok: boolean; blad?: string }
 
 function poczatekTygodnia(d: Date): Date {
   const kopia = new Date(d)
@@ -18,20 +19,86 @@ function koniecTygodnia(poczatek: Date): Date {
   return kopia
 }
 
+/** 'RRRR-MM-DD' w czasie lokalnym - tak samo jak `klucz()` w aplikacji, żeby
+ * przedział tygodnia nie przesunął się o dzień przez strefę czasową. */
+function dataIso(d: Date): string {
+  const rok = d.getFullYear()
+  const miesiac = String(d.getMonth() + 1).padStart(2, '0')
+  const dzien = String(d.getDate()).padStart(2, '0')
+  return `${rok}-${miesiac}-${dzien}`
+}
+
+/**
+ * Zostawia dla każdego klucza konfliktu tylko OSTATNI wiersz z tablicy.
+ *
+ * Postgres rzuca `ON CONFLICT DO UPDATE command cannot affect row a second
+ * time`, gdy jedna tablica przekazana do `.upsert()` zawiera dwa wiersze o tym
+ * samym kluczu konfliktu - a Vulcan realnie takie duplikaty potrafi zwrócić
+ * (dwie zmiany w tym samym slocie planu, ta sama wiadomość z dwóch skrzynek).
+ * "Ostatni wygrywa" jest tu celowe: łączymy plan lekcji ze zmianami w tej
+ * kolejności, więc zmiana nadal nadpisuje zwykłą lekcję.
+ */
+function bezDuplikatow<T>(wiersze: T[], klucz: (w: T) => string): T[] {
+  const mapa = new Map<string, T>()
+  for (const w of wiersze) mapa.set(klucz(w), w)
+  return Array.from(mapa.values())
+}
+
+/** Tekst wyjątku - tylko `e.message` prawdziwego Error, żeby `String(e)` na
+ * rzuconym nie-Errorze nie dał mylącego "[object Object]". */
+function tekstBledu(e: unknown): string {
+  return e instanceof Error ? e.message : String(e)
+}
+
+/**
+ * Zamienia wyjątek z synchronizacji na wynik. Błąd sesji (certyfikat/token
+ * nieważny) dodatkowo ustawia `status = 'wymaga_ponownej_rejestracji'` -
+ * reszta synchronizacji i tak by się nie udała bez ważnych poświadczeń.
+ */
+async function bladSynchronizacji(
+  baza: SupabaseClient,
+  householdId: string,
+  e: unknown,
+  kontekst: string,
+): Promise<WynikSync> {
+  const tekst = tekstBledu(e)
+  // Biblioteka vulcan-api-js nie eksponuje własnych klas wyjątków ani kodu
+  // HTTP (sprawdzone w publikowanym bundlu - same generyczne `Error`), więc
+  // nie da się rozróżnić "sesja nieważna" po `e.constructor.name`. Dopasowanie
+  // po nazwach z treści błędu to świadomy kompromis: `\b...\b` ogranicza
+  // trafienia do całych słów (nie fragmentów innych identyfikatorów), co
+  // zmniejsza ryzyko fałszywego trafienia w nieznanym, nieprzewidzianym
+  // komunikacie błędu. Błędna klasyfikacja tutaj nie gubi danych - w
+  // najgorszym razie wymusza ręczną ponowną rejestrację, którą da się
+  // doprecyzować po zobaczeniu prawdziwych błędów z logów (Zadanie 5/8).
+  const sesjaNiewazna = /\b(Unauthorized|ExpiredToken|InvalidSignature)\b/i.test(tekst)
+  if (sesjaNiewazna) {
+    const { error: bladAktualizacjiStatusu } = await baza
+      .from('vulcan_connections')
+      .update({ status: 'wymaga_ponownej_rejestracji', last_error: tekst })
+      .eq('household_id', householdId)
+    if (bladAktualizacjiStatusu) {
+      return {
+        ok: false,
+        blad: `Sesja Vulcan wygasła (dodatkowo nie udało się zapisać statusu: ${bladAktualizacjiStatusu.message}): ${tekst}`,
+      }
+    }
+    return { ok: false, blad: `Sesja Vulcan wygasła: ${tekst}` }
+  }
+  return { ok: false, blad: `${kontekst}: ${tekst}` }
+}
+
 /**
  * Synchronizuje jeden dom: dla każdego przypisanego ucznia pobiera plan
- * lekcji, zmiany, sprawdziany, zadania domowe i wiadomości, zapisuje do
- * naszych tabel. Współdzielona przez `vulcan-sync` (cron, wiele domów) i
- * `vulcan-polacz` (pierwsza synchronizacja od razu po rejestracji).
- *
- * Błąd sesji (certyfikat/token nieważny) ustawia
- * `status = 'wymaga_ponownej_rejestracji'` i przerywa - reszta synchronizacji
- * i tak by się nie udała bez ważnych poświadczeń.
+ * lekcji, zmiany, sprawdziany i zadania domowe, a raz na cały dom - wiadomości
+ * (skrzynki należą do konta RODZICA, nie do dziecka). Współdzielona przez
+ * `vulcan-sync` (cron, wiele domów) i `vulcan-polacz` (pierwsza
+ * synchronizacja od razu po rejestracji).
  */
 export async function synchronizujDom(
   baza: SupabaseClient,
   householdId: string,
-): Promise<{ ok: boolean; blad?: string }> {
+): Promise<WynikSync> {
   const { data: polaczenie, error: bladPolaczenia } = await baza
     .from('vulcan_connections')
     .select('*')
@@ -47,25 +114,31 @@ export async function synchronizujDom(
     .select('id, student_data')
     .eq('household_id', householdId)
     .not('member_id', 'is', null)
+    .order('id')
 
   if (bladUczniow) {
     return { ok: false, blad: `Nie udało się wczytać uczniów: ${bladUczniow.message}` }
   }
 
-  let vulcan
-  try {
-    vulcan = await zbudujVulcanHebe(polaczenie as WierszPolaczenia)
-  } catch (e) {
-    return { ok: false, blad: `Nie udało się zbudować klienta Vulcan: ${String(e)}` }
-  }
-
+  const listaUczniow = (uczniowie ?? []) as WierszUcznia[]
   const poczatek = poczatekTygodnia(new Date())
   const koniec = koniecTygodnia(poczatek)
 
-  for (const uczen of (uczniowie ?? []) as WierszUcznia[]) {
+  for (const uczen of listaUczniow) {
+    // Świeży klient na każdego ucznia: `Api.setStudent()` w bibliotece
+    // DOKLEJA symbol jednostki do `restUrl` przy każdym wywołaniu, więc
+    // ponowne `selectStudent()` na tym samym kliencie zbudowałoby ścieżkę
+    // `.../jednostkaA/jednostkaB/`. Budowa klienta jest lokalna (bez sieci),
+    // więc to tanie.
+    let vulcan
     try {
+      vulcan = await zbudujVulcanHebe(polaczenie as WierszPolaczenia)
       await vulcan.selectStudent(uczen.student_data as Student)
+    } catch (e) {
+      return await bladSynchronizacji(baza, householdId, e, `Nie udało się zbudować klienta Vulcan dla ucznia ${uczen.id}`)
+    }
 
+    try {
       const lekcje = await vulcan.getLessons(poczatek, koniec)
       const zmiany = await vulcan.getChangedLessons(poczatek, koniec)
 
@@ -81,12 +154,13 @@ export async function synchronizujDom(
           teacher: l.teacherPrimary?.displayName ?? null,
           room: l.room?.code ?? null,
           changed: false,
-          change_note: null,
+          change_note: null as string | null,
         }))
 
       // Zmiany NADPISUJĄ zwykłą lekcję w tym samym slocie (ten sam klucz
-      // unikalności student_id+lesson_date+start_time) - upsert w kolejności
-      // "najpierw plan, potem zmiany" daje efekt "zmiana wygrywa".
+      // unikalności student_id+lesson_date+start_time), dlatego lądują w
+      // scalonej tablicy PO zwykłych lekcjach - `bezDuplikatow` zostawia
+      // ostatni wiersz, czyli zmianę.
       const wierszeZmian = zmiany
         .filter((z) => z.lessonDate?.date && z.time?.start && z.time?.end)
         .map((z) => ({
@@ -99,34 +173,50 @@ export async function synchronizujDom(
           teacher: z.teacher?.displayName ?? null,
           room: z.room?.code ?? null,
           changed: true,
-          change_note: z.note ?? z.reason ?? z.event ?? null,
+          change_note: (z.note ?? z.reason ?? z.event ?? null) as string | null,
         }))
 
-      if (wierszeLekcji.length > 0) {
-        const { error: bladZapisu } = await baza
-          .from('vulcan_lessons')
-          .upsert(wierszeLekcji, { onConflict: 'student_id,lesson_date,start_time' })
-        if (bladZapisu) throw new Error(`Zapis planu lekcji nie powiódł się: ${bladZapisu.message}`)
+      const wierszePlanu = bezDuplikatow(
+        [...wierszeLekcji, ...wierszeZmian],
+        (w) => `${w.student_id}|${w.lesson_date}|${w.start_time}`,
+      )
+
+      // Najpierw kasujemy cały bieżący tydzień tego ucznia, dopiero potem
+      // wstawiamy nowy plan. Sam upsert zostawiłby na zawsze lekcje USUNIĘTE
+      // z planu w Vulcan (nic ich nigdy nie nadpisze), więc "bieżący tydzień"
+      // z czasem przestawałby być prawdą.
+      const { error: bladKasowania } = await baza
+        .from('vulcan_lessons')
+        .delete()
+        .eq('student_id', uczen.id)
+        .gte('lesson_date', dataIso(poczatek))
+        .lt('lesson_date', dataIso(koniec))
+      if (bladKasowania) {
+        throw new Error(`Czyszczenie planu lekcji nie powiodło się: ${bladKasowania.message}`)
       }
-      if (wierszeZmian.length > 0) {
+
+      if (wierszePlanu.length > 0) {
         const { error: bladZapisu } = await baza
           .from('vulcan_lessons')
-          .upsert(wierszeZmian, { onConflict: 'student_id,lesson_date,start_time' })
-        if (bladZapisu) throw new Error(`Zapis zmian planu nie powiódł się: ${bladZapisu.message}`)
+          .upsert(wierszePlanu, { onConflict: 'student_id,lesson_date,start_time' })
+        if (bladZapisu) throw new Error(`Zapis planu lekcji nie powiódł się: ${bladZapisu.message}`)
       }
 
       const sprawdziany = await vulcan.getExams()
-      const wierszeSprawdzianow = sprawdziany
-        .filter((e) => e.deadline?.date)
-        .map((e) => ({
-          student_id: uczen.id,
-          household_id: householdId,
-          kind: 'sprawdzian' as const,
-          due_date: e.deadline!.date,
-          subject: e.subject?.name ?? '(brak przedmiotu)',
-          description: e.topic ?? null,
-          vulcan_key: e.key,
-        }))
+      const wierszeSprawdzianow = bezDuplikatow(
+        sprawdziany
+          .filter((e) => e.deadline?.date)
+          .map((e) => ({
+            student_id: uczen.id,
+            household_id: householdId,
+            kind: 'sprawdzian' as const,
+            due_date: e.deadline!.date,
+            subject: e.subject?.name ?? '(brak przedmiotu)',
+            description: e.topic ?? null,
+            vulcan_key: e.key,
+          })),
+        (w) => `${w.student_id}|${w.kind}|${w.vulcan_key}`,
+      )
       if (wierszeSprawdzianow.length > 0) {
         const { error: bladZapisu } = await baza
           .from('vulcan_assignments')
@@ -135,81 +225,33 @@ export async function synchronizujDom(
       }
 
       const zadania = await vulcan.getHomework()
-      const wierszeZadan = (zadania as Array<Record<string, unknown>>)
-        .filter((z) => z.deadline)
-        .map((z) => ({
-          student_id: uczen.id,
-          household_id: householdId,
-          kind: 'zadanie_domowe' as const,
-          due_date: new Date(z.deadline as string | number | Date).toISOString().slice(0, 10),
-          subject: (z.subject as { name?: string } | undefined)?.name ?? '(brak przedmiotu)',
-          description: (z.content as string | undefined) ?? null,
-          vulcan_key: String(z.key),
-        }))
+      const wierszeZadan = bezDuplikatow(
+        (zadania as Array<Record<string, unknown>>)
+          .filter((z) => z.deadline)
+          .map((z) => ({
+            student_id: uczen.id,
+            household_id: householdId,
+            kind: 'zadanie_domowe' as const,
+            due_date: new Date(z.deadline as string | number | Date).toISOString().slice(0, 10),
+            subject: (z.subject as { name?: string } | undefined)?.name ?? '(brak przedmiotu)',
+            description: (z.content as string | undefined) ?? null,
+            vulcan_key: String(z.key),
+          })),
+        (w) => `${w.student_id}|${w.kind}|${w.vulcan_key}`,
+      )
       if (wierszeZadan.length > 0) {
         const { error: bladZapisu } = await baza
           .from('vulcan_assignments')
           .upsert(wierszeZadan, { onConflict: 'student_id,kind,vulcan_key' })
         if (bladZapisu) throw new Error(`Zapis zadań domowych nie powiódł się: ${bladZapisu.message}`)
       }
-
-      const skrzynki = await vulcan.getMessageBoxes()
-      const wiadomosci: Array<Record<string, unknown>> = []
-      for (const skrzynka of skrzynki as Array<Record<string, unknown>>) {
-        const klucz = skrzynka.globalKey as string | undefined
-        if (!klucz) continue
-        const zSkrzynki = await vulcan.getMessages(klucz)
-        wiadomosci.push(...(zSkrzynki as Array<Record<string, unknown>>))
-      }
-      const wierszeWiadomosci = wiadomosci
-        .filter((m) => m.globalKey && m.sentDate)
-        .map((m) => ({
-          student_id: uczen.id,
-          household_id: householdId,
-          sender: (m.sender as string | undefined) ?? '(nieznany nadawca)',
-          subject: (m.subject as string | undefined) ?? '(brak tematu)',
-          content: (m.content as string | undefined) ?? '',
-          sent_at: new Date(m.sentDate as string | number | Date).toISOString(),
-          vulcan_key: m.globalKey as string,
-        }))
-      if (wierszeWiadomosci.length > 0) {
-        const { error: bladZapisu } = await baza
-          .from('vulcan_messages')
-          .upsert(wierszeWiadomosci, { onConflict: 'student_id,vulcan_key' })
-        if (bladZapisu) throw new Error(`Zapis wiadomości nie powiódł się: ${bladZapisu.message}`)
-      }
     } catch (e) {
-      // Tylko `e.message` prawdziwego Error - `String(e)` na rzuconym nie-Errorze
-      // (np. zwykły string albo obiekt z biblioteki) potrafi dać mylące
-      // "[object Object]" albo przypadkowo zawrzeć jedno z dopasowywanych niżej
-      // słów w nieznanym kontekście.
-      const tekst = e instanceof Error ? e.message : String(e)
-      // Biblioteka vulcan-api-js nie eksponuje własnych klas wyjątków ani kodu
-      // HTTP (sprawdzone w publikowanym bundlu - same generyczne `Error`), więc
-      // nie da się rozróżnić "sesja nieważna" po `e.constructor.name`. Dopasowanie
-      // po nazwach z treści błędu to świadomy kompromis: `\b...\b` ogranicza
-      // trafienia do całych słów (nie fragmentów innych identyfikatorów), co
-      // zmniejsza ryzyko fałszywego trafienia w nieznanym, nieprzewidzianym
-      // komunikacie błędu. Błędna klasyfikacja tutaj nie gubi danych - w
-      // najgorszym razie wymusza ręczną ponowną rejestrację, którą da się
-      // doprecyzować po zobaczeniu prawdziwych błędów z logów (Zadanie 5/8).
-      const sesjaNiewazna = /\b(Unauthorized|ExpiredToken|InvalidSignature)\b/i.test(tekst)
-      if (sesjaNiewazna) {
-        const { error: bladAktualizacjiStatusu } = await baza
-          .from('vulcan_connections')
-          .update({ status: 'wymaga_ponownej_rejestracji', last_error: tekst })
-          .eq('household_id', householdId)
-        if (bladAktualizacjiStatusu) {
-          return {
-            ok: false,
-            blad: `Sesja Vulcan wygasła (dodatkowo nie udało się zapisać statusu: ${bladAktualizacjiStatusu.message}): ${tekst}`,
-          }
-        }
-        return { ok: false, blad: `Sesja Vulcan wygasła: ${tekst}` }
-      }
-      return { ok: false, blad: `Błąd synchronizacji ucznia ${uczen.id}: ${tekst}` }
+      return await bladSynchronizacji(baza, householdId, e, `Błąd synchronizacji ucznia ${uczen.id}`)
     }
   }
+
+  const wynikWiadomosci = await synchronizujWiadomosci(baza, householdId, polaczenie as WierszPolaczenia, listaUczniow)
+  if (!wynikWiadomosci.ok) return wynikWiadomosci
 
   const { error: bladCzyszczeniaBledu } = await baza
     .from('vulcan_connections')
@@ -218,5 +260,93 @@ export async function synchronizujDom(
   if (bladCzyszczeniaBledu) {
     return { ok: false, blad: `Nie udało się zaktualizować statusu połączenia: ${bladCzyszczeniaBledu.message}` }
   }
+  return { ok: true }
+}
+
+/**
+ * Wiadomości - RAZ NA DOM, nie raz na ucznia.
+ *
+ * Skrzynki wiadomości należą do konta RODZICA, a nie do konkretnego dziecka,
+ * więc pobieranie ich w pętli po uczniach zapisywało każdą wiadomość tyle
+ * razy, ilu jest przypisanych uczniów. Zapisujemy je pod pierwszym (wg id)
+ * przypisanym uczniem - kolumna `vulcan_messages.student_id` jest NOT NULL i
+ * to ona domyka klucz unikalności - a zakładka „Wiadomości" w Szkole pokazuje
+ * je dla całego domu, niezależnie od wybranego dziecka. Wiersze przypięte do
+ * pozostałych uczniów kasujemy, żeby po zmianie przypisań nie zostały
+ * duplikaty ze starych synchronizacji.
+ *
+ * Kierunek wiadomości (odebrane/wysłane): `getMessages()` w vulcan-api-js
+ * 3.5.4 zawsze woła Hebe z `folder=1`, a w Hebe folder 1 to skrzynka
+ * ODEBRANYCH (2 = wysłane, 3 = usunięte) - własna poczta rodzica nie powinna
+ * więc tu trafiać. Modele `Message`/`MessageBox` z biblioteki nie mają
+ * żadnego pola kierunku (`Message`: id, globalKey, threadKey, subject,
+ * content, sentDate, status, sender, receivers, attachments, readDate;
+ * `MessageBox`: id, globalKey, name), więc odfiltrować dodatkowo nie ma po
+ * czym. To ustalenie pochodzi z czytania kodu paczki, NIE z żywego konta
+ * Vulcan - wymaga potwierdzenia na realnych danych (znany limit weryfikacji
+ * opisany w planie integracji).
+ */
+async function synchronizujWiadomosci(
+  baza: SupabaseClient,
+  householdId: string,
+  polaczenie: WierszPolaczenia,
+  uczniowie: WierszUcznia[],
+): Promise<WynikSync> {
+  const wlasciciel = uczniowie[0]
+  if (!wlasciciel) return { ok: true }
+
+  try {
+    // Endpoint skrzynek jest pod adresem jednostki ucznia (`restUrl` dostaje
+    // symbol jednostki dopiero w `selectStudent`), więc wybieramy jednego
+    // ucznia - ale pobieramy dane tylko raz na cały dom.
+    const vulcan = await zbudujVulcanHebe(polaczenie)
+    await vulcan.selectStudent(wlasciciel.student_data as Student)
+
+    const skrzynki = await vulcan.getMessageBoxes()
+    const wiadomosci: Array<Record<string, unknown>> = []
+    for (const skrzynka of skrzynki as Array<Record<string, unknown>>) {
+      const klucz = skrzynka.globalKey as string | undefined
+      if (!klucz) continue
+      const zSkrzynki = await vulcan.getMessages(klucz)
+      wiadomosci.push(...(zSkrzynki as Array<Record<string, unknown>>))
+    }
+
+    // Ta sama wiadomość potrafi wrócić z dwóch skrzynek pod tym samym
+    // `globalKey` - bez deduplikacji upsert wywaliłby się na "cannot affect
+    // row a second time".
+    const wierszeWiadomosci = bezDuplikatow(
+      wiadomosci
+        .filter((m) => m.globalKey && m.sentDate)
+        .map((m) => ({
+          student_id: wlasciciel.id,
+          household_id: householdId,
+          sender: (m.sender as string | undefined) ?? '(nieznany nadawca)',
+          subject: (m.subject as string | undefined) ?? '(brak tematu)',
+          content: (m.content as string | undefined) ?? '',
+          sent_at: new Date(m.sentDate as string | number | Date).toISOString(),
+          vulcan_key: m.globalKey as string,
+        })),
+      (w) => `${w.student_id}|${w.vulcan_key}`,
+    )
+
+    if (wierszeWiadomosci.length > 0) {
+      const { error: bladZapisu } = await baza
+        .from('vulcan_messages')
+        .upsert(wierszeWiadomosci, { onConflict: 'student_id,vulcan_key' })
+      if (bladZapisu) throw new Error(`Zapis wiadomości nie powiódł się: ${bladZapisu.message}`)
+    }
+
+    const { error: bladKasowania } = await baza
+      .from('vulcan_messages')
+      .delete()
+      .eq('household_id', householdId)
+      .neq('student_id', wlasciciel.id)
+    if (bladKasowania) {
+      throw new Error(`Czyszczenie zduplikowanych wiadomości nie powiodło się: ${bladKasowania.message}`)
+    }
+  } catch (e) {
+    return await bladSynchronizacji(baza, householdId, e, 'Błąd synchronizacji wiadomości')
+  }
+
   return { ok: true }
 }

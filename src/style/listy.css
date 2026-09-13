@@ -563,6 +563,12 @@
   gap: 16px;
 }
 
+/* Przełącznik "Pokaż też minione" nad tabelą sprawdzianów i zadań. */
+.akcje-wpisow {
+  display: flex;
+  margin-bottom: -8px;
+}
+
 .dzien-planu-naglowek {
   margin: 0 0 8px;
   font-size: 15px;

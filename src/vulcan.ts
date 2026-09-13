@@ -126,9 +126,12 @@ const WZORZEC_GODZINY = /^([01]\d|2[0-3]):[0-5]\d$/
 export const MAKS_GODZIN_SYNC = 3
 
 /** Komunikat błędu dla `godziny`, albo `null` gdy poprawne (format `HH:MM`,
- * bez duplikatów, maksymalnie `MAKS_GODZIN_SYNC` wpisów). */
+ * bez duplikatów, maksymalnie `MAKS_GODZIN_SYNC` wpisów).
+ *
+ * Pusta lista jest POPRAWNA - oznacza wyłączoną automatyczną synchronizację.
+ * Bez tego nie dałoby się jej wyłączyć z UI po wcześniejszym włączeniu. */
 export function bladGodzinySync(godziny: string[]): string | null {
-  if (godziny.length === 0) return 'Podaj przynajmniej jedną godzinę.'
+  if (godziny.length === 0) return null
   if (godziny.length > MAKS_GODZIN_SYNC) return `Maksymalnie ${MAKS_GODZIN_SYNC} godziny dziennie.`
   if (new Set(godziny).size !== godziny.length) return 'Ta sama godzina podana dwa razy.'
   if (!godziny.every((g) => WZORZEC_GODZINY.test(g))) return 'Nieprawidłowy format godziny.'

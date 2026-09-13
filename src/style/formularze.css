@@ -524,3 +524,82 @@
   display: flex;
   gap: 8px;
 }
+
+/* `.godziny-sync` i `.akcje-vulcan` to RODZEŃSTWO `<form class="formularz">`,
+   a nie jego potomkowie (te przyciski celowo nie należą do formularza
+   połączenia), więc reguły `.formularz button*` ich nie obejmują. Powtarzamy
+   tu ten sam wygląd jako samodzielne selektory - inaczej "Zapisz godziny",
+   "Odśwież teraz" i (najgorzej) niebezpieczny "Rozłącz" renderują się jako
+   domyślne szare przyciski przeglądarki. Klasy `.usun` i `.drobny` mają
+   własne reguły globalne w `wspolne.css`, więc je pomijamy. */
+
+.godziny-sync > button:not(.drobny):not(.usun),
+.akcje-vulcan > button {
+  margin-top: 6px;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--akcent);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.godziny-sync > button:not(.drobny):not(.usun):hover:not(:disabled),
+.akcje-vulcan > button:hover:not(:disabled) {
+  background: #6b21d6;
+}
+
+.godziny-sync > button:not(.drobny):not(.usun):disabled,
+.akcje-vulcan > button:disabled {
+  background: #c9c5d2;
+  cursor: not-allowed;
+}
+
+.akcje-vulcan > button.drugi {
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid var(--kreska);
+  color: var(--tekst-drugi);
+}
+
+.akcje-vulcan > button.drugi:hover:not(:disabled) {
+  background: var(--tlo);
+  border-color: var(--akcent);
+}
+
+.akcje-vulcan > button.drugi:disabled {
+  background: transparent;
+  color: var(--tekst-drugi);
+  opacity: 0.55;
+}
+
+.akcje-vulcan > button.usuwanie {
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid #fda29b;
+  color: var(--blad);
+}
+
+.akcje-vulcan > button.usuwanie:hover:not(:disabled) {
+  background: var(--blad-tlo);
+  border-color: #fda29b;
+}
+
+/* Komunikat, gdy lista godzin jest pusta (automatyczna synchronizacja
+   wyłączona) - patrz `PanelVulcan` w `MojDom.tsx`. */
+.godziny-sync-wylaczone {
+  margin: 0;
+  font-size: 13px;
+  color: var(--tekst-drugi);
+}
+
+@media (max-width: 767px) {
+  .godziny-sync > button,
+  .akcje-vulcan > button {
+    min-height: var(--dotyk);
+  }
+}

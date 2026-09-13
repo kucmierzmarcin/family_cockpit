@@ -551,6 +551,12 @@ function PolaczenieVulcan({ vulcan, domownicy }: PolaczenieVulcanProps) {
 
           <div className="godziny-sync">
             <span className="etykieta-koloru">Godziny synchronizacji (maks. {MAKS_GODZIN_SYNC})</span>
+            {godziny.length === 0 && (
+              <p className="godziny-sync-wylaczone">
+                Automatyczna synchronizacja jest wyłączona — dodaj przynajmniej
+                jedną godzinę, żeby ją włączyć.
+              </p>
+            )}
             {godziny.map((g, i) => (
               <div key={i} className="godzina-sync-wiersz">
                 <input

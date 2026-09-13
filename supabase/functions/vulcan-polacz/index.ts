@@ -108,7 +108,30 @@ Deno.serve(async (req) => {
     const vulcan = new VulcanHebe(keystore, konto)
     uczniowie = await vulcan.getStudents()
   } catch (e) {
-    return bladJson(`Połączono, ale nie udało się wczytać uczniów: ${String(e)}`, 502)
+    // WYCOFANIE: Token/Symbol/PIN sa jednorazowe i zostaly juz zuzyte przez
+    // Vulcan, wiec zostawienie wiersza `status: 'aktywne'` bez ani jednego
+    // ucznia zamykaloby rodzica w stanie "jestes podlaczony, ale bez dzieci i
+    // bez wyjscia" - UI pokazywaloby wtedy panel polaczonego konta zamiast
+    // formularza. Kasujemy wiersz, zeby blad znaczyl po prostu "nie udalo sie,
+    // sprobuj ponownie z nowym Tokenem/Symbolem/PIN-em".
+    const { error: bladWycofania } = await baza
+      .from('vulcan_connections')
+      .delete()
+      .eq('household_id', czlonek.household_id)
+    if (bladWycofania) {
+      console.error(
+        `Nie udało się wycofać połączenia Vulcan po błędzie getStudents (dom ${czlonek.household_id}):`,
+        bladWycofania.message,
+      )
+      return bladJson(
+        `Nie udało się wczytać uczniów (${String(e)}) i nie udało się wycofać połączenia (${bladWycofania.message}) — rozłącz Vulcan i spróbuj ponownie.`,
+        502,
+      )
+    }
+    return bladJson(
+      `Nie udało się wczytać uczniów: ${String(e)}. Połączenie zostało wycofane — spróbuj ponownie z nowym Tokenem, Symbolem i PIN-em.`,
+      502,
+    )
   }
 
   const wierszeUczniow = uczniowie.map((u) => ({
