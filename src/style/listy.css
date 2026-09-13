@@ -302,8 +302,7 @@
 /* --- Ekran "Terminy" --- */
 
 .terminy {
-  max-width: 860px;
-  margin: 0 auto;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -319,15 +318,15 @@
   cursor: pointer;
 }
 
-/* Kontener przewijany w poziomie - ta sama tabela na komputerze i telefonie,
-   zamiast osobnego ukladu na waskim ekranie. */
+/* Kontener przewijany w poziomie - siatka bezpieczeństwa na waskich telefonach;
+   przy zwyklych szerokosciach tabela miesci sie cala, bez przewijania. */
 .tabela-terminow-kontener {
   overflow-x: auto;
 }
 
 .tabela-terminow {
   width: 100%;
-  min-width: 820px;
+  min-width: 640px;
   border-collapse: collapse;
   background: var(--karta);
   border: 1px solid var(--kreska);
@@ -365,56 +364,182 @@
 }
 
 .tytul-terminu {
+  max-width: 240px;
   font-weight: 600;
-  white-space: nowrap;
-}
-
-.znacznik-przeterminowania {
-  display: block;
-  margin-top: 4px;
-  align-self: flex-start;
-  padding: 2px 9px;
-  border-radius: 999px;
-  background: var(--blad-tlo);
-  color: var(--blad);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-  width: fit-content;
+  overflow-wrap: break-word;
 }
 
 .opis-terminu {
   color: var(--tekst-drugi);
   min-width: 160px;
-  max-width: 260px;
+  max-width: 280px;
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
 
 .data-terminu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   color: var(--tekst-drugi);
   white-space: nowrap;
 }
 
-.zalaczniki-terminu {
-  display: flex;
-  flex-wrap: wrap;
+.dni-po-terminie {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--blad);
+}
+
+/* --- Ikona zalacznikow (przycisk w komorce tabeli) --- */
+
+.zalaczniki-przycisk {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--kreska);
+  border-radius: 8px;
+  background: var(--karta);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-width: 180px;
+  justify-content: center;
+}
+
+.zalaczniki-przycisk:hover {
+  border-color: var(--akcent);
+}
+
+.zalaczniki-licznik {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--akcent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- Panel wyskakujacy (portal do body) - wspolny dla zalacznikow i menu kropek --- */
+
+.wyskakujace-menu {
+  z-index: 50;
+  padding: 6px;
+  border: 1px solid var(--kreska);
+  border-radius: 10px;
+  background: var(--karta);
+  box-shadow: var(--cien);
+}
+
+.zalaczniki-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+  max-width: 280px;
+}
+
+.pusto-male {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--tekst-drugi);
 }
 
 .zalacznik-terminu {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
 }
 
 .zalacznik-terminu .drobny {
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 140px;
+  text-align: left;
+}
+
+/* --- Status (pigulka) --- */
+
+.status-terminu {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-aktywny {
+  background: var(--akcent-jasny);
+  color: #4c1d95;
+}
+
+.status-zalatwiony {
+  background: var(--tlo);
+  color: var(--tekst-drugi);
+}
+
+.status-przeterminowany {
+  background: var(--blad-tlo);
+  color: var(--blad);
+}
+
+/* --- Menu kropek (akcje wiersza) --- */
+
+.menu-akcji-przycisk {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--tekst-drugi);
+  cursor: pointer;
+}
+
+.menu-akcji-przycisk:hover {
+  background: var(--tlo);
+  color: var(--tekst);
+}
+
+.menu-akcji-lista {
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+}
+
+.menu-akcji-pozycja {
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  color: var(--tekst);
+  cursor: pointer;
+}
+
+.menu-akcji-pozycja:hover {
+  background: var(--tlo);
+}
+
+.menu-akcji-niebezpieczna {
+  color: var(--blad);
+}
+
+.menu-akcji-niebezpieczna:hover {
+  background: var(--blad-tlo);
 }

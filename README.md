@@ -117,7 +117,7 @@ wciągnąć do nowo założonego domu.
 | `src/style/` | Style rozbite na tokeny, wspólne, powłokę, kalendarz, listy i formularze |
 | `src/kolory.ts` | Paleta kolorów domowników |
 | `src/dates.ts` | Polskie nazwy miesięcy i dni, budowanie siatki kalendarza |
-| `src/WazneTerminy.tsx` | Ekran „Terminy": lista, formularz, załączniki |
+| `src/WazneTerminy.tsx` | Ekran „Terminy": tabela, formularz dodawania/edycji, menu akcji, załączniki |
 | `src/useTerminy.ts` | Dane terminów, Realtime, upload/usuwanie w Storage |
 | `src/terminy.ts` | Sortowanie, przeterminowanie, walidacja załącznika |
 | `src/lib/supabase.ts` | Połączenie z bazą i typy danych |
@@ -210,19 +210,26 @@ Notatki nie znikają same. Wiszą, dopóki ktoś ich nie zdejmie.
 Zakładka **Terminy** to tabela rzeczy z datą ważności, niezależna od
 kalendarza — „do kiedy ważne jest ubezpieczenie auta", „kiedy kończy się
 gwarancja" — razem z dokumentem, który do tego terminu należy (skan, zdjęcie,
-PDF, do 10 MB na plik). Kolumny: tytuł, opis, do kiedy, powiadom, załatwione,
-załączniki. Na wąskim ekranie tabela przewija się w poziomie zamiast zmieniać
-układ.
+PDF, do 10 MB na plik). Kolumny: tytuł, opis, do kiedy, załączniki (jedna
+ikona spinacza z licznikiem — kliknięcie rozwija listę z podglądem, usuwaniem
+i dodawaniem kolejnych plików), status. Tabela mieści się w całości przy
+zwykłych szerokościach ekranu; na wąskim telefonie przewija się w poziomie
+zamiast zmieniać układ.
 
-Kolumna **Powiadom** to data przypomnienia, ustawiana i zmieniana przez
-każdego domownika — na razie sama w sobie, żaden mail ani bot jeszcze z niej
-nie korzysta.
+Akcje wiersza (Edytuj / Zatwierdź / Usuń) chowają się pod menu „⋮" po prawej
+— Usuń widzi tylko autor albo rodzic, pozostałe dwie każdy z domu. Edycja
+otwiera ten sam formularz co dodawanie nowego terminu (tytuł, opis, do
+kiedy, opcjonalna data przypomnienia „Powiadom"), wypełniony obecnymi
+wartościami — jak przy edycji wydarzenia w kalendarzu, Arkusz na telefonie
+i wyśrodkowane okienko na komputerze.
 
-Przeterminowane i jeszcze nieodhaczone terminy są wyróżnione. Odhaczenie
-„załatwione" chowa wiersz z głównej listy — wraca po włączeniu „Pokaż
-załatwione". Dodaje i widzi cały dom, odhacza każdy, usuwa autor albo rodzic.
-Tytuł/opis/data nie mają edycji — pomyłkę poprawia się usunięciem i dodaniem
-od nowa, tak jak przy notatkach i zakupach.
+Pole **Powiadom** to opcjonalna data przypomnienia — na razie sama w sobie,
+żaden mail ani bot jeszcze z niej nie korzysta.
+
+Przeterminowane i jeszcze niezatwierdzone terminy pokazują czerwoną pigułkę
+statusu i liczbę dni po terminie. Zatwierdzenie chowa wiersz z głównej listy
+— wraca po włączeniu „Pokaż załatwione". Dodać i zatwierdzić może każdy z
+domu, usunąć — autor albo rodzic.
 
 Pliki leżą w prywatnym buckecie Supabase Storage, dostępnym wyłącznie
 domownikom tego samego domu — link do podglądu jest tymczasowy, generowany

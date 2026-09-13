@@ -35,6 +35,14 @@ export function czyPrzeterminowany(termin: string, dzisiaj: string): boolean {
   return termin < dzisiaj
 }
 
+/** Ile dni minelo od terminu (dodatnia liczba tylko gdy juz przeterminowany).
+ * Liczone przez UTC-polnoc obu dat, zeby nie zalezec od strefy czasowej. */
+export function dniPoTerminie(termin: string, dzisiaj: string): number {
+  const t = new Date(`${termin}T00:00:00Z`).getTime()
+  const d = new Date(`${dzisiaj}T00:00:00Z`).getTime()
+  return Math.round((d - t) / 86_400_000)
+}
+
 /** Np. '1 grudnia 2026'. Buduje Date z czesci roku/miesiaca/dnia, nie z gotowego
  * stringa - inaczej parsowanie jako UTC mogloby przesunac dzien w formatowaniu. */
 export function formatujTermin(dataStr: string): string {

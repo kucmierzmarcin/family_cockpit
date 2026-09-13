@@ -4,6 +4,7 @@ import {
   bezpiecznaNazwaPliku,
   bladZalacznika,
   czyPrzeterminowany,
+  dniPoTerminie,
   formatujTermin,
   posortujTerminy,
 } from './terminy'
@@ -40,6 +41,20 @@ describe('czyPrzeterminowany', () => {
 
   it('data w przyszlosci nie jest przeterminowana', () => {
     expect(czyPrzeterminowany('2026-09-13', '2026-09-12')).toBe(false)
+  })
+})
+
+describe('dniPoTerminie', () => {
+  it('liczy pelne dni od terminu do dzisiaj', () => {
+    expect(dniPoTerminie('2026-09-01', '2026-09-12')).toBe(11)
+  })
+
+  it('dzisiejszy termin to zero dni po terminie', () => {
+    expect(dniPoTerminie('2026-09-12', '2026-09-12')).toBe(0)
+  })
+
+  it('termin w przyszlosci daje liczbe ujemna', () => {
+    expect(dniPoTerminie('2026-09-20', '2026-09-12')).toBe(-8)
   })
 })
 

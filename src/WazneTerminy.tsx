@@ -1,9 +1,20 @@
-import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react'
+import { createPortal } from 'react-dom'
 import { useTerminy } from './useTerminy'
 import {
   DOZWOLONE_TYPY_ZALACZNIKA,
   bladZalacznika,
   czyPrzeterminowany,
+  dniPoTerminie,
   formatujTermin,
   posortujTerminy,
   type Termin,
@@ -11,6 +22,8 @@ import {
 } from './terminy'
 import { klucz } from './dates'
 import { Arkusz } from './uklad/Arkusz'
+import { Popup } from './uklad/Popup'
+import { useTelefon } from './uklad/useTelefon'
 import type { TrybDodawania } from './uklad/nawigacja'
 
 type Props = {
@@ -21,16 +34,34 @@ type Props = {
   dodawanie: TrybDodawania
 }
 
+type WartosciFormularza = { tytul: string; opis: string; data: string; powiadom: string | null }
+
 /** Ekran „Terminy": ważne daty (np. koniec ubezpieczenia) z załącznikami, w tabeli. */
 export function Terminy({ jestemRodzicem, mojeId, householdId, onBlad, dodawanie }: Props) {
   const dane = useTerminy(householdId, onBlad)
+  const telefon = useTelefon()
   const [pokazZalatwione, setPokazZalatwione] = useState(false)
+  const [edytowanyTermin, setEdytowanyTermin] = useState<Termin | null>(null)
 
   const dzisiaj = klucz(new Date())
   const widoczne = useMemo(
     () => posortujTerminy(dane.terminy.filter((t) => pokazZalatwione || !t.zalatwiony)),
     [dane.terminy, pokazZalatwione],
   )
+
+  async function zapiszTermin(wartosci: WartosciFormularza): Promise<boolean> {
+    if (edytowanyTermin) {
+      return dane.edytujTermin(
+        edytowanyTermin.id,
+        wartosci.tytul,
+        wartosci.opis,
+        wartosci.data,
+        wartosci.powiadom,
+      )
+    }
+    const id = await dane.dodaj(wartosci.tytul, wartosci.opis, wartosci.data, wartosci.powiadom)
+    return id !== null
+  }
 
   function wgrajZWalidacja(terminId: string, plik: File) {
     const blad = bladZalacznika(plik)
@@ -51,15 +82,33 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, onBlad, dodawanie
     }
   }
 
+  // Ten sam formularz do dodawania i edycji, tak jak przy wydarzeniach w
+  // kalendarzu - PowlokaEdycji to Arkusz na telefonie, Popup na komputerze
+  // (identyczne propsy, więc wystarczy podmienić komponent).
+  const PowlokaEdycji = telefon ? Arkusz : Popup
+
   return (
     <div className="terminy">
       {dodawanie === null ? (
-        <FormularzTerminu onDodaj={dane.dodaj} />
+        <FormularzTerminu onZapisz={zapiszTermin} pokazNaglowek />
       ) : (
         <Arkusz otwarty={dodawanie.otwarte} tytul="Nowy termin" onZamknij={dodawanie.onZamknij}>
-          <FormularzTerminu onDodaj={dane.dodaj} onDodano={dodawanie.onZamknij} />
+          <FormularzTerminu onZapisz={zapiszTermin} onZapisano={dodawanie.onZamknij} />
         </Arkusz>
       )}
+
+      <PowlokaEdycji
+        otwarty={edytowanyTermin !== null}
+        tytul="Edytuj termin"
+        onZamknij={() => setEdytowanyTermin(null)}
+      >
+        <FormularzTerminu
+          key={edytowanyTermin?.id ?? 'brak'}
+          edytowanyTermin={edytowanyTermin ?? undefined}
+          onZapisz={zapiszTermin}
+          onZapisano={() => setEdytowanyTermin(null)}
+        />
+      </PowlokaEdycji>
 
       <label className="przelacznik-zalatwionych">
         <input
@@ -82,9 +131,8 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, onBlad, dodawanie
                 <th>Tytuł</th>
                 <th>Opis</th>
                 <th>Do kiedy</th>
-                <th>Powiadom</th>
-                <th>Załatwione</th>
-                <th>Załączniki</th>
+                <th aria-label="Załączniki" />
+                <th>Status</th>
                 <th aria-label="Akcje" />
               </tr>
             </thead>
@@ -93,12 +141,13 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, onBlad, dodawanie
                 <WierszTerminu
                   key={t.id}
                   termin={t}
+                  dzisiaj={dzisiaj}
                   przeterminowany={!t.zalatwiony && czyPrzeterminowany(t.termin, dzisiaj)}
                   mogeUsunacTermin={jestemRodzicem || t.autorId === mojeId}
                   mojeId={mojeId}
                   jestemRodzicem={jestemRodzicem}
+                  onEdytuj={() => setEdytowanyTermin(t)}
                   onPrzelacz={() => void dane.przelaczZalatwiony(t)}
-                  onUstawPowiadomienie={(data) => void dane.ustawPowiadomienie(t, data)}
                   onUsunTermin={() => void dane.usunTermin(t)}
                   onWgrajZalacznik={(plik) => wgrajZWalidacja(t.id, plik)}
                   onUsunZalacznik={(z) => void dane.usunZalacznik(z)}
@@ -113,93 +162,149 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, onBlad, dodawanie
   )
 }
 
-type WierszTerminuProps = {
-  termin: Termin
-  przeterminowany: boolean
-  mogeUsunacTermin: boolean
-  mojeId: string
-  jestemRodzicem: boolean
-  onPrzelacz: () => void
-  onUstawPowiadomienie: (data: string | null) => void
-  onUsunTermin: () => void
-  onWgrajZalacznik: (plik: File) => void
-  onUsunZalacznik: (zalacznik: Zalacznik) => void
-  onOtworzZalacznik: (zalacznik: Zalacznik) => void
+function przesuniecie(kotwica: HTMLElement): { top: number; left: number } {
+  const r = kotwica.getBoundingClientRect()
+  return { top: r.bottom + 4, left: r.right }
 }
 
-function WierszTerminu({
-  termin,
-  przeterminowany,
-  mogeUsunacTermin,
-  mojeId,
-  jestemRodzicem,
-  onPrzelacz,
-  onUstawPowiadomienie,
-  onUsunTermin,
-  onWgrajZalacznik,
-  onUsunZalacznik,
-  onOtworzZalacznik,
-}: WierszTerminuProps) {
+/**
+ * Panel wyskakujący z przycisku-kotwicy, wypychany portalem do `document.body`.
+ * Bez tego byłby obcinany przez `.tabela-terminow-kontener` (overflow-x: auto
+ * na jednej osi wymusza `auto` też na drugiej - panel wychodzący poza wysokość
+ * kontenera po prostu by znikał albo dostawał pasek przewijania).
+ */
+function Wyskakujace({
+  otwarte,
+  kotwica,
+  onZamknij,
+  children,
+}: {
+  otwarte: boolean
+  kotwica: RefObject<HTMLElement | null>
+  onZamknij: () => void
+  children: ReactNode
+}) {
+  const panel = useRef<HTMLDivElement>(null)
+  const [pozycja, setPozycja] = useState<{ top: number; left: number } | null>(null)
+
+  // Pozycja panelu zalezy od ukladu strony (getBoundingClientRect) - to
+  // synchronizacja z zewnetrznym ukladem DOM, nie stan pochodny z propsow.
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- mierzenie pozycji przycisku w DOM
+    setPozycja(otwarte && kotwica.current ? przesuniecie(kotwica.current) : null)
+  }, [otwarte, kotwica])
+
+  useEffect(() => {
+    if (!otwarte) return
+    function naZewnatrz(e: MouseEvent) {
+      const cel = e.target as Node
+      if (panel.current?.contains(cel) || kotwica.current?.contains(cel)) return
+      onZamknij()
+    }
+    document.addEventListener('mousedown', naZewnatrz)
+    return () => document.removeEventListener('mousedown', naZewnatrz)
+  }, [otwarte, kotwica, onZamknij])
+
+  if (!otwarte || !pozycja) return null
+
+  return createPortal(
+    <div
+      ref={panel}
+      className="wyskakujace-menu"
+      style={{ position: 'fixed', top: pozycja.top, left: pozycja.left, transform: 'translateX(-100%)' }}
+    >
+      {children}
+    </div>,
+    document.body,
+  )
+}
+
+/** Menu „⋮" z akcjami wiersza - edycja, zatwierdzenie, usunięcie. */
+function MenuKropek({ children }: { children: ReactNode }) {
+  const [otwarte, setOtwarte] = useState(false)
+  const przycisk = useRef<HTMLButtonElement>(null)
+
+  return (
+    <>
+      <button
+        ref={przycisk}
+        type="button"
+        className="menu-akcji-przycisk"
+        aria-label="Akcje"
+        aria-haspopup="menu"
+        aria-expanded={otwarte}
+        onClick={() => setOtwarte((o) => !o)}
+      >
+        ⋮
+      </button>
+      <Wyskakujace otwarte={otwarte} kotwica={przycisk} onZamknij={() => setOtwarte(false)}>
+        <div className="menu-akcji-lista" role="menu" onClick={() => setOtwarte(false)}>
+          {children}
+        </div>
+      </Wyskakujace>
+    </>
+  )
+}
+
+type ZalacznikiIkonaProps = {
+  zalaczniki: Zalacznik[]
+  mojeId: string
+  jestemRodzicem: boolean
+  onWgraj: (plik: File) => void
+  onUsun: (zalacznik: Zalacznik) => void
+  onOtworz: (zalacznik: Zalacznik) => void
+}
+
+/** Załączniki jako jedna ikona spinacza z licznikiem - lista rozwija się po kliknięciu. */
+function ZalacznikiIkona({ zalaczniki, mojeId, jestemRodzicem, onWgraj, onUsun, onOtworz }: ZalacznikiIkonaProps) {
+  const [otwarte, setOtwarte] = useState(false)
+  const przycisk = useRef<HTMLButtonElement>(null)
   const wejscie = useRef<HTMLInputElement>(null)
 
   function wybranoPliki(e: ChangeEvent<HTMLInputElement>) {
     const pliki = e.target.files
     if (!pliki) return
-    for (const plik of Array.from(pliki)) onWgrajZalacznik(plik)
+    for (const plik of Array.from(pliki)) onWgraj(plik)
     e.target.value = ''
   }
 
   return (
-    <tr className={`wiersz-terminu${termin.zalatwiony ? ' zalatwiony' : ''}`}>
-      <td className="tytul-terminu">
-        {termin.tytul}
-        {przeterminowany && <span className="znacznik-przeterminowania">Przeterminowany</span>}
-      </td>
-
-      <td className="opis-terminu">{termin.opis ?? '—'}</td>
-
-      <td className="data-terminu">{formatujTermin(termin.termin)}</td>
-
-      <td>
-        <input
-          type="date"
-          value={termin.powiadom ?? ''}
-          onChange={(e) => onUstawPowiadomienie(e.target.value || null)}
-          aria-label={`Data powiadomienia dla „${termin.tytul}"`}
-        />
-      </td>
-
-      <td>
-        <input
-          type="checkbox"
-          checked={termin.zalatwiony}
-          onChange={onPrzelacz}
-          aria-label={`Załatwione: ${termin.tytul}`}
-        />
-      </td>
-
-      <td>
-        <div className="zalaczniki-terminu">
-          {termin.zalaczniki.map((z) => (
-            <span key={z.id} className="zalacznik-terminu">
-              <button type="button" className="drobny" onClick={() => onOtworzZalacznik(z)}>
-                📎 {z.nazwaPliku}
+    <>
+      <button
+        ref={przycisk}
+        type="button"
+        className="zalaczniki-przycisk"
+        aria-label={`Załączniki (${zalaczniki.length})`}
+        aria-haspopup="dialog"
+        aria-expanded={otwarte}
+        onClick={() => setOtwarte((o) => !o)}
+      >
+        📎
+        {zalaczniki.length > 0 && <span className="zalaczniki-licznik">{zalaczniki.length}</span>}
+      </button>
+      <Wyskakujace otwarte={otwarte} kotwica={przycisk} onZamknij={() => setOtwarte(false)}>
+        <div className="zalaczniki-lista">
+          {zalaczniki.length === 0 && <p className="pusto-male">Brak załączników.</p>}
+          {zalaczniki.map((z) => (
+            <div key={z.id} className="zalacznik-terminu">
+              <button type="button" className="drobny" onClick={() => onOtworz(z)}>
+                {z.nazwaPliku}
               </button>
               {(jestemRodzicem || z.autorId === mojeId) && (
                 <button
                   type="button"
                   className="usun"
                   aria-label={`Usuń załącznik ${z.nazwaPliku}`}
-                  onClick={() => onUsunZalacznik(z)}
+                  onClick={() => onUsun(z)}
                 >
                   ×
                 </button>
               )}
-            </span>
+            </div>
           ))}
 
           <button type="button" className="drobny" onClick={() => wejscie.current?.click()}>
-            + Załącznik
+            + Dodaj
           </button>
           <input
             ref={wejscie}
@@ -210,29 +315,108 @@ function WierszTerminu({
             onChange={wybranoPliki}
           />
         </div>
+      </Wyskakujace>
+    </>
+  )
+}
+
+type WierszTerminuProps = {
+  termin: Termin
+  dzisiaj: string
+  przeterminowany: boolean
+  mogeUsunacTermin: boolean
+  mojeId: string
+  jestemRodzicem: boolean
+  onEdytuj: () => void
+  onPrzelacz: () => void
+  onUsunTermin: () => void
+  onWgrajZalacznik: (plik: File) => void
+  onUsunZalacznik: (zalacznik: Zalacznik) => void
+  onOtworzZalacznik: (zalacznik: Zalacznik) => void
+}
+
+function WierszTerminu({
+  termin,
+  dzisiaj,
+  przeterminowany,
+  mogeUsunacTermin,
+  mojeId,
+  jestemRodzicem,
+  onEdytuj,
+  onPrzelacz,
+  onUsunTermin,
+  onWgrajZalacznik,
+  onUsunZalacznik,
+  onOtworzZalacznik,
+}: WierszTerminuProps) {
+  const status = termin.zalatwiony ? 'zalatwiony' : przeterminowany ? 'przeterminowany' : 'aktywny'
+  const statusEtykieta = termin.zalatwiony ? 'Załatwiony' : przeterminowany ? 'Przeterminowany' : 'Aktywny'
+
+  return (
+    <tr className={`wiersz-terminu${termin.zalatwiony ? ' zalatwiony' : ''}`}>
+      <td className="tytul-terminu">{termin.tytul}</td>
+
+      <td className="opis-terminu">{termin.opis ?? '—'}</td>
+
+      <td className="data-terminu">
+        {formatujTermin(termin.termin)}
+        {przeterminowany && (
+          <span className="dni-po-terminie">{dniPoTerminie(termin.termin, dzisiaj)} dni po terminie</span>
+        )}
       </td>
 
       <td>
-        {mogeUsunacTermin && (
-          <button type="button" className="usun" aria-label="Usuń termin" onClick={onUsunTermin}>
-            ×
+        <ZalacznikiIkona
+          zalaczniki={termin.zalaczniki}
+          mojeId={mojeId}
+          jestemRodzicem={jestemRodzicem}
+          onWgraj={onWgrajZalacznik}
+          onUsun={onUsunZalacznik}
+          onOtworz={onOtworzZalacznik}
+        />
+      </td>
+
+      <td>
+        <span className={`status-terminu status-${status}`}>{statusEtykieta}</span>
+      </td>
+
+      <td>
+        <MenuKropek>
+          <button type="button" className="menu-akcji-pozycja" onClick={onEdytuj}>
+            Edytuj
           </button>
-        )}
+          <button type="button" className="menu-akcji-pozycja" onClick={onPrzelacz}>
+            {termin.zalatwiony ? 'Cofnij zatwierdzenie' : 'Zatwierdź'}
+          </button>
+          {mogeUsunacTermin && (
+            <button type="button" className="menu-akcji-pozycja menu-akcji-niebezpieczna" onClick={onUsunTermin}>
+              Usuń
+            </button>
+          )}
+        </MenuKropek>
       </td>
     </tr>
   )
 }
 
 type FormularzTerminuProps = {
-  onDodaj: (tytul: string, opis: string, data: string) => Promise<string | null>
-  onDodano?: () => void
+  /** Gdy podany, formularz jest w trybie edycji - wypełniony obecnymi wartościami. */
+  edytowanyTermin?: Termin
+  /** Naglowek sekcji wewnatrz formularza - tylko gdy formularz siedzi na stronie
+   * bez wlasnego Arkusza/Popupu (dodawanie na komputerze), ktore i tak pokazuja tytul. */
+  pokazNaglowek?: boolean
+  onZapisz: (wartosci: WartosciFormularza) => Promise<boolean>
+  onZapisano?: () => void
 }
 
-/** Pole nowego terminu. Osobny komponent, bo raz siedzi w stronie, a raz w arkuszu. */
-function FormularzTerminu({ onDodaj, onDodano }: FormularzTerminuProps) {
-  const [tytul, setTytul] = useState('')
-  const [opis, setOpis] = useState('')
-  const [data, setData] = useState('')
+/** Pole terminu - jeden komponent dla dodawania i edycji. */
+function FormularzTerminu({ edytowanyTermin, pokazNaglowek, onZapisz, onZapisano }: FormularzTerminuProps) {
+  const edycja = edytowanyTermin !== undefined
+  const idPrefix = edytowanyTermin?.id ?? 'nowy'
+  const [tytul, setTytul] = useState(edytowanyTermin?.tytul ?? '')
+  const [opis, setOpis] = useState(edytowanyTermin?.opis ?? '')
+  const [data, setData] = useState(edytowanyTermin?.termin ?? '')
+  const [powiadom, setPowiadom] = useState(edytowanyTermin?.powiadom ?? '')
   const [zapisywanie, setZapisywanie] = useState(false)
   const pole = useRef<HTMLInputElement>(null)
 
@@ -241,23 +425,28 @@ function FormularzTerminu({ onDodaj, onDodano }: FormularzTerminuProps) {
     if (!tytul.trim() || !data) return
 
     setZapisywanie(true)
-    const id = await onDodaj(tytul.trim(), opis.trim(), data)
+    const udalo = await onZapisz({ tytul: tytul.trim(), opis: opis.trim(), data, powiadom: powiadom || null })
     setZapisywanie(false)
 
-    if (id) {
-      setTytul('')
-      setOpis('')
-      setData('')
-      pole.current?.focus()
-      onDodano?.()
+    if (udalo) {
+      if (!edycja) {
+        setTytul('')
+        setOpis('')
+        setData('')
+        setPowiadom('')
+        pole.current?.focus()
+      }
+      onZapisano?.()
     }
   }
 
   return (
     <form className="karta formularz-terminu" onSubmit={(e) => void wyslij(e)}>
-      <label htmlFor="tytul-terminu">Nowy termin</label>
+      {pokazNaglowek && <p className="formularz-naglowek">{edycja ? 'Edytuj termin' : 'Nowy termin'}</p>}
+
+      <label htmlFor={`tytul-terminu-${idPrefix}`}>Tytuł</label>
       <input
-        id="tytul-terminu"
+        id={`tytul-terminu-${idPrefix}`}
         ref={pole}
         value={tytul}
         onChange={(e) => setTytul(e.target.value)}
@@ -265,9 +454,9 @@ function FormularzTerminu({ onDodaj, onDodano }: FormularzTerminuProps) {
         maxLength={200}
       />
 
-      <label htmlFor="opis-terminu">Opis (opcjonalnie)</label>
+      <label htmlFor={`opis-terminu-${idPrefix}`}>Opis (opcjonalnie)</label>
       <textarea
-        id="opis-terminu"
+        id={`opis-terminu-${idPrefix}`}
         value={opis}
         onChange={(e) => setOpis(e.target.value)}
         placeholder="np. OC i AC w Warcie"
@@ -275,11 +464,24 @@ function FormularzTerminu({ onDodaj, onDodano }: FormularzTerminuProps) {
         rows={2}
       />
 
-      <label htmlFor="data-terminu">Do kiedy</label>
-      <input id="data-terminu" type="date" value={data} onChange={(e) => setData(e.target.value)} />
+      <label htmlFor={`data-terminu-${idPrefix}`}>Do kiedy</label>
+      <input
+        id={`data-terminu-${idPrefix}`}
+        type="date"
+        value={data}
+        onChange={(e) => setData(e.target.value)}
+      />
+
+      <label htmlFor={`powiadom-terminu-${idPrefix}`}>Powiadom (opcjonalnie)</label>
+      <input
+        id={`powiadom-terminu-${idPrefix}`}
+        type="date"
+        value={powiadom ?? ''}
+        onChange={(e) => setPowiadom(e.target.value)}
+      />
 
       <button type="submit" disabled={zapisywanie || !tytul.trim() || !data}>
-        {zapisywanie ? 'Zapisuję…' : 'Dodaj termin'}
+        {zapisywanie ? 'Zapisuję…' : edycja ? 'Zapisz zmiany' : 'Dodaj termin'}
       </button>
     </form>
   )

@@ -87,10 +87,15 @@ export function useTerminy(householdId: string, onBlad: (tekst: string) => void)
   useNaZywo('terminy-na-zywo', ['deadlines', 'deadline_attachments'], () => void wczytaj())
 
   const dodaj = useCallback(
-    async (tytul: string, opis: string, dataTerminu: string): Promise<string | null> => {
+    async (
+      tytul: string,
+      opis: string,
+      dataTerminu: string,
+      powiadom: string | null,
+    ): Promise<string | null> => {
       const { data, error } = await supabase
         .from('deadlines')
-        .insert({ title: tytul, description: opis || null, due_date: dataTerminu })
+        .insert({ title: tytul, description: opis || null, due_date: dataTerminu, notify_date: powiadom })
         .select('id')
         .single()
 
@@ -100,6 +105,29 @@ export function useTerminy(householdId: string, onBlad: (tekst: string) => void)
       }
       await wczytaj()
       return data.id as string
+    },
+    [wczytaj, onBlad],
+  )
+
+  const edytujTermin = useCallback(
+    async (
+      id: string,
+      tytul: string,
+      opis: string,
+      dataTerminu: string,
+      powiadom: string | null,
+    ): Promise<boolean> => {
+      const { error } = await supabase
+        .from('deadlines')
+        .update({ title: tytul, description: opis || null, due_date: dataTerminu, notify_date: powiadom })
+        .eq('id', id)
+
+      if (error) {
+        onBlad(`Nie udało się zapisać zmian: ${error.message}`)
+        return false
+      }
+      await wczytaj()
+      return true
     },
     [wczytaj, onBlad],
   )
@@ -119,23 +147,6 @@ export function useTerminy(householdId: string, onBlad: (tekst: string) => void)
       if (error) {
         setTerminy(kopia)
         onBlad(`Nie udało się zaktualizować terminu: ${error.message}`)
-      }
-    },
-    [terminy, onBlad],
-  )
-
-  /** Ustawiamy optymistycznie, tak samo jak odhaczenie - to porzadkowanie,
-   * ma reagowac od razu. `data` puste znaczy "brak przypomnienia". */
-  const ustawPowiadomienie = useCallback(
-    async (termin: Termin, data: string | null) => {
-      const kopia = terminy
-      setTerminy((stare) => stare.map((t) => (t.id === termin.id ? { ...t, powiadom: data } : t)))
-
-      const { error } = await supabase.from('deadlines').update({ notify_date: data }).eq('id', termin.id)
-
-      if (error) {
-        setTerminy(kopia)
-        onBlad(`Nie udało się ustawić przypomnienia: ${error.message}`)
       }
     },
     [terminy, onBlad],
@@ -241,8 +252,8 @@ export function useTerminy(householdId: string, onBlad: (tekst: string) => void)
     terminy,
     ladowanie,
     dodaj,
+    edytujTermin,
     przelaczZalatwiony,
-    ustawPowiadomienie,
     usunTermin,
     wgrajZalacznik,
     usunZalacznik,

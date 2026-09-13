@@ -343,6 +343,13 @@
   gap: 8px;
 }
 
+.formularz-naglowek {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--tekst);
+}
+
 .formularz-terminu label {
   font-size: 13px;
   font-weight: 600;
