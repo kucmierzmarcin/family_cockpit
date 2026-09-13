@@ -167,7 +167,15 @@ export async function pobierzUczniowEdu(
     }
     const surowiUczniowie: unknown[] = dane.Envelope
     for (const surowy of surowiUczniowie) {
-      const uczen = new Student().serialize(surowy) as Student & { __tenant: string; __restUrl: string }
+      // `Student.serialize()` z vulcan-api-js zawsze robi `data.Periods.map(...)`
+      // (patrz `bindPeriods` w bibliotece) - zakłada, że `Periods` to zawsze
+      // tablica. eduVULCAN potrafi zwrócić ucznia bez pola `Periods` (`null`),
+      // co rzuca `TypeError: Cannot read properties of null (reading 'map')`
+      // - potwierdzone na żywo 2026-09-13. Dogenerowujemy pustą tablicę, żeby
+      // nie modyfikować samej biblioteki.
+      const rekord = surowy as Record<string, unknown> | null
+      const bezpiecznyRekord = rekord && rekord.Periods == null ? { ...rekord, Periods: [] } : rekord
+      const uczen = new Student().serialize(bezpiecznyRekord) as Student & { __tenant: string; __restUrl: string }
       uczen.__tenant = tenant
       uczen.__restUrl = restUrl
       wszyscyUczniowie.push(uczen)
