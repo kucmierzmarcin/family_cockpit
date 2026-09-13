@@ -24,6 +24,7 @@ function terminZBazy(t: TerminDb, zalaczniki: Zalacznik[]): Termin {
     opis: t.description,
     termin: t.due_date,
     zalatwiony: t.completed,
+    powiadom: t.notify_date,
     autorId: t.created_by,
     dodano: t.created_at,
     zalaczniki,
@@ -118,6 +119,23 @@ export function useTerminy(householdId: string, onBlad: (tekst: string) => void)
       if (error) {
         setTerminy(kopia)
         onBlad(`Nie udało się zaktualizować terminu: ${error.message}`)
+      }
+    },
+    [terminy, onBlad],
+  )
+
+  /** Ustawiamy optymistycznie, tak samo jak odhaczenie - to porzadkowanie,
+   * ma reagowac od razu. `data` puste znaczy "brak przypomnienia". */
+  const ustawPowiadomienie = useCallback(
+    async (termin: Termin, data: string | null) => {
+      const kopia = terminy
+      setTerminy((stare) => stare.map((t) => (t.id === termin.id ? { ...t, powiadom: data } : t)))
+
+      const { error } = await supabase.from('deadlines').update({ notify_date: data }).eq('id', termin.id)
+
+      if (error) {
+        setTerminy(kopia)
+        onBlad(`Nie udało się ustawić przypomnienia: ${error.message}`)
       }
     },
     [terminy, onBlad],
@@ -224,6 +242,7 @@ export function useTerminy(householdId: string, onBlad: (tekst: string) => void)
     ladowanie,
     dodaj,
     przelaczZalatwiony,
+    ustawPowiadomienie,
     usunTermin,
     wgrajZalacznik,
     usunZalacznik,

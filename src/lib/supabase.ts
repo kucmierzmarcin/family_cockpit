@@ -113,6 +113,8 @@ export type TerminDb = {
   due_date: string
   completed: boolean
   completed_at: string | null
+  /** Data, kiedy przypomnieć o terminie - na razie tylko przechowywana, bez żadnej akcji. */
+  notify_date: string | null
   created_by: string | null
   created_at: string
 }

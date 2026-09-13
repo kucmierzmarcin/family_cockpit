@@ -1352,3 +1352,12 @@ create policy "Zalaczniki terminow - usuwanie storage" on storage.objects
     and (storage.foldername(name))[1] = public.moj_dom()::text
     and (owner_id = auth.uid()::text or public.jestem_rodzicem())
   );
+
+-- ============================================================
+--  20. Ważne terminy - data powiadomienia
+-- ============================================================
+
+-- Na razie tylko informacyjna kolumna, zaden mail/bot jeszcze z niej nie
+-- korzysta. Edytowalna przez caly dom, tak jak "completed" - istniejaca
+-- polityka "Terminy - zmiana" juz na to pozwala, bez nowej polityki.
+alter table public.deadlines add column if not exists notify_date date;

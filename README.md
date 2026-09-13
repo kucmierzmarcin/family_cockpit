@@ -207,16 +207,22 @@ Notatki nie znikają same. Wiszą, dopóki ktoś ich nie zdejmie.
 
 ## Ważne terminy
 
-Zakładka **Terminy** to lista rzeczy z datą ważności, niezależna od
+Zakładka **Terminy** to tabela rzeczy z datą ważności, niezależna od
 kalendarza — „do kiedy ważne jest ubezpieczenie auta", „kiedy kończy się
 gwarancja" — razem z dokumentem, który do tego terminu należy (skan, zdjęcie,
-PDF, do 10 MB na plik).
+PDF, do 10 MB na plik). Kolumny: tytuł, opis, do kiedy, powiadom, załatwione,
+załączniki, autor. Na wąskim ekranie tabela przewija się w poziomie zamiast
+zmieniać układ.
+
+Kolumna **Powiadom** to data przypomnienia, ustawiana i zmieniana przez
+każdego domownika — na razie sama w sobie, żaden mail ani bot jeszcze z niej
+nie korzysta.
 
 Przeterminowane i jeszcze nieodhaczone terminy są wyróżnione. Odhaczenie
-„załatwione" chowa kartę z głównej listy — wraca po włączeniu „Pokaż
+„załatwione" chowa wiersz z głównej listy — wraca po włączeniu „Pokaż
 załatwione". Dodaje i widzi cały dom, odhacza każdy, usuwa autor albo rodzic.
-Terminy nie mają edycji pól — pomyłkę poprawia się usunięciem i dodaniem od
-nowa, tak jak przy notatkach i zakupach.
+Tytuł/opis/data nie mają edycji — pomyłkę poprawia się usunięciem i dodaniem
+od nowa, tak jak przy notatkach i zakupach.
 
 Pliki leżą w prywatnym buckecie Supabase Storage, dostępnym wyłącznie
 domownikom tego samego domu — link do podglądu jest tymczasowy, generowany

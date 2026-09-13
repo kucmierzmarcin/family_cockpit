@@ -14,6 +14,9 @@ export type Termin = {
   opis: string | null
   termin: string // 'RRRR-MM-DD'
   zalatwiony: boolean
+  /** Data przypomnienia - 'RRRR-MM-DD' albo brak. Na razie tylko przechowywana,
+   * nie wiaze sie z zadna akcja (bez maila/bota). */
+  powiadom: string | null
   autorId: string | null
   dodano: string
   zalaczniki: Zalacznik[]

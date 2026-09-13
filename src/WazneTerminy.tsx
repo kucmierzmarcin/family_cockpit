@@ -24,7 +24,7 @@ type Props = {
   dodawanie: TrybDodawania
 }
 
-/** Ekran „Terminy": ważne daty (np. koniec ubezpieczenia) z załącznikami. */
+/** Ekran „Terminy": ważne daty (np. koniec ubezpieczenia) z załącznikami, w tabeli. */
 export function Terminy({ jestemRodzicem, mojeId, householdId, osobaPoId, onBlad, dodawanie }: Props) {
   const dane = useTerminy(householdId, onBlad)
   const [pokazZalatwione, setPokazZalatwione] = useState(false)
@@ -78,30 +78,47 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, osobaPoId, onBlad
       ) : widoczne.length === 0 ? (
         <p className="pusto">Brak terminów do pokazania.</p>
       ) : (
-        <ul className="karty-terminow">
-          {widoczne.map((t) => (
-            <KartaTerminu
-              key={t.id}
-              termin={t}
-              autor={t.autorId ? osobaPoId.get(t.autorId) : undefined}
-              przeterminowany={!t.zalatwiony && czyPrzeterminowany(t.termin, dzisiaj)}
-              mogeUsunacTermin={jestemRodzicem || t.autorId === mojeId}
-              mojeId={mojeId}
-              jestemRodzicem={jestemRodzicem}
-              onPrzelacz={() => void dane.przelaczZalatwiony(t)}
-              onUsunTermin={() => void dane.usunTermin(t)}
-              onWgrajZalacznik={(plik) => wgrajZWalidacja(t.id, plik)}
-              onUsunZalacznik={(z) => void dane.usunZalacznik(z)}
-              onOtworzZalacznik={(z) => void otworzZalacznik(z)}
-            />
-          ))}
-        </ul>
+        <div className="tabela-terminow-kontener">
+          <table className="tabela-terminow">
+            <thead>
+              <tr>
+                <th>Tytuł</th>
+                <th>Opis</th>
+                <th>Do kiedy</th>
+                <th>Powiadom</th>
+                <th>Załatwione</th>
+                <th>Załączniki</th>
+                <th>Autor</th>
+                <th aria-label="Akcje" />
+              </tr>
+            </thead>
+            <tbody>
+              {widoczne.map((t) => (
+                <WierszTerminu
+                  key={t.id}
+                  termin={t}
+                  autor={t.autorId ? osobaPoId.get(t.autorId) : undefined}
+                  przeterminowany={!t.zalatwiony && czyPrzeterminowany(t.termin, dzisiaj)}
+                  mogeUsunacTermin={jestemRodzicem || t.autorId === mojeId}
+                  mojeId={mojeId}
+                  jestemRodzicem={jestemRodzicem}
+                  onPrzelacz={() => void dane.przelaczZalatwiony(t)}
+                  onUstawPowiadomienie={(data) => void dane.ustawPowiadomienie(t, data)}
+                  onUsunTermin={() => void dane.usunTermin(t)}
+                  onWgrajZalacznik={(plik) => wgrajZWalidacja(t.id, plik)}
+                  onUsunZalacznik={(z) => void dane.usunZalacznik(z)}
+                  onOtworzZalacznik={(z) => void otworzZalacznik(z)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )
 }
 
-type KartaTerminuProps = {
+type WierszTerminuProps = {
   termin: Termin
   autor: DomownikDb | undefined
   przeterminowany: boolean
@@ -109,13 +126,14 @@ type KartaTerminuProps = {
   mojeId: string
   jestemRodzicem: boolean
   onPrzelacz: () => void
+  onUstawPowiadomienie: (data: string | null) => void
   onUsunTermin: () => void
   onWgrajZalacznik: (plik: File) => void
   onUsunZalacznik: (zalacznik: Zalacznik) => void
   onOtworzZalacznik: (zalacznik: Zalacznik) => void
 }
 
-function KartaTerminu({
+function WierszTerminu({
   termin,
   autor,
   przeterminowany,
@@ -123,11 +141,12 @@ function KartaTerminu({
   mojeId,
   jestemRodzicem,
   onPrzelacz,
+  onUstawPowiadomienie,
   onUsunTermin,
   onWgrajZalacznik,
   onUsunZalacznik,
   onOtworzZalacznik,
-}: KartaTerminuProps) {
+}: WierszTerminuProps) {
   const wejscie = useRef<HTMLInputElement>(null)
 
   function wybranoPliki(e: ChangeEvent<HTMLInputElement>) {
@@ -138,26 +157,38 @@ function KartaTerminu({
   }
 
   return (
-    <li
-      className={`karta-terminu${przeterminowany ? ' przeterminowany' : ''}${
-        termin.zalatwiony ? ' zalatwiony' : ''
-      }`}
-    >
-      <label className="zalatwiony-checkbox">
-        <input type="checkbox" checked={termin.zalatwiony} onChange={onPrzelacz} />
-        <span className="tytul-terminu">{termin.tytul}</span>
-      </label>
+    <tr className={`wiersz-terminu${termin.zalatwiony ? ' zalatwiony' : ''}`}>
+      <td className="tytul-terminu">
+        {termin.tytul}
+        {przeterminowany && <span className="znacznik-przeterminowania">Przeterminowany</span>}
+      </td>
 
-      {przeterminowany && <span className="znacznik-przeterminowania">Przeterminowany</span>}
+      <td className="opis-terminu">{termin.opis ?? '—'}</td>
 
-      {termin.opis && <p className="opis-terminu">{termin.opis}</p>}
+      <td className="data-terminu">{formatujTermin(termin.termin)}</td>
 
-      <p className="data-terminu">Do {formatujTermin(termin.termin)}</p>
+      <td>
+        <input
+          type="date"
+          value={termin.powiadom ?? ''}
+          onChange={(e) => onUstawPowiadomienie(e.target.value || null)}
+          aria-label={`Data powiadomienia dla „${termin.tytul}"`}
+        />
+      </td>
 
-      {termin.zalaczniki.length > 0 && (
-        <ul className="zalaczniki-terminu">
+      <td>
+        <input
+          type="checkbox"
+          checked={termin.zalatwiony}
+          onChange={onPrzelacz}
+          aria-label={`Załatwione: ${termin.tytul}`}
+        />
+      </td>
+
+      <td>
+        <div className="zalaczniki-terminu">
           {termin.zalaczniki.map((z) => (
-            <li key={z.id} className="zalacznik-terminu">
+            <span key={z.id} className="zalacznik-terminu">
               <button type="button" className="drobny" onClick={() => onOtworzZalacznik(z)}>
                 📎 {z.nazwaPliku}
               </button>
@@ -171,13 +202,25 @@ function KartaTerminu({
                   ×
                 </button>
               )}
-            </li>
+            </span>
           ))}
-        </ul>
-      )}
 
-      <div className="stopka-terminu">
-        <span className="autor-karteczki">
+          <button type="button" className="drobny" onClick={() => wejscie.current?.click()}>
+            + Załącznik
+          </button>
+          <input
+            ref={wejscie}
+            type="file"
+            accept={DOZWOLONE_TYPY_ZALACZNIKA.join(',')}
+            multiple
+            hidden
+            onChange={wybranoPliki}
+          />
+        </div>
+      </td>
+
+      <td>
+        <span className="autor-terminu">
           {autor && (
             <span
               className="kropka"
@@ -187,26 +230,16 @@ function KartaTerminu({
           )}
           {autor?.name ?? 'ktoś'}
         </span>
+      </td>
 
-        <button type="button" className="drobny" onClick={() => wejscie.current?.click()}>
-          + Załącznik
-        </button>
-        <input
-          ref={wejscie}
-          type="file"
-          accept={DOZWOLONE_TYPY_ZALACZNIKA.join(',')}
-          multiple
-          hidden
-          onChange={wybranoPliki}
-        />
-
+      <td>
         {mogeUsunacTermin && (
           <button type="button" className="usun" aria-label="Usuń termin" onClick={onUsunTermin}>
             ×
           </button>
         )}
-      </div>
-    </li>
+      </td>
+    </tr>
   )
 }
 

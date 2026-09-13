@@ -319,48 +319,59 @@
   cursor: pointer;
 }
 
-.karty-terminow {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 14px;
-  align-items: start;
+/* Kontener przewijany w poziomie - ta sama tabela na komputerze i telefonie,
+   zamiast osobnego ukladu na waskim ekranie. */
+.tabela-terminow-kontener {
+  overflow-x: auto;
 }
 
-.karta-terminu {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
+.tabela-terminow {
+  width: 100%;
+  min-width: 960px;
+  border-collapse: collapse;
+  background: var(--karta);
   border: 1px solid var(--kreska);
   border-radius: 12px;
-  background: var(--karta);
-  box-shadow: var(--cien);
+  overflow: hidden;
 }
 
-.karta-terminu.zalatwiony {
+.tabela-terminow th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tekst-drugi);
+  border-bottom: 1px solid var(--kreska);
+  white-space: nowrap;
+}
+
+.tabela-terminow td {
+  padding: 10px 12px;
+  font-size: 14px;
+  border-bottom: 1px solid var(--kreska);
+  vertical-align: top;
+}
+
+.tabela-terminow tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.wiersz-terminu.zalatwiony {
   opacity: 0.6;
 }
 
-.karta-terminu.przeterminowany {
-  border-left: 3px solid var(--blad);
-}
-
-.karta-terminu.zalatwiony .tytul-terminu {
+.wiersz-terminu.zalatwiony .tytul-terminu {
   text-decoration: line-through;
 }
 
-.zalatwiony-checkbox {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  cursor: pointer;
+.tytul-terminu {
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .znacznik-przeterminowania {
+  display: block;
+  margin-top: 4px;
   align-self: flex-start;
   padding: 2px 9px;
   border-radius: 999px;
@@ -370,59 +381,47 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  width: fit-content;
 }
 
 .opis-terminu {
-  margin: 0;
-  font-size: 14px;
   color: var(--tekst-drugi);
+  min-width: 160px;
+  max-width: 260px;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .data-terminu {
-  margin: 0;
-  font-size: 13px;
   color: var(--tekst-drugi);
+  white-space: nowrap;
 }
 
 .zalaczniki-terminu {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 180px;
 }
 
 .zalacznik-terminu {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .zalacznik-terminu .drobny {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 100%;
+  max-width: 140px;
 }
 
-.stopka-terminu {
+.autor-terminu {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 4px;
-  flex-wrap: wrap;
-}
-
-.stopka-terminu .autor-karteczki {
-  margin-right: auto;
-}
-
-@media (max-width: 767px) {
-  .karty-terminow {
-    grid-template-columns: 1fr;
-  }
+  gap: 6px;
+  white-space: nowrap;
 }
