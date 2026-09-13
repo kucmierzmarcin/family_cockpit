@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   OPISY_ROL,
   stanKonta,
@@ -9,6 +9,7 @@ import type { NowyDomownik, ZmianaDomownika } from './useDomownicy'
 import { PALETA, kolor } from './kolory'
 import { Arkusz } from './uklad/Arkusz'
 import type { TrybDodawania } from './uklad/nawigacja'
+import { bladGodzinySync, MAKS_GODZIN_SYNC, type StatusPolaczenia } from './vulcan'
 
 const ROLE: Rola[] = ['rodzic', 'domownik', 'dziecko']
 
@@ -35,6 +36,15 @@ type Props = {
   onUsun: (id: string) => void
   onUstawPowiadomienia: (wlaczone: boolean, godzina: string) => Promise<boolean>
   onPolaczTelegram: () => Promise<string | null>
+  vulcan: {
+    status: StatusPolaczenia | null
+    ladowanie: boolean
+    polacz: (token: string, symbol: string, pin: string) => Promise<boolean>
+    rozlacz: () => Promise<boolean>
+    ustawGodzinySync: (godziny: string[]) => Promise<boolean>
+    odswiezTeraz: () => Promise<boolean>
+    przypiszUcznia: (uczenId: string, memberId: string | null) => Promise<boolean>
+  }
   dodawanie: TrybDodawania
 }
 
@@ -50,6 +60,7 @@ export function MojDom({
   onUsun,
   onUstawPowiadomienia,
   onPolaczTelegram,
+  vulcan,
   dodawanie,
 }: Props) {
   const [edytowany, setEdytowany] = useState<string | null>(null)
@@ -156,6 +167,8 @@ export function MojDom({
         ja={domownicy.find((d) => d.id === mojeId)}
         onGeneruj={onPolaczTelegram}
       />
+
+      {jestemRodzicem && <PolaczenieVulcan vulcan={vulcan} domownicy={domownicy} />}
 
       {jestemRodzicem &&
         (dodawanie === null ? (
@@ -398,6 +411,179 @@ function BotTelegram({
         >
           Połącz z Telegramem
         </button>
+      )}
+    </section>
+  )
+}
+
+type PolaczenieVulcanProps = {
+  vulcan: Props['vulcan']
+  domownicy: DomownikDb[]
+}
+
+/**
+ * Połączenie z dziennikiem Vulcan - rejestracja Tokenem/Symbolem/PIN-em,
+ * przypisanie uczniów do domowników, godziny synchronizacji, rozłączenie.
+ * Widoczne tylko rodzicowi (patrz warunek w `MojDom`).
+ */
+function PolaczenieVulcan({ vulcan, domownicy }: PolaczenieVulcanProps) {
+  const [token, setToken] = useState('')
+  const [symbol, setSymbol] = useState('')
+  const [pin, setPin] = useState('')
+  const [laczenie, setLaczenie] = useState(false)
+  const [bladFormularza, setBladFormularza] = useState<string | null>(null)
+  const [godziny, setGodziny] = useState<string[]>([])
+  const [zapisywanieGodzin, setZapisywanieGodzin] = useState(false)
+  const [odswiezanie, setOdswiezanie] = useState(false)
+
+  const status = vulcan.status
+
+  useEffect(() => {
+    if (status) setGodziny(status.godzinySync)
+  }, [status])
+
+  async function polacz(e: React.FormEvent) {
+    e.preventDefault()
+    setBladFormularza(null)
+    setLaczenie(true)
+    const ok = await vulcan.polacz(token.trim(), symbol.trim(), pin.trim())
+    setLaczenie(false)
+    if (ok) {
+      setToken('')
+      setSymbol('')
+      setPin('')
+    }
+  }
+
+  async function zapiszGodziny() {
+    const blad = bladGodzinySync(godziny)
+    if (blad) {
+      setBladFormularza(blad)
+      return
+    }
+    setBladFormularza(null)
+    setZapisywanieGodzin(true)
+    await vulcan.ustawGodzinySync(godziny)
+    setZapisywanieGodzin(false)
+  }
+
+  if (vulcan.ladowanie) return null
+
+  return (
+    <section className="karta">
+      <h2 className="panel-tytul">Vulcan (dziennik elektroniczny)</h2>
+
+      {!status?.istnieje ? (
+        <>
+          <p className="panel-dzien">
+            Połącz konto Vulcan rodzica, żeby widzieć plan lekcji, sprawdziany,
+            zadania domowe i wiadomości dzieci w zakładce „Szkoła". Token,
+            Symbol i PIN wygenerujesz w oficjalnej aplikacji Vulcan (Dostęp
+            Mobilny) — są jednorazowe.
+          </p>
+          <form className="formularz formularz-vulcan" onSubmit={(e) => void polacz(e)}>
+            <label htmlFor="vulcan-token">Token</label>
+            <input id="vulcan-token" value={token} onChange={(e) => setToken(e.target.value)} maxLength={10} />
+
+            <label htmlFor="vulcan-symbol">Symbol</label>
+            <input id="vulcan-symbol" value={symbol} onChange={(e) => setSymbol(e.target.value)} />
+
+            <label htmlFor="vulcan-pin">PIN</label>
+            <input id="vulcan-pin" value={pin} onChange={(e) => setPin(e.target.value)} maxLength={8} />
+
+            {bladFormularza && (
+              <p className="blad" role="alert">
+                {bladFormularza}
+              </p>
+            )}
+
+            <button type="submit" disabled={laczenie || !token.trim() || !symbol.trim() || !pin.trim()}>
+              {laczenie ? 'Łączę…' : 'Połącz'}
+            </button>
+          </form>
+        </>
+      ) : (
+        <>
+          {status.status === 'wymaga_ponownej_rejestracji' ? (
+            <p className="blad" role="alert">
+              Połączenie wygasło ({status.ostatniBlad ?? 'nieznany błąd'}) — połącz się ponownie Tokenem/Symbolem/PIN-em.
+            </p>
+          ) : (
+            <p className="polaczono">✓ Połączono{status.polaczylImie ? ` przez ${status.polaczylImie}` : ''}</p>
+          )}
+
+          {status.uczniowie.length > 0 && (
+            <ul className="lista-uczniow-vulcan">
+              {status.uczniowie.map((u) => (
+                <li key={u.id}>
+                  <span className="nazwa">
+                    {u.imie} {u.nazwisko}
+                    {u.klasa && <span className="meta"> · {u.klasa}</span>}
+                  </span>
+                  <select
+                    aria-label={`Przypisz ${u.imie} ${u.nazwisko} do domownika`}
+                    value={u.memberId ?? ''}
+                    onChange={(e) => void vulcan.przypiszUcznia(u.id, e.target.value || null)}
+                  >
+                    <option value="">Nie pokazuj</option>
+                    {domownicy.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="godziny-sync">
+            <span className="etykieta-koloru">Godziny synchronizacji (maks. {MAKS_GODZIN_SYNC})</span>
+            {godziny.map((g, i) => (
+              <div key={i} className="godzina-sync-wiersz">
+                <input
+                  type="time"
+                  value={g}
+                  onChange={(e) => setGodziny(godziny.map((x, j) => (j === i ? e.target.value : x)))}
+                />
+                <button type="button" className="usun" onClick={() => setGodziny(godziny.filter((_, j) => j !== i))}>
+                  ×
+                </button>
+              </div>
+            ))}
+            {godziny.length < MAKS_GODZIN_SYNC && (
+              <button type="button" className="drobny" onClick={() => setGodziny([...godziny, '07:00'])}>
+                + Dodaj godzinę
+              </button>
+            )}
+            {bladFormularza && (
+              <p className="blad" role="alert">
+                {bladFormularza}
+              </p>
+            )}
+            <button type="button" onClick={() => void zapiszGodziny()} disabled={zapisywanieGodzin}>
+              {zapisywanieGodzin ? 'Zapisuję…' : 'Zapisz godziny'}
+            </button>
+          </div>
+
+          <div className="akcje-vulcan">
+            <button
+              type="button"
+              className="drugi"
+              disabled={odswiezanie}
+              onClick={async () => {
+                setOdswiezanie(true)
+                await vulcan.odswiezTeraz()
+                setOdswiezanie(false)
+              }}
+            >
+              {odswiezanie ? 'Odświeżam…' : 'Odśwież teraz'}
+            </button>
+            <button type="button" className="usuwanie" onClick={() => void vulcan.rozlacz()}>
+              Rozłącz
+            </button>
+          </div>
+        </>
       )}
     </section>
   )

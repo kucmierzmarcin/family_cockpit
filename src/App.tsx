@@ -382,6 +382,7 @@ function App({ profil, email }: Props) {
           onUsun={usunDomownika}
           onUstawPowiadomienia={osoby.ustawPowiadomienia}
           onPolaczTelegram={osoby.polaczTelegram}
+          vulcan={vulcan}
           dodawanie={trybDodawania('dom')}
         />
       ) : telefon ? (
