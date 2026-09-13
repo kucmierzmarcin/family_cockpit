@@ -1,8 +1,9 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { Keystore, VulcanHebe, registerAccount } from 'npm:vulcan-api-js@3.5.4'
+import { Keystore } from 'npm:vulcan-api-js@3.5.4'
+import { zarejestrujPrzezJwt, pobierzUczniowEdu } from '../_wspolne/vulcanApi.ts'
 import { synchronizujDom } from '../_wspolne/vulcanSync.ts'
 
-type Cialo = { token?: string; symbol?: string; pin?: string }
+type Cialo = { apContent?: string }
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -17,10 +18,24 @@ function bladJson(tekst: string, status: number): Response {
   })
 }
 
+/**
+ * Wyciąga JSON z ukrytego pola `<input id="ap" value="...">` na stronie
+ * https://eduvulcan.pl/api/ap (dokładnie ten format - zweryfikowane na żywo
+ * przed napisaniem tego kodu). Parsowanie przez regex, nie przez DOM -
+ * Deno nie ma wbudowanego parsera HTML, a potrzebujemy tylko jednej wartości
+ * atrybutu.
+ */
+function wyciagnijApJson(apContent: string): Record<string, unknown> {
+  const dopasowanie = apContent.match(/id=["']ap["']\s+value=["']([\s\S]*?)["']\s*\/?>/)
+  const surowyJson = dopasowanie ? dopasowanie[1] : apContent.trim()
+  const odHtmlEntities = surowyJson
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+  return JSON.parse(odHtmlEntities)
+}
+
 Deno.serve(async (req) => {
-  // Formularz "Połącz" w Mój dom woła tę funkcję z przeglądarki przez
-  // supabase.functions.invoke - to poprzedza preflight OPTIONS, który trzeba
-  // obsłużyć samodzielnie (Deno.serve nie robi tego automatycznie).
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS })
   }
@@ -34,9 +49,24 @@ Deno.serve(async (req) => {
     return bladJson('Nieprawidłowy JSON.', 400)
   }
 
-  const { token, symbol, pin } = cialo
-  if (!token?.trim() || !symbol?.trim() || !pin?.trim()) {
-    return bladJson('Podaj Token, Symbol i PIN.', 400)
+  const { apContent } = cialo
+  if (!apContent?.trim()) {
+    return bladJson('Wklej zawartość strony eduvulcan.pl/api/ap.', 400)
+  }
+
+  let apJson: Record<string, unknown>
+  try {
+    apJson = wyciagnijApJson(apContent)
+  } catch {
+    return bladJson('Nie udało się odczytać wklejonej treści - upewnij się, że to cała zawartość strony /api/ap.', 400)
+  }
+
+  if (apJson.Success !== true) {
+    return bladJson(`eduVULCAN zwrócił błąd: ${String(apJson.ErrorMessage ?? 'nieznany')}`, 400)
+  }
+  const jwty = apJson.Tokens
+  if (!Array.isArray(jwty) || jwty.length === 0 || typeof jwty[0] !== 'string') {
+    return bladJson('Wklejona treść nie zawiera listy Tokens - to na pewno strona /api/ap?', 400)
   }
 
   const autoryzacja = req.headers.get('Authorization')
@@ -51,8 +81,6 @@ Deno.serve(async (req) => {
   const { data: uzytkownik, error: bladUzytkownika } = await klientUzytkownika.auth.getUser()
   if (bladUzytkownika || !uzytkownik.user) return bladJson('Nieprawidłowa sesja.', 401)
 
-  // jestem_rodzicem()/moj_dom() dzialaja przez klienta z kluczem anon +
-  // Authorization uzytkownika - RLS/SECURITY DEFINER same ustala kontekst.
   const { data: jestRodzicem } = await klientUzytkownika.rpc('jestem_rodzicem')
   if (!jestRodzicem) return bladJson('Tylko rodzic może połączyć Vulcan.', 403)
 
@@ -63,21 +91,13 @@ Deno.serve(async (req) => {
     .single()
   if (bladCzlonka || !czlonek) return bladJson('Nie znaleziono domownika.', 400)
 
-  let konto
+  let konta
   const keystore = new Keystore()
   try {
     await keystore.init('Kokpit Rodzinny', '')
-    konto = await registerAccount(keystore, token.trim(), symbol.trim(), pin.trim())
+    konta = await zarejestrujPrzezJwt(keystore, jwty as string[])
   } catch (e) {
-    // Biblioteka rzuca wyjatki nazwane np. InvalidPINException - nazwa klasy
-    // ladowala sie tylko w stringu bledu w Deno po transpilacji z Babela,
-    // wiec dopasowujemy tekstem, nie instanceof.
-    const tekst = String(e)
-    if (/InvalidPIN/i.test(tekst)) return bladJson('Nieprawidłowy PIN.', 400)
-    if (/InvalidToken|InvalidSymbol|ExpiredToken/i.test(tekst)) {
-      return bladJson('Nieprawidłowy albo wygasły Token/Symbol.', 400)
-    }
-    return bladJson(`Rejestracja w Vulcan nie powiodła się: ${tekst}`, 502)
+    return bladJson(`Rejestracja w eduVULCAN nie powiodła się: ${String(e)}`, 502)
   }
 
   const baza = createClient(
@@ -95,7 +115,7 @@ Deno.serve(async (req) => {
       private_key: daneKeystore.privateKey,
       firebase_token: daneKeystore.firebaseToken ?? null,
       device_model: daneKeystore.deviceModel,
-      account: konto,
+      account: konta,
       status: 'aktywne',
       last_error: null,
     },
@@ -105,22 +125,15 @@ Deno.serve(async (req) => {
 
   let uczniowie
   try {
-    const vulcan = new VulcanHebe(keystore, konto)
-    uczniowie = await vulcan.getStudents()
+    uczniowie = await pobierzUczniowEdu(keystore, konta)
   } catch (e) {
-    // WYCOFANIE: Token/Symbol/PIN sa jednorazowe i zostaly juz zuzyte przez
-    // Vulcan, wiec zostawienie wiersza `status: 'aktywne'` bez ani jednego
-    // ucznia zamykaloby rodzica w stanie "jestes podlaczony, ale bez dzieci i
-    // bez wyjscia" - UI pokazywaloby wtedy panel polaczonego konta zamiast
-    // formularza. Kasujemy wiersz, zeby blad znaczyl po prostu "nie udalo sie,
-    // sprobuj ponownie z nowym Tokenem/Symbolem/PIN-em".
     const { error: bladWycofania } = await baza
       .from('vulcan_connections')
       .delete()
       .eq('household_id', czlonek.household_id)
     if (bladWycofania) {
       console.error(
-        `Nie udało się wycofać połączenia Vulcan po błędzie getStudents (dom ${czlonek.household_id}):`,
+        `Nie udało się wycofać połączenia Vulcan po błędzie pobierania uczniów (dom ${czlonek.household_id}):`,
         bladWycofania.message,
       )
       return bladJson(
@@ -129,7 +142,7 @@ Deno.serve(async (req) => {
       )
     }
     return bladJson(
-      `Nie udało się wczytać uczniów: ${String(e)}. Połączenie zostało wycofane — spróbuj ponownie z nowym Tokenem, Symbolem i PIN-em.`,
+      `Nie udało się wczytać uczniów: ${String(e)}. Połączenie zostało wycofane — spróbuj ponownie z nową wklejką z eduvulcan.pl/api/ap.`,
       502,
     )
   }
@@ -149,23 +162,6 @@ Deno.serve(async (req) => {
     if (bladUczniow) return bladJson(`Połączono, ale nie udało się zapisać uczniów: ${bladUczniow.message}`, 500)
   }
 
-  // Pierwsza synchronizacja od razu, zeby "Szkola" nie swiecila pustka do
-  // najblizszej zaplanowanej godziny - ale dopiero PO tym, jak rodzic
-  // przypisze uczniow do domownikow w kolejnym kroku UI (bez przypisania
-  // synchronizujDom() i tak nikogo nie przetworzy, patrz jej filtr
-  // `member_id is not null`). Wywolanie tu jest wiec nieszkodliwym no-opem
-  // do czasu przypisania - zostawiamy dla przyszlych polaczen, gdzie rodzic
-  // zdazy przypisac przed pierwszym zaplanowanym syncem.
-  //
-  // "fire-and-forget" celowo - odpowiedz HTTP nie moze czekac na pelna
-  // synchronizacje. synchronizujDom() dzis zawsze rozwiazuje sie (nigdy nie
-  // odrzuca) i zwraca { ok, blad } - ale to szczegol implementacji rdzenia,
-  // ktory moze sie zmienic (np. przy przyszlych poprawkach synchronizujDom
-  // albo bledzie sieciowym z klienta Supabase, ktory w Deno bywa rzucany, a
-  // nie zwracany w polu `error`). .catch() tutaj to tania asekuracja przed
-  // "unhandled promise rejection" w logach Deno - bez wplywu na odpowiedz
-  // HTTP, ktora i tak zwraca sukces niezaleznie od wyniku tej wstepnej
-  // synchronizacji.
   void synchronizujDom(baza, czlonek.household_id).catch((e) => {
     console.error(`Wstępna synchronizacja Vulcan po rejestracji nie powiodła się (dom ${czlonek.household_id}):`, e)
   })
