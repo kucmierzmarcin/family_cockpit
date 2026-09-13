@@ -103,10 +103,16 @@ export async function synchronizujDom(
         }))
 
       if (wierszeLekcji.length > 0) {
-        await baza.from('vulcan_lessons').upsert(wierszeLekcji, { onConflict: 'student_id,lesson_date,start_time' })
+        const { error: bladZapisu } = await baza
+          .from('vulcan_lessons')
+          .upsert(wierszeLekcji, { onConflict: 'student_id,lesson_date,start_time' })
+        if (bladZapisu) throw new Error(`Zapis planu lekcji nie powiódł się: ${bladZapisu.message}`)
       }
       if (wierszeZmian.length > 0) {
-        await baza.from('vulcan_lessons').upsert(wierszeZmian, { onConflict: 'student_id,lesson_date,start_time' })
+        const { error: bladZapisu } = await baza
+          .from('vulcan_lessons')
+          .upsert(wierszeZmian, { onConflict: 'student_id,lesson_date,start_time' })
+        if (bladZapisu) throw new Error(`Zapis zmian planu nie powiódł się: ${bladZapisu.message}`)
       }
 
       const sprawdziany = await vulcan.getExams()
@@ -122,7 +128,10 @@ export async function synchronizujDom(
           vulcan_key: e.key,
         }))
       if (wierszeSprawdzianow.length > 0) {
-        await baza.from('vulcan_assignments').upsert(wierszeSprawdzianow, { onConflict: 'student_id,kind,vulcan_key' })
+        const { error: bladZapisu } = await baza
+          .from('vulcan_assignments')
+          .upsert(wierszeSprawdzianow, { onConflict: 'student_id,kind,vulcan_key' })
+        if (bladZapisu) throw new Error(`Zapis sprawdzianów nie powiódł się: ${bladZapisu.message}`)
       }
 
       const zadania = await vulcan.getHomework()
@@ -138,7 +147,10 @@ export async function synchronizujDom(
           vulcan_key: String(z.key),
         }))
       if (wierszeZadan.length > 0) {
-        await baza.from('vulcan_assignments').upsert(wierszeZadan, { onConflict: 'student_id,kind,vulcan_key' })
+        const { error: bladZapisu } = await baza
+          .from('vulcan_assignments')
+          .upsert(wierszeZadan, { onConflict: 'student_id,kind,vulcan_key' })
+        if (bladZapisu) throw new Error(`Zapis zadań domowych nie powiódł się: ${bladZapisu.message}`)
       }
 
       const skrzynki = await vulcan.getMessageBoxes()
@@ -161,24 +173,50 @@ export async function synchronizujDom(
           vulcan_key: m.globalKey as string,
         }))
       if (wierszeWiadomosci.length > 0) {
-        await baza.from('vulcan_messages').upsert(wierszeWiadomosci, { onConflict: 'student_id,vulcan_key' })
+        const { error: bladZapisu } = await baza
+          .from('vulcan_messages')
+          .upsert(wierszeWiadomosci, { onConflict: 'student_id,vulcan_key' })
+        if (bladZapisu) throw new Error(`Zapis wiadomości nie powiódł się: ${bladZapisu.message}`)
       }
     } catch (e) {
-      const tekst = String(e)
-      // Błędy autoryzacji z biblioteki niosą w treści te nazwy klas - nie ma
-      // do nich osobnych kodów HTTP do sprawdzenia inaczej.
-      const sesjaNiewazna = /Unauthorized|ExpiredToken|InvalidSignature/i.test(tekst)
+      // Tylko `e.message` prawdziwego Error - `String(e)` na rzuconym nie-Errorze
+      // (np. zwykły string albo obiekt z biblioteki) potrafi dać mylące
+      // "[object Object]" albo przypadkowo zawrzeć jedno z dopasowywanych niżej
+      // słów w nieznanym kontekście.
+      const tekst = e instanceof Error ? e.message : String(e)
+      // Biblioteka vulcan-api-js nie eksponuje własnych klas wyjątków ani kodu
+      // HTTP (sprawdzone w publikowanym bundlu - same generyczne `Error`), więc
+      // nie da się rozróżnić "sesja nieważna" po `e.constructor.name`. Dopasowanie
+      // po nazwach z treści błędu to świadomy kompromis: `\b...\b` ogranicza
+      // trafienia do całych słów (nie fragmentów innych identyfikatorów), co
+      // zmniejsza ryzyko fałszywego trafienia w nieznanym, nieprzewidzianym
+      // komunikacie błędu. Błędna klasyfikacja tutaj nie gubi danych - w
+      // najgorszym razie wymusza ręczną ponowną rejestrację, którą da się
+      // doprecyzować po zobaczeniu prawdziwych błędów z logów (Zadanie 5/8).
+      const sesjaNiewazna = /\b(Unauthorized|ExpiredToken|InvalidSignature)\b/.test(tekst)
       if (sesjaNiewazna) {
-        await baza
+        const { error: bladAktualizacjiStatusu } = await baza
           .from('vulcan_connections')
           .update({ status: 'wymaga_ponownej_rejestracji', last_error: tekst })
           .eq('household_id', householdId)
+        if (bladAktualizacjiStatusu) {
+          return {
+            ok: false,
+            blad: `Sesja Vulcan wygasła (dodatkowo nie udało się zapisać statusu: ${bladAktualizacjiStatusu.message}): ${tekst}`,
+          }
+        }
         return { ok: false, blad: `Sesja Vulcan wygasła: ${tekst}` }
       }
       return { ok: false, blad: `Błąd synchronizacji ucznia ${uczen.id}: ${tekst}` }
     }
   }
 
-  await baza.from('vulcan_connections').update({ last_error: null }).eq('household_id', householdId)
+  const { error: bladCzyszczeniaBledu } = await baza
+    .from('vulcan_connections')
+    .update({ last_error: null })
+    .eq('household_id', householdId)
+  if (bladCzyszczeniaBledu) {
+    return { ok: false, blad: `Nie udało się zaktualizować statusu połączenia: ${bladCzyszczeniaBledu.message}` }
+  }
   return { ok: true }
 }

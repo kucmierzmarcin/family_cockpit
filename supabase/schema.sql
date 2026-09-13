@@ -1633,6 +1633,24 @@ alter publication supabase_realtime add table public.vulcan_messages;
 -- (dzielenie calkowitoliczbowe minut przez 15, niezaleznie liczone dla
 -- "teraz" i dla kazdej skonfigurowanej godziny) nie ma zadnego z tych
 -- problemow - kazda godzina trafia do dokladnie jednego z 96 kubelkow doby.
+--
+-- Runda poprawek 1 (recenzja): dwie zmiany w tej funkcji.
+-- 1) `g ~ regex` PRZED `split_part(...)::int` - bez tego jeden zle sformatowany
+--    wpis w sync_hours (np. 'rano', wpisany np. reczne przez SQL, bo
+--    ustaw_godziny_sync_vulcan nie waliduje formatu - to zyje w TS) wywala
+--    cala funkcje wyjatkiem rzutowania i blokuje synchronizacje WSZYSTKIM
+--    domom na danym tiku crona, nie tylko temu jednemu z zlym wpisem.
+-- 2) `on conflict ... do nothing` zamiast `do update ... where claimed_at < now() - 15 min`:
+--    ten warunek retry byl martwym kodem. Kubelek 15-minutowy oznacza, ze dany
+--    dom jest kandydatem do synchronizacji tylko RAZ na dobe, w jednym
+--    konkretnym oknie - w przeciwienstwie do do_wyslania (tam kandydatura trwa
+--    2 godziny, wiec kolejne tiki cron faktycznie moga ponowic nieudana
+--    probe). Tutaj nastepny tik dla tego samego (household_id, sync_date,
+--    sync_hour) juz sie tego samego dnia nie zdarzy, wiec warunek na
+--    claimed_at nigdy nie byl prawdziwy w normalnym biegu. Swiadome
+--    ograniczenie tej wersji: nieudany sync czeka do nastepnej zaplanowanej
+--    godziny, nie jest ponawiany wczesniej. Realne ponawianie w ramach dnia to
+--    osobne zadanie, nie ta migracja.
 create or replace function public.vulcan_do_synchronizacji(p_teraz timestamptz default now())
   returns table (log_id uuid, household_id uuid)
   language sql volatile security definer set search_path = public
@@ -1653,18 +1671,14 @@ as $$
      where c.status = 'aktywne'
        and exists (
          select 1 from unnest(c.sync_hours) g
-          where split_part(g, ':', 1)::int * 4 + split_part(g, ':', 2)::int / 15 = kt.kubelek
+          where g ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+            and split_part(g, ':', 1)::int * 4 + split_part(g, ':', 2)::int / 15 = kt.kubelek
        )
   ),
   zajete as (
     insert into public.vulcan_sync_log as l (household_id, sync_date, sync_hour)
     select k.household_id, k.dzien, k.slot from kandydaci k
-    on conflict (household_id, sync_date, sync_hour) do update
-       set status     = 'w_toku',
-           claimed_at = now(),
-           error      = null
-     where (l.status = 'blad'   and l.claimed_at < now() - interval '15 minutes')
-        or (l.status = 'w_toku' and l.claimed_at < now() - interval '15 minutes')
+    on conflict (household_id, sync_date, sync_hour) do nothing
     returning l.id, l.household_id
   )
   select z.id, z.household_id from zajete z
