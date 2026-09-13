@@ -44,6 +44,14 @@ const BASE_URL = 'https://lekcjaplus.vulcan.net.pl/'
       (source as Record<string, unknown>).DateAt != null
     ) {
       poprawioneZrodlo = { ...(source as Record<string, unknown>), Date: (source as Record<string, unknown>).DateAt }
+      // TYMCZASOWE (diagnostyka Zadania 6, do usunięcia po zdiagnozowaniu):
+      // `date` po podmianie klucza wychodzi `{}` - DateAt to zagnieżdżony
+      // obiekt, ale jego WŁASNE klucze (Timestamp/Date/DateDisplay/Time)
+      // najwyraźniej też nie pasują. Pokazujemy całą jego zawartość raz.
+      console.error(
+        '[diagnostyka] surowa wartość DateAt:',
+        JSON.stringify((source as Record<string, unknown>).DateAt),
+      )
     }
     return oryginalnySerialize.call(this, poprawioneZrodlo ?? null)
   }
