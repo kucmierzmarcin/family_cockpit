@@ -37,20 +37,35 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
   const uczniowie = status?.uczniowie.filter((u) => u.memberId !== null) ?? []
   const nazwaDomownika = new Map(domownicy.map((d) => [d.id, d.name]))
 
-  const filtrUczniaId = uczniowie.length > 1 ? wybranyUczen : (uczniowie[0]?.id ?? null)
+  // Dane zawsze pokazujemy dla JEDNEGO wybranego ucznia - łączony widok
+  // "Wszyscy" nie miał sensu (przedmioty/plany są per dziecko). Jeśli
+  // zapamiętany wybór wskazuje na ucznia, którego już nie ma na liście
+  // (np. odpięty od domownika), samoleczy się na pierwszego dostępnego.
+  const filtrUczniaId =
+    wybranyUczen && uczniowie.some((u) => u.id === wybranyUczen) ? wybranyUczen : (uczniowie[0]?.id ?? null)
+
+  // Domyślnie tylko dziś i kolejne dni, maks. 2 tygodnie naprzód - minione
+  // dni planu nie są tu potrzebne, a bez górnej granicy widok mógłby się
+  // rozciągnąć w nieskończoność, gdyby backend zaczął synchronizować dalej
+  // niż bieżący tydzień.
+  const dzisiaj = klucz(new Date())
+  const zaDwaTygodnie = useMemo(() => {
+    const data = new Date()
+    data.setDate(data.getDate() + 13)
+    return klucz(data)
+  }, [])
 
   const lekcjeWidoczne = useMemo(
-    () => (filtrUczniaId ? lekcje.filter((l) => l.uczenId === filtrUczniaId) : lekcje),
-    [lekcje, filtrUczniaId],
+    () => lekcje.filter((l) => l.uczenId === filtrUczniaId && l.data >= dzisiaj && l.data <= zaDwaTygodnie),
+    [lekcje, filtrUczniaId, dzisiaj, zaDwaTygodnie],
   )
   const wpisyUcznia = useMemo(
-    () => posortujWpisy(filtrUczniaId ? wpisy.filter((w) => w.uczenId === filtrUczniaId) : wpisy),
+    () => posortujWpisy(wpisy.filter((w) => w.uczenId === filtrUczniaId)),
     [wpisy, filtrUczniaId],
   )
   // Domyślnie tylko nadchodzące - historia sprawdzianów i zadań rośnie w
   // nieskończoność i spychała najbliższe terminy poza widok. Minione wciąż
   // można pokazać przełącznikiem.
-  const dzisiaj = klucz(new Date())
   const wpisyMinione = useMemo(() => wpisyUcznia.filter((w) => w.data < dzisiaj), [wpisyUcznia, dzisiaj])
   const wpisyWidoczne = useMemo(
     () => (pokazMinione ? wpisyUcznia : wpisyUcznia.filter((w) => w.data >= dzisiaj)),
@@ -61,11 +76,6 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
   // niezależnie od wybranego ucznia.
   const wiadomosciWidoczne = useMemo(() => posortujWiadomosci(wiadomosci), [wiadomosci])
   const dniPlanu = useMemo(() => pogrupujLekcjePoDniu(lekcjeWidoczne), [lekcjeWidoczne])
-
-  function nazwaUcznia(uczenId: string): string {
-    const u = uczniowie.find((x) => x.id === uczenId)
-    return u ? (nazwaDomownika.get(u.memberId ?? '') ?? `${u.imie} ${u.nazwisko}`) : ''
-  }
 
   if (ladowanie) return <p className="pusto">Wczytuję…</p>
 
@@ -85,20 +95,12 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
     <div className="szkola">
       {uczniowie.length > 1 && (
         <div className="filtry" role="group" aria-label="Pokaż dane ucznia">
-          <button
-            type="button"
-            className={`filtr${wybranyUczen === null ? ' wlaczony' : ''}`}
-            aria-pressed={wybranyUczen === null}
-            onClick={() => setWybranyUczen(null)}
-          >
-            Wszyscy
-          </button>
           {uczniowie.map((u) => (
             <button
               key={u.id}
               type="button"
-              className={`filtr${wybranyUczen === u.id ? ' wlaczony' : ''}`}
-              aria-pressed={wybranyUczen === u.id}
+              className={`filtr${filtrUczniaId === u.id ? ' wlaczony' : ''}`}
+              aria-pressed={filtrUczniaId === u.id}
               onClick={() => setWybranyUczen(u.id)}
             >
               {nazwaDomownika.get(u.memberId ?? '') ?? u.imie}
@@ -139,7 +141,7 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
 
       {podZakladka === 'plan' &&
         (dniPlanu.size === 0 ? (
-          <p className="pusto">Brak lekcji w tym tygodniu.</p>
+          <p className="pusto">Brak zaplanowanych lekcji w najbliższych dniach.</p>
         ) : (
           <div className="plan-lekcji">
             {[...dniPlanu.entries()].map(([dzien, lekcjeDnia]) => (
@@ -151,12 +153,7 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
                       <span className="lekcja-godziny">
                         {l.od}–{l.do}
                       </span>
-                      <span className="lekcja-przedmiot">
-                        {l.przedmiot}
-                        {uczniowie.length > 1 && !filtrUczniaId && (
-                          <span className="meta"> · {nazwaUcznia(l.uczenId)}</span>
-                        )}
-                      </span>
+                      <span className="lekcja-przedmiot">{l.przedmiot}</span>
                       {(l.nauczyciel || l.sala) && (
                         <span className="lekcja-detale">
                           {[l.nauczyciel, l.sala].filter(Boolean).join(' · ')}
@@ -192,7 +189,6 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
               <thead>
                 <tr>
                   <th>Data</th>
-                  {!filtrUczniaId && uczniowie.length > 1 && <th>Uczeń</th>}
                   <th>Przedmiot</th>
                   <th>Typ</th>
                   <th>Opis</th>
@@ -202,7 +198,6 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
                 {wpisyWidoczne.map((w) => (
                   <tr key={w.id}>
                     <td>{dlugaData(new Date(`${w.data}T12:00:00`))}</td>
-                    {!filtrUczniaId && uczniowie.length > 1 && <td>{nazwaUcznia(w.uczenId)}</td>}
                     <td className="tytul-terminu">{w.przedmiot}</td>
                     <td>
                       <span className={`status-terminu ${w.typ === 'sprawdzian' ? 'status-przeterminowany' : 'status-aktywny'}`}>
