@@ -130,3 +130,53 @@ export type ZalacznikDb = {
   created_by: string | null
   created_at: string
 }
+
+export type UczenDb = {
+  id: string
+  household_id: string
+  vulcan_id: string
+  first_name: string
+  last_name: string
+  class_name: string | null
+  member_id: string | null
+  created_at: string
+}
+
+export type LekcjaDb = {
+  id: string
+  student_id: string
+  household_id: string
+  lesson_date: string
+  start_time: string
+  end_time: string
+  subject: string
+  teacher: string | null
+  room: string | null
+  changed: boolean
+  change_note: string | null
+  created_at: string
+}
+
+export type WpisDb = {
+  id: string
+  student_id: string
+  household_id: string
+  kind: 'sprawdzian' | 'zadanie_domowe'
+  due_date: string
+  subject: string
+  description: string | null
+  vulcan_key: string
+  created_at: string
+}
+
+export type WiadomoscDb = {
+  id: string
+  student_id: string
+  household_id: string
+  sender: string
+  subject: string
+  content: string
+  sent_at: string
+  vulcan_key: string
+  created_at: string
+}
