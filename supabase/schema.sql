@@ -1697,3 +1697,29 @@ $$;
 
 revoke execute on function public.vulcan_do_synchronizacji(timestamptz) from public, anon, authenticated;
 revoke execute on function public.zamknij_sync_vulcan(uuid, text)       from public, anon, authenticated;
+
+-- ============================================================
+--  22. Integracja z Vulcan - harmonogram
+-- ============================================================
+
+-- Sekret Vault z URL-em tej funkcji trzeba zalozyc recznie (patrz README):
+--
+--   select vault.create_secret(
+--     'https://fqviwnzinpndyprcovxw.supabase.co/functions/v1/vulcan-sync',
+--     'kokpit_url_funkcji_vulcan_sync');
+--
+-- `kokpit_klucz_serwisowy` jest juz zalozony (poranne podsumowanie).
+
+select cron.schedule('vulcan-sync', '*/15 * * * *', $$
+  select net.http_post(
+    url     := (select decrypted_secret from vault.decrypted_secrets
+                 where name = 'kokpit_url_funkcji_vulcan_sync'),
+    headers := jsonb_build_object(
+                 'Content-Type', 'application/json',
+                 'Authorization', 'Bearer ' ||
+                   (select decrypted_secret from vault.decrypted_secrets
+                     where name = 'kokpit_klucz_serwisowy')),
+    body    := '{}'::jsonb,
+    timeout_milliseconds := 30000
+  );
+$$);
