@@ -1619,3 +1619,67 @@ alter publication supabase_realtime add table public.vulcan_students;
 alter publication supabase_realtime add table public.vulcan_lessons;
 alter publication supabase_realtime add table public.vulcan_assignments;
 alter publication supabase_realtime add table public.vulcan_messages;
+
+-- Kandydaci do synchronizacji - ten sam wzorzec "insert...on conflict...
+-- returning" co do_wyslania(): claim i wybor w jednym zapytaniu.
+--
+-- Dopasowanie godziny liczone przez CALKOWITOLICZBOWY "kubelek" 15-minutowy
+-- (0-95 w ciagu doby), nie przez odejmowanie interwalu od `time`. Odejmowanie
+-- (`teraz - 15 minut`) zawija sie o polnocy w niepoprawny sposob (dokladnie
+-- ten problem opisany przy `do_wyslania` dla digest_at) - a samo porownanie
+-- `between (teraz - 15 min) and teraz` na dodatek dopasowuje kazda godzine
+-- lezaca DOKLADNIE na granicy kubelka w DWOCH kolejnych tikach crona (np.
+-- '07:00' matchuje i o 7:00, i o 7:15), co podwaja synchronizacje. Kubelek
+-- (dzielenie calkowitoliczbowe minut przez 15, niezaleznie liczone dla
+-- "teraz" i dla kazdej skonfigurowanej godziny) nie ma zadnego z tych
+-- problemow - kazda godzina trafia do dokladnie jednego z 96 kubelkow doby.
+create or replace function public.vulcan_do_synchronizacji(p_teraz timestamptz default now())
+  returns table (log_id uuid, household_id uuid)
+  language sql volatile security definer set search_path = public
+as $$
+  with chwila as (
+    select (p_teraz at time zone 'Europe/Warsaw') as lokalna
+  ),
+  kubelek_teraz as (
+    select lokalna::date as dzien,
+           extract(hour from lokalna)::int * 4 + extract(minute from lokalna)::int / 15 as kubelek
+      from chwila
+  ),
+  kandydaci as (
+    select c.household_id, kt.dzien,
+           lpad((kt.kubelek / 4)::text, 2, '0') || ':' || lpad((kt.kubelek % 4 * 15)::text, 2, '0') as slot
+      from public.vulcan_connections c
+      cross join kubelek_teraz kt
+     where c.status = 'aktywne'
+       and exists (
+         select 1 from unnest(c.sync_hours) g
+          where split_part(g, ':', 1)::int * 4 + split_part(g, ':', 2)::int / 15 = kt.kubelek
+       )
+  ),
+  zajete as (
+    insert into public.vulcan_sync_log as l (household_id, sync_date, sync_hour)
+    select k.household_id, k.dzien, k.slot from kandydaci k
+    on conflict (household_id, sync_date, sync_hour) do update
+       set status     = 'w_toku',
+           claimed_at = now(),
+           error      = null
+     where (l.status = 'blad'   and l.claimed_at < now() - interval '15 minutes')
+        or (l.status = 'w_toku' and l.claimed_at < now() - interval '15 minutes')
+    returning l.id, l.household_id
+  )
+  select z.id, z.household_id from zajete z
+$$;
+
+create or replace function public.zamknij_sync_vulcan(p_log uuid, p_blad text default null)
+  returns void
+  language sql volatile security definer set search_path = public
+as $$
+  update public.vulcan_sync_log
+     set status      = case when p_blad is null then 'ok' else 'blad' end,
+         error       = p_blad,
+         finished_at = now()
+   where id = p_log
+$$;
+
+revoke execute on function public.vulcan_do_synchronizacji(timestamptz) from public, anon, authenticated;
+revoke execute on function public.zamknij_sync_vulcan(uuid, text)       from public, anon, authenticated;
