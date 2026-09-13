@@ -216,12 +216,15 @@ i dodawaniem kolejnych plików), status. Tabela mieści się w całości przy
 zwykłych szerokościach ekranu; na wąskim telefonie przewija się w poziomie
 zamiast zmieniać układ.
 
+Dodawanie i edycja dzielą jeden formularz (tytuł, opis, do kiedy, opcjonalna
+data przypomnienia „Powiadom") w tym samym oknie co reszta aplikacji — Arkusz
+na telefonie, wyśrodkowane okienko na komputerze. Na komputerze otwiera je
+przycisk „+ Nowy termin" nad tabelą; na telefonie — dolny przycisk „+", tak
+jak przy dodawaniu wydarzenia w kalendarzu.
+
 Akcje wiersza (Edytuj / Zatwierdź / Usuń) chowają się pod menu „⋮" po prawej
 — Usuń widzi tylko autor albo rodzic, pozostałe dwie każdy z domu. Edycja
-otwiera ten sam formularz co dodawanie nowego terminu (tytuł, opis, do
-kiedy, opcjonalna data przypomnienia „Powiadom"), wypełniony obecnymi
-wartościami — jak przy edycji wydarzenia w kalendarzu, Arkusz na telefonie
-i wyśrodkowane okienko na komputerze.
+otwiera to samo okno, wypełnione obecnymi wartościami.
 
 Pole **Powiadom** to opcjonalna data przypomnienia — na razie sama w sobie,
 żaden mail ani bot jeszcze z niej nie korzysta.

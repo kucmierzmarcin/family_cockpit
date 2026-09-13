@@ -42,6 +42,10 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, onBlad, dodawanie
   const telefon = useTelefon()
   const [pokazZalatwione, setPokazZalatwione] = useState(false)
   const [edytowanyTermin, setEdytowanyTermin] = useState<Termin | null>(null)
+  // Na telefonie dodawanie steruje FAB-em z powloki (prop `dodawanie`); na
+  // komputerze ekran nie ma FAB-a, wiec wlasny przycisk otwiera ten sam Popup
+  // co edycja.
+  const [pokazDodawanieDesktop, setPokazDodawanieDesktop] = useState(false)
 
   const dzisiaj = klucz(new Date())
   const widoczne = useMemo(
@@ -90,7 +94,22 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, onBlad, dodawanie
   return (
     <div className="terminy">
       {dodawanie === null ? (
-        <FormularzTerminu onZapisz={zapiszTermin} pokazNaglowek />
+        <>
+          <button
+            type="button"
+            className="dodaj-wydarzenie-gorne"
+            onClick={() => setPokazDodawanieDesktop(true)}
+          >
+            + Nowy termin
+          </button>
+          <Popup
+            otwarty={pokazDodawanieDesktop}
+            tytul="Nowy termin"
+            onZamknij={() => setPokazDodawanieDesktop(false)}
+          >
+            <FormularzTerminu onZapisz={zapiszTermin} onZapisano={() => setPokazDodawanieDesktop(false)} />
+          </Popup>
+        </>
       ) : (
         <Arkusz otwarty={dodawanie.otwarte} tytul="Nowy termin" onZamknij={dodawanie.onZamknij}>
           <FormularzTerminu onZapisz={zapiszTermin} onZapisano={dodawanie.onZamknij} />
@@ -402,15 +421,12 @@ function WierszTerminu({
 type FormularzTerminuProps = {
   /** Gdy podany, formularz jest w trybie edycji - wypełniony obecnymi wartościami. */
   edytowanyTermin?: Termin
-  /** Naglowek sekcji wewnatrz formularza - tylko gdy formularz siedzi na stronie
-   * bez wlasnego Arkusza/Popupu (dodawanie na komputerze), ktore i tak pokazuja tytul. */
-  pokazNaglowek?: boolean
   onZapisz: (wartosci: WartosciFormularza) => Promise<boolean>
   onZapisano?: () => void
 }
 
 /** Pole terminu - jeden komponent dla dodawania i edycji. */
-function FormularzTerminu({ edytowanyTermin, pokazNaglowek, onZapisz, onZapisano }: FormularzTerminuProps) {
+function FormularzTerminu({ edytowanyTermin, onZapisz, onZapisano }: FormularzTerminuProps) {
   const edycja = edytowanyTermin !== undefined
   const idPrefix = edytowanyTermin?.id ?? 'nowy'
   const [tytul, setTytul] = useState(edytowanyTermin?.tytul ?? '')
@@ -442,8 +458,6 @@ function FormularzTerminu({ edytowanyTermin, pokazNaglowek, onZapisz, onZapisano
 
   return (
     <form className="karta formularz-terminu" onSubmit={(e) => void wyslij(e)}>
-      {pokazNaglowek && <p className="formularz-naglowek">{edycja ? 'Edytuj termin' : 'Nowy termin'}</p>}
-
       <label htmlFor={`tytul-terminu-${idPrefix}`}>Tytuł</label>
       <input
         id={`tytul-terminu-${idPrefix}`}

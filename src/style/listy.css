@@ -308,6 +308,10 @@
   gap: 16px;
 }
 
+.terminy > .dodaj-wydarzenie-gorne {
+  align-self: flex-start;
+}
+
 .przelacznik-zalatwionych {
   display: inline-flex;
   align-items: center;
