@@ -3,7 +3,7 @@ import { podpiszZadanie } from './vulcanPodpis.ts'
 
 Deno.test('podpiszZadanie - rzuca dla URL bez segmentu api/mobile', () => {
   assertThrows(
-    () => podpiszZadanie('fp', 'klucz', null, 'https://lekcjaplus.vulcan.net.pl/milanowek/inny/segment', 'x'),
+    () => podpiszZadanie('fp', 'klucz', '', 'https://lekcjaplus.vulcan.net.pl/milanowek/inny/segment', 'x'),
     Error,
     'nie pasuje',
   )
