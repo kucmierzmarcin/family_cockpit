@@ -1361,3 +1361,261 @@ create policy "Zalaczniki terminow - usuwanie storage" on storage.objects
 -- korzysta. Edytowalna przez caly dom, tak jak "completed" - istniejaca
 -- polityka "Terminy - zmiana" juz na to pozwala, bez nowej polityki.
 alter table public.deadlines add column if not exists notify_date date;
+
+-- ============================================================
+--  21. Integracja z Vulcan
+-- ============================================================
+
+-- Jedno polaczenie na dom. Poswiadczenia dostepne WYLACZNIE przez
+-- service_role (Edge Function) - RLS bez zadnej polityki, jak digest_log.
+-- `account` to zserializowany wynik registerAccount() z vulcan-api-js -
+-- potrzebny obok Keystore przy KAZDYM kolejnym polaczeniu z API.
+create table if not exists public.vulcan_connections (
+  id                  uuid primary key default gen_random_uuid(),
+  household_id        uuid not null references public.households(id) on delete cascade,
+  connected_by_member uuid references public.members(id) on delete set null,
+  certificate         text not null,
+  fingerprint         text not null,
+  private_key         text not null,
+  firebase_token      text,
+  device_model        text not null default 'Kokpit Rodzinny',
+  account             jsonb not null,
+  status              text not null default 'aktywne',
+  sync_hours          text[] not null default '{}',
+  last_error          text,
+  created_at          timestamptz not null default now(),
+  constraint vulcan_connections_status_check check (status in ('aktywne', 'wymaga_ponownej_rejestracji')),
+  unique (household_id)
+);
+
+-- Uczniowie zwroceni przez konto Vulcan. `student_data` to zserializowany
+-- obiekt Student z vulcan-api-js - potrzebny do selectStudent() przy kazdej
+-- synchronizacji (biblioteka wymaga calego obiektu, nie samego id).
+create table if not exists public.vulcan_students (
+  id           uuid primary key default gen_random_uuid(),
+  household_id uuid not null references public.households(id) on delete cascade,
+  vulcan_id    text not null,
+  first_name   text not null,
+  last_name    text not null,
+  class_name   text,
+  student_data jsonb not null,
+  member_id    uuid references public.members(id) on delete set null,
+  created_at   timestamptz not null default now(),
+  unique (household_id, vulcan_id)
+);
+
+create table if not exists public.vulcan_lessons (
+  id           uuid primary key default gen_random_uuid(),
+  student_id   uuid not null references public.vulcan_students(id) on delete cascade,
+  household_id uuid not null references public.households(id) on delete cascade,
+  lesson_date  date not null,
+  start_time   time not null,
+  end_time     time not null,
+  subject      text not null,
+  teacher      text,
+  room         text,
+  changed      boolean not null default false,
+  change_note  text,
+  created_at   timestamptz not null default now(),
+  unique (student_id, lesson_date, start_time)
+);
+
+-- Sprawdziany i zadania domowe razem - `kind` rozroznia typ, `vulcan_key`
+-- to Exam.key / Homework.key z biblioteki, klucz naturalny do upsertu.
+create table if not exists public.vulcan_assignments (
+  id           uuid primary key default gen_random_uuid(),
+  student_id   uuid not null references public.vulcan_students(id) on delete cascade,
+  household_id uuid not null references public.households(id) on delete cascade,
+  kind         text not null,
+  due_date     date not null,
+  subject      text not null,
+  description  text,
+  vulcan_key   text not null,
+  created_at   timestamptz not null default now(),
+  constraint vulcan_assignments_kind_check check (kind in ('sprawdzian', 'zadanie_domowe')),
+  unique (student_id, kind, vulcan_key)
+);
+
+create table if not exists public.vulcan_messages (
+  id           uuid primary key default gen_random_uuid(),
+  student_id   uuid not null references public.vulcan_students(id) on delete cascade,
+  household_id uuid not null references public.households(id) on delete cascade,
+  sender       text not null,
+  subject      text not null,
+  content      text not null,
+  sent_at      timestamptz not null,
+  vulcan_key   text not null,
+  created_at   timestamptz not null default now(),
+  unique (student_id, vulcan_key)
+);
+
+-- Anty-duplikacja syncu w tym samym oknie 15-minutowym - jak digest_log.
+create table if not exists public.vulcan_sync_log (
+  id           uuid primary key default gen_random_uuid(),
+  household_id uuid not null references public.households(id) on delete cascade,
+  sync_date    date not null,
+  sync_hour    text not null,
+  status       text not null default 'w_toku',
+  claimed_at   timestamptz not null default now(),
+  finished_at  timestamptz,
+  error        text,
+  constraint vulcan_sync_log_status_check check (status in ('w_toku', 'ok', 'blad')),
+  unique (household_id, sync_date, sync_hour)
+);
+
+create index if not exists vulcan_students_household_idx    on public.vulcan_students (household_id);
+create index if not exists vulcan_lessons_household_idx     on public.vulcan_lessons (household_id);
+create index if not exists vulcan_lessons_student_date_idx  on public.vulcan_lessons (student_id, lesson_date);
+create index if not exists vulcan_assignments_household_idx on public.vulcan_assignments (household_id);
+create index if not exists vulcan_messages_household_idx    on public.vulcan_messages (household_id);
+
+alter table public.vulcan_students    alter column household_id set default public.moj_dom();
+alter table public.vulcan_lessons     alter column household_id set default public.moj_dom();
+alter table public.vulcan_assignments alter column household_id set default public.moj_dom();
+alter table public.vulcan_messages    alter column household_id set default public.moj_dom();
+
+alter table public.vulcan_connections enable row level security;
+alter table public.vulcan_sync_log    enable row level security;
+alter table public.vulcan_students    enable row level security;
+alter table public.vulcan_lessons     enable row level security;
+alter table public.vulcan_assignments enable row level security;
+alter table public.vulcan_messages    enable row level security;
+
+-- vulcan_connections i vulcan_sync_log: CELOWO bez zadnej polityki dla
+-- authenticated/anon - trzymaja poswiadczenia, dostep wylacznie service_role.
+
+-- Dane szkolne: caly dom czyta, zero zapisu z klienta (dane plyna tylko
+-- z Edge Function kluczem service_role, ktory i tak omija RLS).
+drop policy if exists "Uczniowie Vulcan - odczyt" on public.vulcan_students;
+create policy "Uczniowie Vulcan - odczyt" on public.vulcan_students
+  for select to authenticated
+  using (household_id = public.moj_dom());
+
+drop policy if exists "Lekcje Vulcan - odczyt" on public.vulcan_lessons;
+create policy "Lekcje Vulcan - odczyt" on public.vulcan_lessons
+  for select to authenticated
+  using (household_id = public.moj_dom());
+
+drop policy if exists "Wpisy Vulcan - odczyt" on public.vulcan_assignments;
+create policy "Wpisy Vulcan - odczyt" on public.vulcan_assignments
+  for select to authenticated
+  using (household_id = public.moj_dom());
+
+drop policy if exists "Wiadomosci Vulcan - odczyt" on public.vulcan_messages;
+create policy "Wiadomosci Vulcan - odczyt" on public.vulcan_messages
+  for select to authenticated
+  using (household_id = public.moj_dom());
+
+-- Status polaczenia - bezpieczna projekcja `vulcan_connections` bez
+-- poswiadczen. Zwraca zero wierszy, gdy dom nie ma polaczenia.
+create or replace function public.status_polaczenia_vulcan()
+  returns table (istnieje boolean, status text, sync_hours text[],
+                 polaczyl text, ostatni_blad text, uczniowie jsonb)
+  language sql stable security definer set search_path = public
+as $$
+  select
+    true,
+    c.status,
+    c.sync_hours,
+    m.name,
+    c.last_error,
+    coalesce(
+      (select jsonb_agg(jsonb_build_object(
+                 'id', s.id, 'imie', s.first_name, 'nazwisko', s.last_name,
+                 'klasa', s.class_name, 'memberId', s.member_id))
+         from public.vulcan_students s
+        where s.household_id = c.household_id),
+      '[]'::jsonb
+    )
+    from public.vulcan_connections c
+    left join public.members m on m.id = c.connected_by_member
+   where c.household_id = public.moj_dom()
+$$;
+
+grant execute on function public.status_polaczenia_vulcan() to authenticated;
+
+-- Godziny synchronizacji - tylko rodzic, tylko wlasny dom. Walidacja formatu
+-- (HH:MM) i limitu 3 wpisow zyje w TS (src/vulcan.ts) - tu tylko zapis.
+create or replace function public.ustaw_godziny_sync_vulcan(p_godziny text[])
+  returns void
+  language plpgsql volatile security definer set search_path = public
+as $$
+begin
+  if not public.jestem_rodzicem() then
+    raise exception 'Tylko rodzic moze zmienic godziny synchronizacji.';
+  end if;
+
+  update public.vulcan_connections
+     set sync_hours = p_godziny
+   where household_id = public.moj_dom();
+
+  if not found then
+    raise exception 'Brak polaczenia z Vulcan dla tego domu.';
+  end if;
+end
+$$;
+
+grant execute on function public.ustaw_godziny_sync_vulcan(text[]) to authenticated;
+
+-- Rozlaczenie - kasuje polaczenie i wszystkie dane szkolne tego domu.
+-- Usuwa vulcan_students osobno, bo tabele danych wskazuja na household_id,
+-- nie na vulcan_connections.id - kasowanie connections samo ich nie zabierze.
+create or replace function public.rozlacz_vulcan()
+  returns void
+  language plpgsql volatile security definer set search_path = public
+as $$
+declare
+  dom uuid := public.moj_dom();
+begin
+  if not public.jestem_rodzicem() then
+    raise exception 'Tylko rodzic moze rozlaczyc Vulcan.';
+  end if;
+
+  delete from public.vulcan_students where household_id = dom;
+  delete from public.vulcan_connections where household_id = dom;
+end
+$$;
+
+grant execute on function public.rozlacz_vulcan() to authenticated;
+
+-- Przypisanie ucznia do domownika - osobna funkcja zamiast polityki UPDATE
+-- na vulcan_students, zeby rodzic nie mogl nadpisac innych kolumn (np.
+-- student_data) z poziomu klienta. Ten sam wzorzec co ustaw_powiadomienia.
+create or replace function public.przypisz_ucznia_vulcan(p_uczen uuid, p_member uuid)
+  returns void
+  language plpgsql volatile security definer set search_path = public
+as $$
+declare
+  dom uuid := public.moj_dom();
+begin
+  if not public.jestem_rodzicem() then
+    raise exception 'Tylko rodzic moze przypisywac uczniow.';
+  end if;
+
+  if p_member is not null and not exists (
+    select 1 from public.members where id = p_member and household_id = dom
+  ) then
+    raise exception 'Ta osoba nie nalezy do tego domu.';
+  end if;
+
+  update public.vulcan_students
+     set member_id = p_member
+   where id = p_uczen and household_id = dom;
+
+  if not found then
+    raise exception 'Nie znaleziono ucznia w tym domu.';
+  end if;
+end
+$$;
+
+grant execute on function public.przypisz_ucznia_vulcan(uuid, uuid) to authenticated;
+
+revoke execute on function public.status_polaczenia_vulcan()          from public, anon;
+revoke execute on function public.ustaw_godziny_sync_vulcan(text[])    from public, anon;
+revoke execute on function public.rozlacz_vulcan()                     from public, anon;
+revoke execute on function public.przypisz_ucznia_vulcan(uuid, uuid)   from public, anon;
+
+alter publication supabase_realtime add table public.vulcan_students;
+alter publication supabase_realtime add table public.vulcan_lessons;
+alter publication supabase_realtime add table public.vulcan_assignments;
+alter publication supabase_realtime add table public.vulcan_messages;
