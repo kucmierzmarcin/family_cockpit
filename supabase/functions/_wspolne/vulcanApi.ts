@@ -92,7 +92,51 @@ function odtworzKeystore(polaczenie: WierszPolaczenia): Keystore {
  */
 export async function zbudujVulcanHebe(polaczenie: WierszPolaczenia, restUrl: string): Promise<VulcanHebe> {
   const keystore = odtworzKeystore(polaczenie)
-  return new VulcanHebe(keystore, { restUrl } as never)
+  const vulcan = new VulcanHebe(keystore, { restUrl } as never)
+  zlagodzBrakStatusu(vulcan)
+  return vulcan
+}
+
+type WewnetrzneApi = {
+  restUrl?: string
+  buildPayload: (envelope: unknown) => unknown
+  buildHeaders: (fullUrl: string, payload: string) => Record<string, string>
+  request: (method: string, url: string, body?: unknown) => Promise<unknown>
+}
+
+/**
+ * `Api.request()` w bibliotece (własność INSTANCJI, ustawiana w
+ * konstruktorze - nie prototypu, więc łata się każdą instancję z osobna,
+ * w tej funkcji, a nie modułowo jak łatka na `Serializable` wyżej) rzuca
+ * "Cannot read properties of undefined (reading 'Code')", gdy odpowiedź
+ * nie ma pola `Status` - potwierdzone na żywo 2026-09-13 dla endpointu
+ * skrzynek wiadomości (`getMessageBoxes`/`getMessages`); pozostałe
+ * wywołania (plan lekcji, sprawdziany, zadania) zawsze miały `Status`.
+ * Podmieniamy `request` na równoważną reimplementację - używa TYCH
+ * SAMYCH, już wyeksponowanych przez bibliotekę `buildPayload`/
+ * `buildHeaders`/`restUrl` (więc podpis żądania wychodzi identyczny,
+ * zweryfikowane różnicowo względem oryginału), z jedyną zmianą: brak pola
+ * `Status` liczy się jako sukces (zwraca `Envelope` jeśli jest, inaczej
+ * całą odpowiedź) zamiast rzucać. Prawdziwy błąd (`Status` obecny,
+ * `Code !== 0`) rzuca dokładnie tak samo jak oryginał.
+ */
+function zlagodzBrakStatusu(vulcan: VulcanHebe): void {
+  const api = (vulcan as unknown as { api: WewnetrzneApi }).api
+  api.request = async (method: string, url: string, body?: unknown) => {
+    const fullUrl = url.startsWith('http') ? url : api.restUrl ? api.restUrl + url : undefined
+    if (!fullUrl) throw new Error('Relative URL specified but no account loaded!')
+    const payload = body && method === 'POST' ? JSON.stringify(api.buildPayload(body)) : null
+    const headers = api.buildHeaders(fullUrl, payload === null ? '' : payload)
+    const options: RequestInit = { headers, method }
+    if (payload !== null) options.body = payload
+    const rawRes = await fetch(fullUrl, options)
+    const jsonRes = (await rawRes.json()) as Record<string, unknown>
+    const status = jsonRes['Status'] as { Code?: number; Message?: string } | undefined
+    if (status && status.Code !== 0) {
+      throw new Error(status.Message ?? 'Nieznany błąd Vulcan.')
+    }
+    return jsonRes['Envelope'] ?? jsonRes
+  }
 }
 
 function dekodujJwtPayload(jwt: string): { tenant: string } {

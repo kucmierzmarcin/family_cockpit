@@ -258,13 +258,12 @@ export async function synchronizujDom(
   if (!wynikWiadomosci.ok) {
     // Sesja wygasła jest wspólna dla całego połączenia (nie tylko wiadomości)
     // - to trzeba zgłosić, bo bez ponownej rejestracji reszta synchronizacji
-    // i tak by się nie udała. Każdy INNY błąd wiadomości (np. nieznany kształt
-    // odpowiedzi eduVULCAN dla skrzynek - endpoint skrzynek nie zwraca
-    // oczekiwanego przez bibliotekę pola Status, potwierdzone na żywo
-    // 2026-09-13, jeszcze nie naprawione) jest drugorzędny względem planu
-    // lekcji/zadań, który w tym miejscu już się poprawnie zapisał - nie
-    // cofamy tego sukcesu z powodu wiadomości. Logujemy, żeby nie stracić
-    // widoczności na wciąż otwarty problem.
+    // i tak by się nie udała. Każdy INNY błąd wiadomości jest drugorzędny
+    // względem planu lekcji/zadań, który w tym miejscu już się poprawnie
+    // zapisał - nie cofamy tego sukcesu z powodu wiadomości (zostaje jako
+    // dodatkowe zabezpieczenie, mimo że główna przyczyna - brak pola Status
+    // w odpowiedzi eduVULCAN dla skrzynek - jest już naprawiona w
+    // `zbudujVulcanHebe`/`zlagodzBrakStatusu`).
     const sesjaNiewazna = wynikWiadomosci.blad?.startsWith('Sesja Vulcan wygasła')
     if (sesjaNiewazna) return wynikWiadomosci
     console.error(`Synchronizacja wiadomości nie powiodła się dla domu ${householdId}: ${wynikWiadomosci.blad}`)
@@ -366,10 +365,9 @@ async function synchronizujWiadomosci(
       throw new Error(`Czyszczenie zduplikowanych wiadomości nie powiodło się: ${bladKasowania.message}`)
     }
   } catch (e) {
-    // Endpoint skrzynek wiadomości eduVULCAN nie zawsze zwraca oczekiwane
-    // przez bibliotekę pole Status (patrz komentarz przy wywołaniu tej
-    // funkcji w synchronizujDom) - błąd tu jest nieszkodliwy dla reszty
-    // synchronizacji, ale pełny stos zostaje w logach do przyszłej naprawy.
+    // Błąd tu (jakikolwiek inny niż utrata sesji) jest nieszkodliwy dla
+    // reszty synchronizacji (patrz komentarz przy wywołaniu tej funkcji w
+    // synchronizujDom) - pełny stos zostaje w logach na wszelki wypadek.
     console.error(`Błąd synchronizacji wiadomości (dom ${householdId}):`, e instanceof Error ? e.stack : e)
     return await bladSynchronizacji(baza, householdId, e, 'Błąd synchronizacji wiadomości')
   }
