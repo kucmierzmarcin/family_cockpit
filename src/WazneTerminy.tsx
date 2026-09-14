@@ -168,6 +168,7 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, onBlad, dodawanie
                   termin={t}
                   dzisiaj={dzisiaj}
                   przeterminowany={!t.zalatwiony && czyPrzeterminowany(t.termin, dzisiaj)}
+                  powiadomienieMinelo={t.powiadom !== null && czyPrzeterminowany(t.powiadom, dzisiaj)}
                   mogeUsunacTermin={jestemRodzicem || t.autorId === mojeId}
                   mojeId={mojeId}
                   jestemRodzicem={jestemRodzicem}
@@ -349,6 +350,7 @@ type WierszTerminuProps = {
   termin: Termin
   dzisiaj: string
   przeterminowany: boolean
+  powiadomienieMinelo: boolean
   mogeUsunacTermin: boolean
   mojeId: string
   jestemRodzicem: boolean
@@ -364,6 +366,7 @@ function WierszTerminu({
   termin,
   dzisiaj,
   przeterminowany,
+  powiadomienieMinelo,
   mogeUsunacTermin,
   mojeId,
   jestemRodzicem,
@@ -378,7 +381,9 @@ function WierszTerminu({
   const statusEtykieta = termin.zalatwiony ? 'Załatwiony' : przeterminowany ? 'Przeterminowany' : 'Aktywny'
 
   return (
-    <tr className={`wiersz-terminu${termin.zalatwiony ? ' zalatwiony' : ''}`}>
+    <tr
+      className={`wiersz-terminu${termin.zalatwiony ? ' zalatwiony' : ''}${powiadomienieMinelo ? ' powiadomienie-minelo' : ''}`}
+    >
       <td className="tytul-terminu">{termin.tytul}</td>
 
       <td className="opis-terminu">{termin.opis ?? '—'}</td>

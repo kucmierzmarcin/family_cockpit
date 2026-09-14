@@ -363,6 +363,10 @@
   opacity: 0.6;
 }
 
+.wiersz-terminu.powiadomienie-minelo {
+  background: #fdecea;
+}
+
 .wiersz-terminu.zalatwiony .tytul-terminu {
   text-decoration: line-through;
 }
