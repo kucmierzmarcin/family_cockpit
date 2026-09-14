@@ -22,8 +22,10 @@ const MINUT_W_DOBIE = 24 * 60
 /** Widok otwiera się przewinięty tutaj - poranek zamiast nocy. */
 const GODZINA_STARTOWA = 7
 
-/** Blok krótszego wydarzenia i tak musi dać się kliknąć i przeczytać. */
-const MINIMALNA_WYSOKOSC = 22
+/** Blok krótszego wydarzenia i tak musi dać się kliknąć i przeczytać - godzina
+ *  i tytuł są teraz w dwóch liniach (jedna pod drugą), więc potrzeba więcej
+ *  miejsca niż gdy leżały obok siebie w jednym wierszu. */
+const MINIMALNA_WYSOKOSC = 34
 
 /**
  * Przy `wypelnijOkno` siatka nie ma się przewijać - zamiast pełnej doby
@@ -262,7 +264,7 @@ export function SiatkaGodzin({
                         title={`${godzinaHM(w.start)}–${godzinaHM(w.koniec)} ${w.tytul}`}
                       >
                         <span className="sg-blok-godzina">
-                          {godzinaHM(w.start)}
+                          {godzinaHM(w.start)}–{godzinaHM(w.koniec)}
                           <KropkiOsob osobyId={w.osobyId} osobaPoId={osobaPoId} />
                         </span>
                         <span className="sg-blok-tytul">{w.tytul}</span>

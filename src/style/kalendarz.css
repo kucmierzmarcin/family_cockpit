@@ -390,8 +390,9 @@
 .sg-blok {
   position: absolute;
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
   margin-left: 2px;
   padding: 3px 6px;
   border: none;
@@ -417,7 +418,7 @@
 }
 
 .sg-blok-tytul {
-  flex: 1;
+  width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -561,7 +562,7 @@
 }
 
 .sg-elastyczna .sg-blok {
-  min-height: 20px;
+  min-height: 32px;
 }
 
 @media (max-width: 767px) {
