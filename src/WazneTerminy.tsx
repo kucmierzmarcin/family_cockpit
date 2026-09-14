@@ -77,7 +77,13 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, onBlad, dodawanie
   }
 
   async function otworzZalacznik(zalacznik: Zalacznik) {
-    const okno = window.open('', '_blank', 'noopener')
+    // Nie przekazujemy tu 'noopener' do window.open - przegladarka wtedy
+    // ZAWSZE zwraca null jako uchwyt (udokumentowane zachowanie), wiec
+    // nawigacja ponizej nigdy by sie nie wykonala. Zamiast tego zrywamy
+    // opener recznie na zwroconym uchwycie - ten sam efekt bezpieczenstwa,
+    // ale referencja zostaje zywa do pozniejszego ustawienia URL.
+    const okno = window.open('', '_blank')
+    if (okno) okno.opener = null
     const url = await dane.linkDoZalacznika(zalacznik)
     if (url && okno) {
       okno.location.href = url
