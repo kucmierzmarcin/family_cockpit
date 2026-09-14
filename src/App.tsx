@@ -22,6 +22,7 @@ import { ImportAI } from './ImportAI'
 import { useDomownicy } from './useDomownicy'
 import { useVulcan } from './useVulcan'
 import { useWydarzenia, type Wydarzenie } from './useWydarzenia'
+import { blokiSzkolne } from './vulcan'
 import { BEZ_OSOBY, osobyWydarzenia, widocznePrzyFiltrze } from './osoby'
 import { kolor } from './kolory'
 import { TYTULY, type Ekran, type TrybDodawania } from './uklad/nawigacja'
@@ -94,12 +95,27 @@ function App({ profil, email }: Props) {
 
   const dane = useWydarzenia(od, doKiedy, setBlad)
 
+  // Bloki "Szkoła" (od pierwszej do ostatniej lekcji, bez pojedynczych lekcji)
+  // dolaczamy do prawdziwych wydarzen - dzieki temu ten sam filtr osob i te
+  // same widoki (Dzien/Tydzien/Miesiac) obsluguja je bez zadnych zmian.
+  const wydarzeniaZeSzkola = useMemo(
+    () => [...dane.wydarzenia, ...blokiSzkolne(vulcan.lekcje, vulcan.status?.uczniowie ?? [])],
+    [dane.wydarzenia, vulcan.lekcje, vulcan.status],
+  )
+
   // Filtr działa po stronie przeglądarki - wydarzenia zakresu i tak już mamy.
   // Wydarzenie zostaje, dopóki widoczny jest choć jeden z jego uczestników.
   const widoczne = useMemo(
-    () => dane.wydarzenia.filter((w) => widocznePrzyFiltrze(w.osobyId, ukryci)),
-    [dane.wydarzenia, ukryci],
+    () => wydarzeniaZeSzkola.filter((w) => widocznePrzyFiltrze(w.osobyId, ukryci)),
+    [wydarzeniaZeSzkola, ukryci],
   )
+
+  // Blok "Szkoła" nie istnieje w bazie - klikniecie w niego przenosi do
+  // zakladki "Szkola" zamiast otwierac formularz edycji prawdziwego wydarzenia.
+  function klikWydarzenie(w: Wydarzenie) {
+    if (w.blokSzkolny) przelaczEkran('szkola')
+    else setEdytowane(w)
+  }
 
   const osobaPoId = useMemo(
     () => new Map(osoby.domownicy.map((d) => [d.id, d])),
@@ -306,7 +322,7 @@ function App({ profil, email }: Props) {
           wydarzenia={widoczne}
           osobaPoId={osobaPoId}
           dzisiaj={dzisiaj}
-          onKlikWydarzenie={setEdytowane}
+          onKlikWydarzenie={klikWydarzenie}
           onKlikDzien={(d) => {
             setKotwica(d)
             setWidok('dzien')
@@ -321,7 +337,7 @@ function App({ profil, email }: Props) {
           wydarzenia={widoczne}
           osobaPoId={osobaPoId}
           dzisiaj={dzisiaj}
-          onKlikWydarzenie={setEdytowane}
+          onKlikWydarzenie={klikWydarzenie}
           wypelnijOkno={szerokiKalendarz}
         />
       )}
@@ -395,7 +411,7 @@ function App({ profil, email }: Props) {
                 dzien={kotwica}
                 wydarzenia={widoczne}
                 osobaPoId={osobaPoId}
-                onKlik={setEdytowane}
+                onKlik={klikWydarzenie}
               />
             </aside>
           )}

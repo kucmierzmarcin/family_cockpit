@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   bladGodzinySync,
+  blokiSzkolne,
   pogrupujLekcjePoDniu,
   posortujLekcje,
   posortujWiadomosci,
   posortujWpisy,
   type Lekcja,
+  type Uczen,
 } from './vulcan'
 
 function lekcja(dane: Partial<Lekcja>): Lekcja {
@@ -20,6 +22,17 @@ function lekcja(dane: Partial<Lekcja>): Lekcja {
     sala: null,
     zmieniona: false,
     opisZmiany: null,
+    ...dane,
+  }
+}
+
+function uczen(dane: Partial<Uczen>): Uczen {
+  return {
+    id: 'u1',
+    imie: 'Zuzia',
+    nazwisko: 'Kowalska',
+    klasa: '5a',
+    memberId: 'm1',
     ...dane,
   }
 }
@@ -56,6 +69,57 @@ describe('posortujWiadomosci', () => {
   it('sortuje od najnowszej', () => {
     const wynik = posortujWiadomosci([{ data: '2026-09-01' }, { data: '2026-09-10' }])
     expect(wynik.map((w) => w.data)).toEqual(['2026-09-10', '2026-09-01'])
+  })
+})
+
+describe('blokiSzkolne', () => {
+  it('liczy start i koniec z pierwszej i ostatniej lekcji tego samego dnia', () => {
+    const bloki = blokiSzkolne(
+      [
+        lekcja({ id: 'a', od: '08:00', do: '08:45' }),
+        lekcja({ id: 'b', od: '09:50', do: '10:35' }),
+        lekcja({ id: 'c', od: '08:50', do: '09:35' }),
+      ],
+      [uczen({})],
+    )
+
+    expect(bloki).toHaveLength(1)
+    expect(bloki[0].start).toEqual(new Date(2026, 8, 14, 8, 0))
+    expect(bloki[0].koniec).toEqual(new Date(2026, 8, 14, 10, 35))
+  })
+
+  it('robi osobny blok na kazdego ucznia i kazdy dzien', () => {
+    const bloki = blokiSzkolne(
+      [
+        lekcja({ id: 'a', uczenId: 'u1', data: '2026-09-14' }),
+        lekcja({ id: 'b', uczenId: 'u2', data: '2026-09-14' }),
+        lekcja({ id: 'c', uczenId: 'u1', data: '2026-09-15' }),
+      ],
+      [uczen({ id: 'u1', imie: 'Zuzia', memberId: 'm1' }), uczen({ id: 'u2', imie: 'Oliwier', memberId: 'm2' })],
+    )
+
+    expect(bloki).toHaveLength(3)
+  })
+
+  it('tytul zawiera imie ucznia, osobyId to jego memberId', () => {
+    const bloki = blokiSzkolne([lekcja({})], [uczen({ imie: 'Zuzia', memberId: 'm1' })])
+    expect(bloki[0].tytul).toBe('Szkoła — Zuzia')
+    expect(bloki[0].osobyId).toEqual(['m1'])
+  })
+
+  it('uczen bez przypisanego domownika - wspolne wydarzenie (pusta lista osob)', () => {
+    const bloki = blokiSzkolne([lekcja({})], [uczen({ memberId: null })])
+    expect(bloki[0].osobyId).toEqual([])
+  })
+
+  it('oznacza kazdy blok jako blokSzkolny, zeby kalendarz nie traktowal go jak prawdziwe wydarzenie', () => {
+    const bloki = blokiSzkolne([lekcja({})], [uczen({})])
+    expect(bloki[0].blokSzkolny).toBe(true)
+  })
+
+  it('pomija lekcje ucznia, ktorego juz nie ma na liscie (np. odlaczony)', () => {
+    const bloki = blokiSzkolne([lekcja({ uczenId: 'widmo' })], [uczen({ id: 'u1' })])
+    expect(bloki).toHaveLength(0)
   })
 })
 

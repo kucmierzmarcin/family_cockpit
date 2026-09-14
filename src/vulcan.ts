@@ -1,4 +1,6 @@
 import type { LekcjaDb, UczenDb, WiadomoscDb, WpisDb } from './lib/supabase'
+import { zloz } from './czas'
+import type { Wydarzenie } from './useWydarzenia'
 
 export type Uczen = {
   id: string
@@ -110,6 +112,43 @@ export function pogrupujLekcjePoDniu(lekcje: Lekcja[]): Map<string, Lekcja[]> {
     grupy.set(l.data, grupa)
   }
   return grupy
+}
+
+/**
+ * Syntetyczne "wydarzenia" reprezentujące cały dzień szkolny (od pierwszej do
+ * ostatniej lekcji) - jeden blok na ucznia i dzień, bez pojedynczych lekcji.
+ * Nie istnieją w tabeli `events` - kalendarz odróżnia je polem `blokSzkolny`,
+ * żeby kliknięcie nie próbowało ich edytować/kasować jak prawdziwe wydarzenie.
+ */
+export function blokiSzkolne(lekcje: Lekcja[], uczniowie: Uczen[]): Wydarzenie[] {
+  const uczenPoId = new Map(uczniowie.map((u) => [u.id, u]))
+  const grupy = new Map<string, Lekcja[]>()
+  for (const l of lekcje) {
+    if (!uczenPoId.has(l.uczenId)) continue
+    const klucz = `${l.uczenId}|${l.data}`
+    grupy.set(klucz, [...(grupy.get(klucz) ?? []), l])
+  }
+
+  const bloki: Wydarzenie[] = []
+  for (const [klucz, grupa] of grupy) {
+    const uczen = uczenPoId.get(grupa[0].uczenId)!
+    const posortowane = posortujLekcje(grupa)
+    const pierwsza = posortowane[0]
+    const ostatnia = posortowane.reduce((akt, l) => (l.do > akt.do ? l : akt), pierwsza)
+
+    bloki.push({
+      id: `szkola-${klucz}`,
+      tytul: `Szkoła — ${uczen.imie}`,
+      start: zloz(pierwsza.data, pierwsza.od),
+      koniec: zloz(pierwsza.data, ostatnia.do),
+      calodniowe: false,
+      seriaId: null,
+      osobyId: uczen.memberId ? [uczen.memberId] : [],
+      autorId: null,
+      blokSzkolny: true,
+    })
+  }
+  return bloki
 }
 
 /** Sprawdziany i zadania domowe chronologicznie, najbliższe pierwsze. */

@@ -15,6 +15,10 @@ export type Wydarzenie = Przedzial & {
   /** Identyfikatory przypisanych domowników; pusta lista = wydarzenie wspólne. */
   osobyId: string[]
   autorId: string | null
+  /** Syntetyczny blok "cały dzień szkolny" z `blokiSzkolne` - nie istnieje w
+   *  bazie, więc kliknięcie nie może próbować go edytować/kasować jak
+   *  prawdziwe wydarzenie. */
+  blokSzkolny?: boolean
 }
 
 /** Dane wpisywane w formularzu przy dodawaniu i edycji. */
