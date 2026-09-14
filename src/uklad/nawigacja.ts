@@ -5,12 +5,13 @@
  * same odpowiedzi z jednego miejsca, a nie każda ze swojego.
  */
 
-export type Ekran = 'kalendarz' | 'zakupy' | 'tablica' | 'terminy' | 'szkola' | 'dom'
+export type Ekran = 'dashboard' | 'kalendarz' | 'zakupy' | 'tablica' | 'terminy' | 'szkola' | 'dom'
 
 /** Kolejność zakładek - ta sama u góry na biurku i na dole na telefonie. */
-export const EKRANY: Ekran[] = ['kalendarz', 'zakupy', 'tablica', 'terminy', 'szkola', 'dom']
+export const EKRANY: Ekran[] = ['dashboard', 'kalendarz', 'zakupy', 'tablica', 'terminy', 'szkola', 'dom']
 
 export const TYTULY: Record<Ekran, string> = {
+  dashboard: 'Dziś',
   kalendarz: 'Kalendarz',
   zakupy: 'Zakupy',
   tablica: 'Tablica',
@@ -27,6 +28,8 @@ export const TYTULY: Record<Ekran, string> = {
  */
 export function etykietaDodania(ekran: Ekran, jestemRodzicem: boolean): string | null {
   switch (ekran) {
+    case 'dashboard':
+      return null
     case 'kalendarz':
       return 'Dodaj wydarzenie'
     case 'zakupy':
