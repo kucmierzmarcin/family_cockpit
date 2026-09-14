@@ -68,11 +68,20 @@ export function useVulcan(onBlad: (tekst: string) => void) {
         : null,
     )
 
+    // Zakładka „Wiadomości" pokazuje tylko ostatnie 14 dni (Szkola.tsx) - bez
+    // tej granicy `select('*')` ściągałby za każdym razem całą historię (do
+    // ~500 wiadomości na dziecko, bo eduVULCAN nie ma parametru zakresu dat) -
+    // potwierdzone żywo 2026-09-14: ~520 KB zamiast ~9 KB dla realnie
+    // potrzebnego okna.
+    const czternascieDniTemu = new Date()
+    czternascieDniTemu.setDate(czternascieDniTemu.getDate() - 13)
+    czternascieDniTemu.setHours(0, 0, 0, 0)
+
     const [{ data: daneLekcji, error: bladLekcji }, { data: daneWpisow, error: bladWpisow },
       { data: daneWiadomosci, error: bladWiadomosci }] = await Promise.all([
       supabase.from('vulcan_lessons').select('*'),
       supabase.from('vulcan_assignments').select('*'),
-      supabase.from('vulcan_messages').select('*'),
+      supabase.from('vulcan_messages').select('*').gte('sent_at', czternascieDniTemu.toISOString()),
     ])
 
     if (bladLekcji) onBlad(`Nie udało się wczytać planu lekcji: ${bladLekcji.message}`)

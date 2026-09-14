@@ -1,6 +1,6 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import type { Student } from 'npm:vulcan-api-js@3.5.4'
-import { zbudujVulcanHebe, type WierszPolaczenia } from './vulcanApi.ts'
+import { pobierzWiadomosciEdu, zbudujVulcanHebe, type WierszPolaczenia } from './vulcanApi.ts'
 
 type WierszUcznia = { id: string; student_data: unknown }
 type WynikSync = { ok: boolean; blad?: string }
@@ -338,96 +338,130 @@ export async function synchronizujDom(
 }
 
 /**
- * Wiadomości - RAZ NA DOM, nie raz na ucznia.
+ * Wiadomości - RAZ NA UCZNIA, nie raz na dom.
  *
- * Skrzynki wiadomości należą do konta RODZICA, a nie do konkretnego dziecka,
- * więc pobieranie ich w pętli po uczniach zapisywało każdą wiadomość tyle
- * razy, ilu jest przypisanych uczniów. Zapisujemy je pod pierwszym (wg id)
- * przypisanym uczniem - kolumna `vulcan_messages.student_id` jest NOT NULL i
- * to ona domyka klucz unikalności - a zakładka „Wiadomości" w Szkole pokazuje
- * je dla całego domu, niezależnie od wybranego dziecka. Wiersze przypięte do
- * pozostałych uczniów kasujemy, żeby po zmianie przypisań nie zostały
- * duplikaty ze starych synchronizacji.
+ * Wcześniejsze założenie ("skrzynki należą do konta rodzica, nie dziecka")
+ * było prawdziwe dla STAREGO Vulcan, ale NIE dla eduVULCAN - żywy test
+ * 2026-09-14 pokazał, że każdy uczeń ma WŁASNĄ skrzynkę (`MessageBox.GlobalKey`
+ * per `Pupil.Id` w `register/hebe`), z inną treścią. Synchronizujemy więc
+ * skrzynkę KAŻDEGO ucznia pod jego własnym `student_id` - jeden uczeń
+ * pominięty (brak adresu REST/Pupil.Id, błąd pobierania) nie blokuje
+ * pozostałych, tak samo jak w pętli lekcji w `synchronizujDom`.
  *
- * Kierunek wiadomości (odebrane/wysłane): `getMessages()` w vulcan-api-js
- * 3.5.4 zawsze woła Hebe z `folder=1`, a w Hebe folder 1 to skrzynka
- * ODEBRANYCH (2 = wysłane, 3 = usunięte) - własna poczta rodzica nie powinna
- * więc tu trafiać. Modele `Message`/`MessageBox` z biblioteki nie mają
- * żadnego pola kierunku (`Message`: id, globalKey, threadKey, subject,
- * content, sentDate, status, sender, receivers, attachments, readDate;
- * `MessageBox`: id, globalKey, name), więc odfiltrować dodatkowo nie ma po
- * czym. To ustalenie pochodzi z czytania kodu paczki, NIE z żywego konta
- * Vulcan - wymaga potwierdzenia na realnych danych (znany limit weryfikacji
- * opisany w planie integracji).
+ * Pobieranie idzie przez `pobierzWiadomosciEdu` (`_wspolne/vulcanApi.ts`) -
+ * WŁASNĄ implementację endpointu eduVULCAN, NIE `vulcan.getMessageBoxes()`/
+ * `getMessages()` z `vulcan-api-js`. Te dwie metody biblioteki wołają
+ * `api/mobile/messagebox` - endpoint STAREGO Vulcan, którego eduVULCAN w
+ * ogóle nie ma (żywy test 2026-09-14: HTTP 404 "No type was found that
+ * matches the controller named 'mobile'" - błąd routingu, nie sesji/premium).
+ * Prawdziwy endpoint eduVULCAN (`api/mobile/messages/received/byBox`) pochodzi
+ * z `hebece` - biblioteki referencyjnej napisanej pod eduVULCAN.
  */
+/** Zakładka „Wiadomości" pokazuje tylko ostatnie 14 dni (patrz `Szkola.tsx`) -
+ *  30 dni zapasu tutaj, żeby drobne różnice stref czasowych/godzin nigdy nie
+ *  obcięły czegoś, co user i tak zaraz zobaczy. Bez tej granicy `select('*')`
+ *  w `useVulcan.ts` ciągnąłby za każdym razem CAŁE do 500 najstarszych
+ *  wiadomości na dziecko (eduVULCAN nie ma parametru zakresu dat w tym
+ *  endpoincie) - potwierdzone żywo 2026-09-14: 504 wiersze / ~520 KB zamiast
+ *  10 wierszy / ~9 KB dla realnie potrzebnego okna. */
+const GRANICA_WIADOMOSCI_DNI = 30
+
 async function synchronizujWiadomosci(
   baza: SupabaseClient,
   householdId: string,
   polaczenie: WierszPolaczenia,
   uczniowie: WierszUcznia[],
 ): Promise<WynikSync> {
-  const wlasciciel = uczniowie[0]
-  if (!wlasciciel) return { ok: true }
+  const granica = new Date()
+  granica.setDate(granica.getDate() - GRANICA_WIADOMOSCI_DNI)
 
-  try {
-    // Endpoint skrzynek jest pod adresem jednostki ucznia (`restUrl` dostaje
-    // symbol jednostki dopiero w `selectStudent`), więc wybieramy jednego
-    // ucznia - ale pobieramy dane tylko raz na cały dom.
-    const daneWlasciciela = wlasciciel.student_data as { __restUrl?: string }
-    if (!daneWlasciciela.__restUrl) {
-      return { ok: false, blad: `Brak zapisanego adresu REST dla ucznia ${wlasciciel.id} - połącz Vulcan ponownie.` }
+  const wszystkieWiersze: Array<{
+    student_id: string
+    household_id: string
+    sender: string
+    subject: string
+    content: string
+    sent_at: string
+    vulcan_key: string
+  }> = []
+  const zsynchronizowaniUczniowie: string[] = []
+
+  for (const uczen of uczniowie) {
+    const daneUcznia = uczen.student_data as { __restUrl?: string; pupil?: { id?: unknown } }
+    if (!daneUcznia.__restUrl) {
+      console.error(`Pomijam wiadomości ucznia ${uczen.id}: brak zapisanego adresu REST - połącz Vulcan ponownie.`)
+      continue
     }
-    const vulcan = await zbudujVulcanHebe(polaczenie, daneWlasciciela.__restUrl)
-    await vulcan.selectStudent(wlasciciel.student_data as Student)
-
-    const skrzynki = await vulcan.getMessageBoxes()
-    const wiadomosci: Array<Record<string, unknown>> = []
-    for (const skrzynka of skrzynki as Array<Record<string, unknown>>) {
-      const klucz = skrzynka.globalKey as string | undefined
-      if (!klucz) continue
-      const zSkrzynki = await vulcan.getMessages(klucz)
-      wiadomosci.push(...(zSkrzynki as Array<Record<string, unknown>>))
+    const pupilId = Number(daneUcznia.pupil?.id)
+    if (!Number.isFinite(pupilId)) {
+      console.error(`Pomijam wiadomości ucznia ${uczen.id}: brak identyfikatora ucznia (Pupil.Id).`)
+      continue
     }
 
-    // Ta sama wiadomość potrafi wrócić z dwóch skrzynek pod tym samym
-    // `globalKey` - bez deduplikacji upsert wywaliłby się na "cannot affect
-    // row a second time".
-    const wierszeWiadomosci = bezDuplikatow(
-      wiadomosci
-        .filter((m) => m.globalKey && m.sentDate)
-        .map((m) => ({
-          student_id: wlasciciel.id,
+    try {
+      const wynik = await pobierzWiadomosciEdu(polaczenie, daneUcznia.__restUrl, pupilId)
+      if ('wymaganePremium' in wynik) {
+        // Nie jest to błąd naszej synchronizacji - eduVULCAN świadomie odmawia
+        // dostępu do wiadomości przez to API bez płatnej wersji aplikacji
+        // (potwierdzone w dokumentacji `hebece`). Zostawiamy widoczny ślad w
+        // logach, ale NIE traktujemy tego jak awarię tego ucznia.
+        console.error(
+          `Wiadomości niedostępne dla ucznia ${uczen.id} (dom ${householdId}): eduVULCAN zwrócił EDUVULCAN_PREMIUM.`,
+        )
+        continue
+      }
+      for (const m of wynik.wiadomosci) {
+        if (new Date(m.sentAtIso) < granica) continue
+        wszystkieWiersze.push({
+          student_id: uczen.id,
           household_id: householdId,
-          sender: (m.sender as string | undefined) ?? '(nieznany nadawca)',
-          subject: (m.subject as string | undefined) ?? '(brak tematu)',
-          content: (m.content as string | undefined) ?? '',
-          sent_at: new Date(m.sentDate as string | number | Date).toISOString(),
-          vulcan_key: m.globalKey as string,
-        })),
-      (w) => `${w.student_id}|${w.vulcan_key}`,
-    )
-
-    if (wierszeWiadomosci.length > 0) {
-      const { error: bladZapisu } = await baza
-        .from('vulcan_messages')
-        .upsert(wierszeWiadomosci, { onConflict: 'student_id,vulcan_key' })
-      if (bladZapisu) throw new Error(`Zapis wiadomości nie powiódł się: ${bladZapisu.message}`)
+          sender: m.nadawca,
+          subject: m.temat,
+          content: m.tresc,
+          sent_at: m.sentAtIso,
+          vulcan_key: m.vulcanKey,
+        })
+      }
+      zsynchronizowaniUczniowie.push(uczen.id)
+    } catch (e) {
+      const wynikBledu = await bladSynchronizacji(
+        baza,
+        householdId,
+        e,
+        `Błąd synchronizacji wiadomości ucznia ${uczen.id}`,
+      )
+      // Sesja wygasła dotyczy całego połączenia, nie tylko tego ucznia -
+      // zgłaszamy od razu, tak samo jak w pętli lekcji.
+      if (wynikBledu.blad?.startsWith('Sesja Vulcan wygasła')) return wynikBledu
+      console.error(`Pomijam wiadomości ucznia ${uczen.id}: ${wynikBledu.blad}`)
     }
+  }
 
-    const { error: bladKasowania } = await baza
+  // Ta sama wiadomość potrafi wrócić dwa razy pod tym samym `vulcan_key` -
+  // bez deduplikacji upsert wywaliłby się na "cannot affect row a second time".
+  const wierszeWiadomosci = bezDuplikatow(wszystkieWiersze, (w) => `${w.student_id}|${w.vulcan_key}`)
+  if (wierszeWiadomosci.length > 0) {
+    const { error: bladZapisu } = await baza
+      .from('vulcan_messages')
+      .upsert(wierszeWiadomosci, { onConflict: 'student_id,vulcan_key' })
+    if (bladZapisu) return { ok: false, blad: `Zapis wiadomości nie powiódł się: ${bladZapisu.message}` }
+  }
+
+  // Sprząta wiadomości, które w międzyczasie wypadły z granicy - bez tego
+  // tabela rosłaby bezterminowo (eduVULCAN zawsze zwraca to samo okno do 500
+  // najnowszych, więc stare wiadomości bez tego czyszczenia zostałyby w bazie
+  // na zawsze, nawet gdy wypadną z zakresu, który cokolwiek jeszcze pokazuje).
+  // Tylko dla uczniów, których synchronizacja się w tym przebiegu udała -
+  // nieudany uczeń nie traci danych, które i tak nie zostały odświeżone.
+  if (zsynchronizowaniUczniowie.length > 0) {
+    const { error: bladCzyszczenia } = await baza
       .from('vulcan_messages')
       .delete()
-      .eq('household_id', householdId)
-      .neq('student_id', wlasciciel.id)
-    if (bladKasowania) {
-      throw new Error(`Czyszczenie zduplikowanych wiadomości nie powiodło się: ${bladKasowania.message}`)
+      .in('student_id', zsynchronizowaniUczniowie)
+      .lt('sent_at', granica.toISOString())
+    if (bladCzyszczenia) {
+      return { ok: false, blad: `Czyszczenie starych wiadomości nie powiodło się: ${bladCzyszczenia.message}` }
     }
-  } catch (e) {
-    // Błąd tu (jakikolwiek inny niż utrata sesji) jest nieszkodliwy dla
-    // reszty synchronizacji (patrz komentarz przy wywołaniu tej funkcji w
-    // synchronizujDom) - pełny stos zostaje w logach na wszelki wypadek.
-    console.error(`Błąd synchronizacji wiadomości (dom ${householdId}):`, e instanceof Error ? e.stack : e)
-    return await bladSynchronizacji(baza, householdId, e, 'Błąd synchronizacji wiadomości')
   }
 
   return { ok: true }

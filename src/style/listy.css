@@ -642,6 +642,11 @@
   overflow: hidden;
 }
 
+.wiadomosc-vulcan-dzis {
+  background: #eafaf0;
+  border-color: #b9e8c9;
+}
+
 .wiadomosc-vulcan-naglowek {
   width: 100%;
   display: flex;

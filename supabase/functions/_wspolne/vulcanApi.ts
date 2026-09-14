@@ -341,3 +341,96 @@ export async function pobierzUczniowEdu(
 
   return wszyscyUczniowie
 }
+
+/** Jedna wiadomość eduVULCAN, już w kształcie gotowym do zapisu w `vulcan_messages`. */
+export type WiadomoscEdu = {
+  vulcanKey: string
+  nadawca: string
+  temat: string
+  tresc: string
+  sentAtIso: string
+}
+
+export type WynikWiadomosciEdu = { wiadomosci: WiadomoscEdu[] } | { wymaganePremium: true }
+
+/**
+ * eduVULCAN NIE ma osobnego endpointu "listuj skrzynki wiadomości" jak stary
+ * Vulcan - klucz skrzynki (`MessageBox.GlobalKey`) i `Unit.Symbol` leżą wprost
+ * na obiekcie ucznia z `register/hebe`. Klasa `Student` z vulcan-api-js gubi
+ * pole `MessageBox` (nie jest zadeklarowane w jej dekoratorach, `serialize()`
+ * kopiuje tylko pola, które klasa zna), więc pobieramy surową odpowiedź
+ * jeszcze raz zamiast czytać ją z już zserializowanego `Student` zapisanego
+ * w bazie.
+ */
+async function znajdzSkrzynke(
+  polaczenie: WierszPolaczenia,
+  restUrl: string,
+  pupilId: number,
+): Promise<{ box: string; unitSymbol: string } | null> {
+  const pelnyUrl = `${restUrl}api/mobile/register/hebe?mode=2`
+  const naglowki = zbudujNaglowki(polaczenie.fingerprint, polaczenie.private_key, polaczenie.device_model, '', pelnyUrl)
+  const odpowiedz = await fetch(pelnyUrl, { method: 'GET', headers: naglowki })
+  const dane = await sparsujOdpowiedz(odpowiedz, restUrl, 'Pobranie uczniów (wiadomości)')
+  if (!odpowiedz.ok || (dane?.Status?.Code ?? 0) !== 0) {
+    throw new Error(
+      `Pobranie uczniów (wiadomości) nie powiodło się: HTTP ${odpowiedz.status}, ${JSON.stringify(dane).slice(0, 500)}`,
+    )
+  }
+  const surowi: Array<Record<string, unknown>> = Array.isArray(dane?.Envelope) ? dane.Envelope : []
+  const znaleziony = surowi.find((s) => Number((s?.Pupil as { Id?: unknown })?.Id) === pupilId)
+  const skrzynka = znaleziony?.MessageBox as { GlobalKey?: string } | undefined
+  const jednostka = znaleziony?.Unit as { Symbol?: string } | undefined
+  if (!skrzynka?.GlobalKey || !jednostka?.Symbol) return null
+  return { box: skrzynka.GlobalKey, unitSymbol: jednostka.Symbol }
+}
+
+/**
+ * Wiadomości eduVULCAN - INNY kontroler REST niż stary Vulcan
+ * (`api/mobile/messages/received/byBox`, nie `api/mobile/messagebox`, którego
+ * eduVULCAN w ogóle nie ma - potwierdzone żywym HTTP 404 "No type was found
+ * that matches the controller named 'mobile'" 2026-09-14). Ogólny kształt
+ * endpointu wzięty z `hebece` (biblioteki referencyjnej napisanej pod
+ * eduVULCAN), ale pole daty wysłania różni się od jej dokumentacji - żywa
+ * odpowiedź ma płaski string `SentAt`, nie zagnieżdżony obiekt `DateSent`
+ * (ten sam wzorzec zmienionej nazwy pola, co wcześniej `Lesson.Date`/`DateAt`).
+ *
+ * `hebece` dokumentuje, że to konkretne API zwraca błąd `EDUVULCAN_PREMIUM`,
+ * gdy konto nie ma wykupionej płatnej wersji aplikacji mobilnej - odróżniamy
+ * to od zwykłego błędu synchronizacji (zwracamy rozpoznawalny wynik zamiast
+ * rzucać), żeby dało się to pokazać użytkownikowi wprost zamiast ukrywać jako
+ * nieznaną awarię. (Na tym koncie - potwierdzone żywo 2026-09-14 - API zwraca
+ * prawdziwe wiadomości, więc premium NIE jest wymagane tutaj mimo tej uwagi
+ * w dokumentacji `hebece`.)
+ */
+export async function pobierzWiadomosciEdu(
+  polaczenie: WierszPolaczenia,
+  restUrl: string,
+  pupilId: number,
+): Promise<WynikWiadomosciEdu> {
+  const skrzynka = await znajdzSkrzynke(polaczenie, restUrl, pupilId)
+  if (!skrzynka) return { wiadomosci: [] }
+
+  const pelnyUrl = `${restUrl}${skrzynka.unitSymbol}/api/mobile/messages/received/byBox?box=${encodeURIComponent(skrzynka.box)}&lastId=-2147483648&pupilId=${pupilId}&pageSize=500`
+  const naglowki = zbudujNaglowki(polaczenie.fingerprint, polaczenie.private_key, polaczenie.device_model, '', pelnyUrl)
+  const odpowiedz = await fetch(pelnyUrl, { method: 'GET', headers: naglowki })
+  const dane = await sparsujOdpowiedz(odpowiedz, restUrl, 'Pobranie wiadomości')
+
+  if ((dane?.Status?.Message as string | undefined) === 'EDUVULCAN_PREMIUM') {
+    return { wymaganePremium: true }
+  }
+  if (!odpowiedz.ok || (dane?.Status?.Code ?? 0) !== 0) {
+    throw new Error(`Pobranie wiadomości nie powiodło się: HTTP ${odpowiedz.status}, ${JSON.stringify(dane).slice(0, 500)}`)
+  }
+
+  const surowe: Array<Record<string, unknown>> = Array.isArray(dane?.Envelope) ? dane.Envelope : []
+  const wiadomosci = surowe
+    .filter((m) => m?.GlobalKey && m?.SentAt)
+    .map((m) => ({
+      vulcanKey: String(m.GlobalKey),
+      nadawca: (m.Sender as { Name?: string } | undefined)?.Name ?? '(nieznany nadawca)',
+      temat: (m.Subject as string | undefined) ?? '(brak tematu)',
+      tresc: (m.Content as string | undefined) ?? '',
+      sentAtIso: new Date(m.SentAt as string).toISOString(),
+    }))
+  return { wiadomosci }
+}

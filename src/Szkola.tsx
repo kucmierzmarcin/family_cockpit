@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { DomownikDb } from './lib/supabase'
 import {
+  oczyscTrescWiadomosci,
   pogrupujLekcjePoDniu,
   posortujWiadomosci,
   posortujWpisy,
@@ -71,10 +72,26 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
     () => (pokazMinione ? wpisyUcznia : wpisyUcznia.filter((w) => w.data >= dzisiaj)),
     [wpisyUcznia, pokazMinione, dzisiaj],
   )
-  // Skrzynki wiadomości należą do konta RODZICA, nie do dziecka (patrz
-  // `synchronizujWiadomosci` w Edge Function) - pokazujemy je dla całego domu,
-  // niezależnie od wybranego ucznia.
-  const wiadomosciWidoczne = useMemo(() => posortujWiadomosci(wiadomosci), [wiadomosci])
+  // Każdy uczeń ma WŁASNĄ skrzynkę wiadomości w eduVULCAN (potwierdzone żywym
+  // testem 2026-09-14 - wcześniejsze założenie "skrzynka rodzica, wspólna dla
+  // domu" było prawdziwe tylko dla starego Vulcan), więc filtrujemy tak samo
+  // jak plan lekcji i wpisy - po wybranym uczniu. Tylko ostatnie 14 dni -
+  // starsze wciąż są zsynchronizowane w bazie, ale historia wiadomości rośnie
+  // w nieskończoność i bez granicy zasypywałaby najnowsze (ten sam wzorzec co
+  // "dziś + 2 tygodnie" w planie lekcji wyżej).
+  const czternascieDniTemu = useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 13)
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, [])
+  const wiadomosciWidoczne = useMemo(
+    () =>
+      posortujWiadomosci(wiadomosci).filter(
+        (w) => w.uczenId === filtrUczniaId && new Date(w.data) >= czternascieDniTemu,
+      ),
+    [wiadomosci, filtrUczniaId, czternascieDniTemu],
+  )
   const dniPlanu = useMemo(() => pogrupujLekcjePoDniu(lekcjeWidoczne), [lekcjeWidoczne])
 
   if (ladowanie) return <p className="pusto">Wczytuję…</p>
@@ -218,7 +235,10 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
         ) : (
           <ul className="lista-wiadomosci-vulcan">
             {wiadomosciWidoczne.map((w) => (
-              <li key={w.id} className="wiadomosc-vulcan">
+              <li
+                key={w.id}
+                className={`wiadomosc-vulcan${klucz(new Date(w.data)) === dzisiaj ? ' wiadomosc-vulcan-dzis' : ''}`}
+              >
                 <button
                   type="button"
                   className="wiadomosc-vulcan-naglowek"
@@ -232,7 +252,9 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
                     {new Date(w.data).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </button>
-                {rozwinieta === w.id && <p className="wiadomosc-vulcan-tresc">{w.tresc}</p>}
+                {rozwinieta === w.id && (
+                  <p className="wiadomosc-vulcan-tresc">{oczyscTrescWiadomosci(w.tresc)}</p>
+                )}
               </li>
             ))}
           </ul>

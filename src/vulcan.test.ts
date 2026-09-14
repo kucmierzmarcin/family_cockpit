@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   bladGodzinySync,
   blokiSzkolne,
+  oczyscTrescWiadomosci,
   pogrupujLekcjePoDniu,
   posortujLekcje,
   posortujWiadomosci,
@@ -120,6 +121,25 @@ describe('blokiSzkolne', () => {
   it('pomija lekcje ucznia, ktorego juz nie ma na liscie (np. odlaczony)', () => {
     const bloki = blokiSzkolne([lekcja({ uczenId: 'widmo' })], [uczen({ id: 'u1' })])
     expect(bloki).toHaveLength(0)
+  })
+})
+
+describe('oczyscTrescWiadomosci', () => {
+  it('zamienia akapity na puste linie, usuwa znaczniki', () => {
+    const wynik = oczyscTrescWiadomosci('<p>Dobry wieczór,</p><p>Zajęcia od 8.45</p>')
+    expect(wynik).toBe('Dobry wieczór,\n\nZajęcia od 8.45')
+  })
+
+  it('zamienia <br> na pojedynczy znak nowej linii', () => {
+    expect(oczyscTrescWiadomosci('Linia 1<br>Linia 2<br/>Linia 3')).toBe('Linia 1\nLinia 2\nLinia 3')
+  })
+
+  it('dekoduje podstawowe encje HTML', () => {
+    expect(oczyscTrescWiadomosci('Ala&nbsp;i&nbsp;Ola &amp; Bob &lt;3')).toBe('Ala i Ola & Bob <3')
+  })
+
+  it('nie zostawia potrojnych/wiekszych odstepow miedzy liniami', () => {
+    expect(oczyscTrescWiadomosci('<p>A</p><p></p><p>B</p>')).toBe('A\n\nB')
   })
 })
 

@@ -161,6 +161,28 @@ export function posortujWiadomosci<T extends { data: string }>(wiadomosci: T[]):
   return [...wiadomosci].sort((a, b) => b.data.localeCompare(a.data))
 }
 
+/**
+ * Treść wiadomości z Vulcan przychodzi jako HTML (nauczyciele piszą w edytorze
+ * z formatowaniem) - zamieniamy ją na czysty tekst do wyświetlenia, zamiast
+ * pokazywać znaczniki wprost. Zamierzenie: CZYTELNOŚĆ, nie bezpieczne
+ * renderowanie HTML-a (stąd zwykły tekst, nie `dangerouslySetInnerHTML`) -
+ * nie ma potrzeby ufać formatowaniu treści, którą wysłał ktoś inny.
+ */
+export function oczyscTrescWiadomosci(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div)>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 const WZORZEC_GODZINY = /^([01]\d|2[0-3]):[0-5]\d$/
 export const MAKS_GODZIN_SYNC = 3
 
