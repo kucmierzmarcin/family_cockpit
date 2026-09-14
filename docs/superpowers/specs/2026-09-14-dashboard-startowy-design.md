@@ -1,0 +1,132 @@
+# Dashboard startowy — projekt
+
+Data: 2026-09-14
+
+## Cel
+
+Nowy ekran „Dziś" w Kokpicie Rodzinnym — jeden rzut oka na to, co ważne dziś:
+pogoda, data/godzina, imieniny, poziomy grafik dnia całej rodziny i cztery
+liczniki (pilne terminy, nowe wiadomości ze szkoły, otwarte tematy na
+Tablicy, rzeczy do kupienia).
+
+## Umiejscowienie w nawigacji
+
+Nowa pierwsza zakładka na liście `Ekran` w `src/uklad/nawigacja.ts`:
+
+```ts
+export type Ekran = 'dashboard' | 'kalendarz' | 'zakupy' | 'tablica' | 'terminy' | 'szkola' | 'dom'
+export const EKRANY: Ekran[] = ['dashboard', 'kalendarz', 'zakupy', 'tablica', 'terminy', 'szkola', 'dom']
+```
+
+- `TYTULY.dashboard = 'Dziś'`.
+- `etykietaDodania('dashboard', …)` zwraca `null` — brak przycisku „+" na tym
+  ekranie, to widok tylko do odczytu (poza klikalnymi licznikami, patrz niżej).
+- `App.tsx`: nowa gałąź `ekran === 'dashboard'` w `tresc`, analogicznie do
+  istniejących gałęzi dla `zakupy`/`tablica`/`terminy`/`szkola`/`dom`.
+
+## Struktura plików
+
+Zgodnie z konwencją repo — każdy ekran sam ładuje swoje dane przez własny
+hook (`Zakupy` → `useZakupy`, `Tablica` → `useTablica`, `Terminy` →
+`useTerminy`). `Dashboard.tsx` dostaje z `App.tsx` tylko to, co już jest tam
+scentralizowane (`osoby.domownicy`, `vulcan.wiadomosci`, `profil.household_id`,
+funkcję `przelaczEkran`), a resztę ładuje sam:
+
+| Plik | Rola |
+| --- | --- |
+| `src/Dashboard.tsx` | Spina ekran: karty pogody/zegara/imienin, grafik dnia, liczniki |
+| `src/usePogoda.ts` | Fetch do Open-Meteo, bez klucza API |
+| `src/imieniny.ts` | Statyczna mapa `"MM-DD" → string[]` na cały rok + `imieninyDzisiaj(data)` |
+| `src/widoki/GrafikDnia.tsx` | Poziomy „schedule view" — wiersz na domownika |
+| `src/dashboardLiczniki.ts` | Czyste funkcje liczące 4 liczniki (bez Reacta, testowalne) |
+
+`Dashboard.tsx` woła dodatkowo:
+- `useTerminy(householdId, onBlad)` (już istnieje)
+- `useTablica(onBlad)` (już istnieje)
+- `useZakupy(onBlad)` (już istnieje)
+- osobne `useWydarzenia(poczatekDzis, koniecDzis, onBlad)` — niezależne od
+  zakresu, po którym nawiguje zakładka „kalendarz" (tamten `dane` w `App.tsx`
+  pokazuje miesiąc/tydzień/dzień zależnie od stanu `widok`, dashboard zawsze
+  chce dokładnie dzisiaj).
+
+To są trzy nowe zapytania do bazy przy wejściu na tę zakładkę (terminy,
+tablica, zakupy) — dziś nic ich nie ładuje na starcie aplikacji, tylko po
+wejściu na odpowiedni ekran.
+
+## Widżety — logika danych
+
+**Data i godzina** — żywy zegar, `setInterval` co minutę, formatowanie przez
+istniejące helpery z `dates.ts`.
+
+**Pogoda (Milanówek)** — `usePogoda`: jedno zapytanie do Open-Meteo
+(`current` + `hourly` na dziś) dla stałych współrzędnych Milanówka
+(52.1325°N, 20.6539°E), odświeżane co ok. 30 minut. Open-Meteo nie wymaga
+klucza API, więc wywołanie idzie wprost z przeglądarki — bez nowej Edge
+Function i bez sekretów do trzymania.
+
+**Imieniny** — `imieninyDzisiaj(new Date())` ze statycznej mapy w
+`imieniny.ts`, zero sieci.
+
+**Poziomy grafik dnia (`GrafikDnia.tsx`)**:
+- Jeden wiersz na każdego domownika z `osoby.domownicy` — zawsze wszyscy,
+  nawet bez wydarzeń dziś (pusty wiersz = „nic dziś zaplanowane").
+- Oś pozioma = godziny, okno domyślnie 6–23, rozszerzane (jak w
+  `SiatkaGodzin.tsx`, `wypelnijOkno`) gdy któreś wydarzenie wykracza poza ten
+  zakres.
+- Nakładające się wydarzenia tej samej osoby układane tym samym
+  `ukladajKolumny` z `czas.ts`, tylko obrócone o 90° — kolumny z oryginalnego
+  algorytmu stają się poziomymi „torami" w obrębie wiersza tej osoby zamiast
+  pionowymi kolumnami obok siebie. Logika nakładania się nie zmienia, zmienia
+  się tylko oś rysowania.
+- Dane: wydarzenia z nowego `useWydarzenia(poczatekDzis, koniecDzis)`,
+  filtrowane po widoczności tak jak dziś (`widocznePrzyFiltrze`) — na
+  dashboardzie nie ma jednak przełączników osób, więc filtr `ukryci` tu nie
+  wchodzi w grę, pokazujemy wszystko.
+
+**Cztery liczniki (`dashboardLiczniki.ts`)**:
+
+| Licznik | Źródło | Warunek |
+| --- | --- | --- |
+| Pilne terminy | `terminy` z `useTerminy` | `!zalatwiony && powiadom !== null && new Date(powiadom) <= now` — czerwony, gdy >0 |
+| Nowe wiadomości dziś | `vulcan.wiadomosci` (już ładowane centralnie w `App.tsx`) | `klucz(new Date(data)) === klucz(dzisiaj)`, liczone przez **wszystkich** uczniów łącznie (dashboard jest widokiem całego domu, nie jednego dziecka jak ekran „Szkoła") |
+| Otwarte tematy | `tablica.notatki` z `useTablica` | wszystkie notatki, bez rozróżnienia zrobione/niezrobione (Tablica dziś takiego pola nie ma) |
+| Do kupienia | `zakupy.pozycje` z `useZakupy` | gotowa funkcja `policzPozostale(pozycje)` z `pozycje.ts` — już liczy po całym domu, nie po jednej liście |
+
+Każdy licznik to klikalny przycisk, który woła `przelaczEkran(...)` do
+odpowiedniej zakładki (`terminy`, `szkola`, `tablica`, `zakupy`) — ten sam
+wzorzec co dziś kliknięcie bloku „Szkoła" w widoku kalendarza.
+
+## Layout i responsywność
+
+- **Biurko**: rząd kart u góry (zegar/data, pogoda, imieniny), pod spodem
+  `GrafikDnia` na pełną szerokość, na dole rząd 4 liczników.
+- **Telefon**: te same karty jedna pod drugą, liczniki w siatce 2×2,
+  `GrafikDnia` przewijany poziomo (te same style przewijania co dziś w
+  `SiatkaGodzin.tsx`).
+
+## Obsługa błędów
+
+- `terminy`/`tablica`/`zakupy` używają istniejącego `onBlad` → ten sam
+  czerwony komunikat co dziś na innych ekranach.
+- Pogoda ma własny, cichy fallback (krótki komunikat w karcie, np. „Pogoda
+  niedostępna") i **nie** woła `onBlad` — brak internetu do Open-Meteo nie
+  powinien blokować reszty dashboardu, tak jak dziś opcjonalne integracje
+  (Telegram, Vulcan) nie blokują reszty aplikacji.
+
+## Testy
+
+Logika bez Reacta trafia do plików `.ts` z testami obok, wzorem
+`czas.test.ts` i `nawigacja.test.ts`:
+
+- `imieniny.test.ts` — mapowanie dat na imiona, w tym 29 lutego.
+- `dashboardLiczniki.test.ts` — każdy z 4 liczników osobno, w tym przypadki
+  brzegowe (`powiadom === null`, wiadomości z wczoraj, pusta lista zakupów).
+
+Sam layout (JSX) zostaje bez testów, zgodnie z konwencją reszty repo.
+
+## Poza zakresem
+
+- Podgląd kamer Hikvision (osobny temat, odłożony wcześniej).
+- Edycja/dodawanie czegokolwiek z poziomu dashboardu — to widok tylko do
+  odczytu poza nawigacją przez kliknięcie licznika.
+- Status „zrobione" dla notatek na Tablicy — dziś liczymy wszystkie karteczki.
