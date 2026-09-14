@@ -1,0 +1,65 @@
+.grafik-dnia {
+  overflow-x: auto;
+}
+
+.gd-godziny {
+  display: grid;
+  grid-template-columns: repeat(var(--godzin), 1fr);
+  margin-left: 128px;
+  margin-bottom: var(--odstep-2);
+  min-width: 600px;
+}
+
+.gd-godzina {
+  font-size: 12px;
+  color: var(--tekst-drugi);
+  border-left: 1px solid var(--kreska);
+  padding-left: 4px;
+}
+
+.gd-wiersze {
+  display: flex;
+  flex-direction: column;
+  gap: var(--odstep-2);
+  min-width: 600px;
+}
+
+.gd-wiersz {
+  display: flex;
+  align-items: stretch;
+}
+
+.gd-etykieta {
+  flex: 0 0 128px;
+  display: flex;
+  align-items: center;
+  gap: var(--odstep-1);
+  font-size: 14px;
+  padding-right: var(--odstep-2);
+}
+
+.gd-tor-kontener {
+  position: relative;
+  flex: 1;
+  background: var(--tlo);
+  border-radius: var(--promien-s);
+}
+
+.gd-blok {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: var(--promien-s);
+  border-left: 3px solid;
+  padding: 2px 6px;
+  font-size: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  .gd-godziny,
+  .gd-wiersze {
+    min-width: 480px;
+  }
+}
