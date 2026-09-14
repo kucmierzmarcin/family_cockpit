@@ -5,9 +5,13 @@ Data: 2026-09-14
 ## Cel
 
 Nowy ekran „Dziś" w Kokpicie Rodzinnym — jeden rzut oka na to, co ważne dziś:
-pogoda, data/godzina, imieniny, poziomy grafik dnia całej rodziny i cztery
-liczniki (pilne terminy, nowe wiadomości ze szkoły, otwarte tematy na
-Tablicy, rzeczy do kupienia).
+pogoda, data/godzina, poziomy grafik dnia całej rodziny i cztery liczniki
+(pilne terminy, nowe wiadomości ze szkoły, otwarte tematy na Tablicy, rzeczy
+do kupienia).
+
+Imieniny są odłożone na później (patrz „Poza zakresem") — nie znaleziono
+wiarygodnego źródła kalendarza na cały rok, a to akurat dane, gdzie błąd
+byłby widoczny codziennie.
 
 ## Umiejscowienie w nawigacji
 
@@ -34,9 +38,8 @@ funkcję `przelaczEkran`), a resztę ładuje sam:
 
 | Plik | Rola |
 | --- | --- |
-| `src/Dashboard.tsx` | Spina ekran: karty pogody/zegara/imienin, grafik dnia, liczniki |
+| `src/Dashboard.tsx` | Spina ekran: karty pogody/zegara, grafik dnia, liczniki |
 | `src/usePogoda.ts` | Fetch do Open-Meteo, bez klucza API |
-| `src/imieniny.ts` | Statyczna mapa `"MM-DD" → string[]` na cały rok + `imieninyDzisiaj(data)` |
 | `src/widoki/GrafikDnia.tsx` | Poziomy „schedule view" — wiersz na domownika |
 | `src/dashboardLiczniki.ts` | Czyste funkcje liczące 4 liczniki (bez Reacta, testowalne) |
 
@@ -64,9 +67,6 @@ istniejące helpery z `dates.ts`.
 klucza API, więc wywołanie idzie wprost z przeglądarki — bez nowej Edge
 Function i bez sekretów do trzymania.
 
-**Imieniny** — `imieninyDzisiaj(new Date())` ze statycznej mapy w
-`imieniny.ts`, zero sieci.
-
 **Poziomy grafik dnia (`GrafikDnia.tsx`)**:
 - Jeden wiersz na każdego domownika z `osoby.domownicy` — zawsze wszyscy,
   nawet bez wydarzeń dziś (pusty wiersz = „nic dziś zaplanowane").
@@ -87,7 +87,7 @@ Function i bez sekretów do trzymania.
 
 | Licznik | Źródło | Warunek |
 | --- | --- | --- |
-| Pilne terminy | `terminy` z `useTerminy` | `!zalatwiony && powiadom !== null && new Date(powiadom) <= now` — czerwony, gdy >0 |
+| Pilne terminy | `terminy` z `useTerminy` | `!zalatwiony && powiadom !== null && czyPrzeterminowany(powiadom, dzisiaj)` — ta sama funkcja z `terminy.ts`, która już dziś liczy `powiadomienieMinelo` na ekranie „Terminy" (`WazneTerminy.tsx:171`), więc dashboard pokazuje dokładnie te same terminy, które tam świecą się jako spóźnione z powiadomieniem — czerwony, gdy >0 |
 | Nowe wiadomości dziś | `vulcan.wiadomosci` (już ładowane centralnie w `App.tsx`) | `klucz(new Date(data)) === klucz(dzisiaj)`, liczone przez **wszystkich** uczniów łącznie (dashboard jest widokiem całego domu, nie jednego dziecka jak ekran „Szkoła") |
 | Otwarte tematy | `tablica.notatki` z `useTablica` | wszystkie notatki, bez rozróżnienia zrobione/niezrobione (Tablica dziś takiego pola nie ma) |
 | Do kupienia | `zakupy.pozycje` z `useZakupy` | gotowa funkcja `policzPozostale(pozycje)` z `pozycje.ts` — już liczy po całym domu, nie po jednej liście |
@@ -98,7 +98,7 @@ wzorzec co dziś kliknięcie bloku „Szkoła" w widoku kalendarza.
 
 ## Layout i responsywność
 
-- **Biurko**: rząd kart u góry (zegar/data, pogoda, imieniny), pod spodem
+- **Biurko**: rząd kart u góry (zegar/data, pogoda), pod spodem
   `GrafikDnia` na pełną szerokość, na dole rząd 4 liczników.
 - **Telefon**: te same karty jedna pod drugą, liczniki w siatce 2×2,
   `GrafikDnia` przewijany poziomo (te same style przewijania co dziś w
@@ -118,7 +118,6 @@ wzorzec co dziś kliknięcie bloku „Szkoła" w widoku kalendarza.
 Logika bez Reacta trafia do plików `.ts` z testami obok, wzorem
 `czas.test.ts` i `nawigacja.test.ts`:
 
-- `imieniny.test.ts` — mapowanie dat na imiona, w tym 29 lutego.
 - `dashboardLiczniki.test.ts` — każdy z 4 liczników osobno, w tym przypadki
   brzegowe (`powiadom === null`, wiadomości z wczoraj, pusta lista zakupów).
 
@@ -126,6 +125,12 @@ Sam layout (JSX) zostaje bez testów, zgodnie z konwencją reszty repo.
 
 ## Poza zakresem
 
+- **Imieniny** — brak wiarygodnego źródła kalendarza na cały rok znalezionego
+  podczas researchu (próby przez wyszukiwarkę i publiczne API dawały
+  niespójne albo niedziałające wyniki). Do dodania później, gdy pojawi się
+  zaufane źródło danych (własna lista użytkownika, zweryfikowana ręcznie
+  lista z Wikipedii, albo działające API) — osobny, mały dodatek do
+  `Dashboard.tsx`, nie zmienia reszty projektu.
 - Podgląd kamer Hikvision (osobny temat, odłożony wcześniej).
 - Edycja/dodawanie czegokolwiek z poziomu dashboardu — to widok tylko do
   odczytu poza nawigacją przez kliknięcie licznika.
