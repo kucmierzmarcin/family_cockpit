@@ -73,7 +73,7 @@ describe('liczWiadomosciDzis', () => {
   })
 
   it('nie liczy wiadomości sprzed wczoraj', () => {
-    expect(liczWiadomosciDzis([wiadomosc({ data: '2026-09-13T22:00:00Z' })], dzisiaj)).toBe(0)
+    expect(liczWiadomosciDzis([wiadomosc({ data: '2026-09-12T12:00:00Z' })], dzisiaj)).toBe(0)
   })
 
   it('liczy przez wszystkich uczniów łącznie', () => {

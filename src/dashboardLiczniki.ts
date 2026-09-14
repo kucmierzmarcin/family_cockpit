@@ -1,3 +1,4 @@
+import { klucz } from './dates'
 import { czyPrzeterminowany, type Termin } from './terminy'
 import type { Wiadomosc } from './vulcan'
 
@@ -9,9 +10,9 @@ export function liczPilneTerminy(terminy: Termin[], dzisiaj: string): number {
 }
 
 /** Ile wiadomości ze szkoły przyszło dzisiaj, licząc przez wszystkich uczniów łącznie.
- * Porównanie po pierwszych 10 znakach `data` (UTC 'RRRR-MM-DD' z Postgresa), a nie przez
- * `klucz(new Date(...))` - to drugie liczy dzień w lokalnej strefie urządzenia i w Polsce
- * (UTC+1/UTC+2) potrafi przesunąć wiadomości sprzed północy UTC na "dzisiaj". */
+ * Porównanie po lokalnym dniu kalendarzowym (tak samo jak w Szkola.tsx) - `dzisiaj` od
+ * wywołującego pochodzi z `klucz(new Date())`, więc obie strony porównania są w tej samej,
+ * lokalnej strefie czasu. */
 export function liczWiadomosciDzis(wiadomosci: Wiadomosc[], dzisiaj: string): number {
-  return wiadomosci.filter((w) => w.data.slice(0, 10) === dzisiaj).length
+  return wiadomosci.filter((w) => klucz(new Date(w.data)) === dzisiaj).length
 }
