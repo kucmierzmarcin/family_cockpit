@@ -34,13 +34,18 @@ export function Dashboard({ householdId, domownicy, wiadomosci, onBlad, onEkran 
   }, [])
 
   const dzisiaj = klucz(teraz)
-  // Zakres jako osobne wywołanie useWydarzenia, niezależne od tego, po jakim
-  // zakresie nawiguje akurat zakładka „kalendarz" (tamten `dane` w App.tsx
-  // pokazuje miesiąc/tydzień/dzień zależnie od stanu `widok`).
-  const poczatekDzis = useMemo(() => poczatekDnia(teraz), [dzisiaj])
-  const koniecDzis = useMemo(() => nastepnyDzien(teraz), [dzisiaj])
-
-  const dane = useWydarzenia(poczatekDzis, koniecDzis, onBlad)
+  // Osobne wywołanie useWydarzenia, niezależne od tego, po jakim zakresie
+  // nawiguje akurat zakładka „kalendarz" (tamten `dane` w App.tsx pokazuje
+  // miesiąc/tydzień/dzień zależnie od stanu `widok`). Stąd też własna nazwa
+  // kanału Realtime - oba wywołania żyją naraz i nie mogą dzielić kanału.
+  // Nowe obiekty Date przy każdym tyknięciu zegara są bezpieczne: useWydarzenia
+  // sprowadza zakres do tekstu, zanim trafi do zależności efektu.
+  const dane = useWydarzenia(
+    poczatekDnia(teraz),
+    nastepnyDzien(teraz),
+    onBlad,
+    'dashboard-kalendarz-na-zywo',
+  )
   const terminy = useTerminy(householdId, onBlad)
   const tablica = useTablica(onBlad)
   const zakupy = useZakupy(onBlad)

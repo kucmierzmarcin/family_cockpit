@@ -96,8 +96,17 @@ function zBazy(w: WydarzenieDb): Wydarzenie {
 /**
  * Wydarzenia z widocznego zakresu dat. Zakres obejmuje wszystko, co się z nim
  * styka - także wydarzenia zaczynające się wcześniej i kończące później.
+ *
+ * `nazwaKanalu` musi być inna dla każdego równocześnie zamontowanego wywołania
+ * tego hooka - dwa ekrany na tej samej nazwie to jeden kanał Realtime, a
+ * supabase-js rzuca wyjątkiem przy drugiej subskrypcji (patrz `useNaZywo`).
  */
-export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) => void) {
+export function useWydarzenia(
+  od: Date,
+  doKiedy: Date,
+  onBlad: (tekst: string) => void,
+  nazwaKanalu: string = 'kalendarz-na-zywo',
+) {
   const [wydarzenia, setWydarzenia] = useState<Wydarzenie[]>([])
   const [ladowanie, setLadowanie] = useState(true)
 
@@ -146,7 +155,7 @@ export function useWydarzenia(od: Date, doKiedy: Date, onBlad: (tekst: string) =
   }, [pobierz])
 
   // Wpisy innych domowników pojawiają się bez odświeżania strony.
-  useNaZywo('kalendarz-na-zywo', ['events', 'event_members'], () => void odswiez())
+  useNaZywo(nazwaKanalu, ['events', 'event_members'], () => void odswiez())
 
   /** Zapisuje przypisania osób do wskazanych wydarzeń. */
   const przypisz = useCallback(
