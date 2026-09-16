@@ -5,6 +5,11 @@ import { pobierzWiadomosciEdu, zbudujVulcanHebe, type WierszPolaczenia } from '.
 type WierszUcznia = { id: string; student_data: unknown }
 type WynikSync = { ok: boolean; blad?: string }
 
+/** Ile tygodni planu lekcji (i zmian) synchronizujemy naprzod od biezacego
+ *  tygodnia - Vulcan/eduVULCAN w oficjalnej apce pozwala przegladac dalej niz
+ *  tydzien, wiec nasz kalendarz nie powinien urywac sie wczesniej. */
+const TYGODNIE_PLANU = 4
+
 function poczatekTygodnia(d: Date): Date {
   const kopia = new Date(d)
   const dzien = (kopia.getDay() + 6) % 7 // 0 = poniedziałek
@@ -13,9 +18,10 @@ function poczatekTygodnia(d: Date): Date {
   return kopia
 }
 
-function koniecTygodnia(poczatek: Date): Date {
+/** Koniec zsynchronizowanego okna: `tygodni` tygodni od poczatku (wylacznie). */
+function koniecOkna(poczatek: Date, tygodni: number): Date {
   const kopia = new Date(poczatek)
-  kopia.setDate(kopia.getDate() + 7)
+  kopia.setDate(kopia.getDate() + tygodni * 7)
   return kopia
 }
 
@@ -122,7 +128,7 @@ export async function synchronizujDom(
 
   const listaUczniow = (uczniowie ?? []) as WierszUcznia[]
   const poczatek = poczatekTygodnia(new Date())
-  const koniec = koniecTygodnia(poczatek)
+  const koniec = koniecOkna(poczatek, TYGODNIE_PLANU)
   // Błędy pominiętych uczniów (patrz `continue` niżej) - zebrane, żeby wynik
   // funkcji uczciwie odzwierciedlał częściowe niepowodzenie zamiast cichego
   // `{ok:true}` z zerem zapisanych wierszy dla pominiętych uczniów.
@@ -217,10 +223,10 @@ export async function synchronizujDom(
         (w) => `${w.student_id}|${w.lesson_date}|${w.start_time}`,
       )
 
-      // Najpierw kasujemy cały bieżący tydzień tego ucznia, dopiero potem
-      // wstawiamy nowy plan. Sam upsert zostawiłby na zawsze lekcje USUNIĘTE
-      // z planu w Vulcan (nic ich nigdy nie nadpisze), więc "bieżący tydzień"
-      // z czasem przestawałby być prawdą.
+      // Najpierw kasujemy całe zsynchronizowane okno tego ucznia, dopiero
+      // potem wstawiamy nowy plan. Sam upsert zostawiłby na zawsze lekcje
+      // USUNIĘTE z planu w Vulcan (nic ich nigdy nie nadpisze), więc to okno
+      // z czasem przestawałoby być prawdą.
       const { error: bladKasowania } = await baza
         .from('vulcan_lessons')
         .delete()
