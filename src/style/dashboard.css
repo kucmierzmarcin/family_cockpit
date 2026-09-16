@@ -63,3 +63,75 @@
     min-width: 480px;
   }
 }
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--odstep-4);
+}
+
+.dash-karty {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--odstep-4);
+}
+
+.dash-zegar,
+.dash-pogoda {
+  flex: 1 1 200px;
+  text-align: center;
+}
+
+.dash-godzina,
+.dash-temperatura {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 600;
+}
+
+.dash-data,
+.dash-opis-pogody {
+  margin: 4px 0 0;
+  color: var(--tekst-drugi);
+  text-transform: capitalize;
+}
+
+.dash-liczniki {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--odstep-4);
+}
+
+.dash-licznik {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--odstep-1);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.dash-licznik-wartosc {
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.dash-licznik-etykieta {
+  color: var(--tekst-drugi);
+  font-size: 13px;
+}
+
+.dash-licznik-pilny {
+  background: var(--blad-tlo);
+}
+
+.dash-licznik-pilny .dash-licznik-wartosc {
+  color: var(--blad);
+}
+
+@media (max-width: 640px) {
+  .dash-liczniki {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
