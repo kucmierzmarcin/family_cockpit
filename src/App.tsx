@@ -360,6 +360,8 @@ function App({ profil, email }: Props) {
           householdId={profil.household_id}
           domownicy={osoby.domownicy}
           wiadomosci={vulcan.wiadomosci}
+          lekcje={vulcan.lekcje}
+          uczniowie={vulcan.status?.uczniowie ?? []}
           onBlad={setBlad}
           onEkran={przelaczEkran}
         />

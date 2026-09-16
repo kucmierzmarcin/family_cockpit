@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { DomownikDb } from './lib/supabase'
-import type { Wiadomosc } from './vulcan'
+import { blokiSzkolne, type Lekcja, type Uczen, type Wiadomosc } from './vulcan'
 import type { Ekran } from './uklad/nawigacja'
 import { dlugaData, klucz } from './dates'
 import { godzinaHM, nastepnyDzien, poczatekDnia } from './czas'
@@ -17,12 +17,22 @@ type Props = {
   householdId: string
   domownicy: DomownikDb[]
   wiadomosci: Wiadomosc[]
+  lekcje: Lekcja[]
+  uczniowie: Uczen[]
   onBlad: (tekst: string) => void
   onEkran: (e: Ekran) => void
 }
 
 /** Ekran „Dziś": pogoda, zegar, grafik dnia całej rodziny i cztery liczniki. */
-export function Dashboard({ householdId, domownicy, wiadomosci, onBlad, onEkran }: Props) {
+export function Dashboard({
+  householdId,
+  domownicy,
+  wiadomosci,
+  lekcje,
+  uczniowie,
+  onBlad,
+  onEkran,
+}: Props) {
   const [teraz, setTeraz] = useState(() => new Date())
   useEffect(() => {
     const timer = setInterval(() => setTeraz(new Date()), 60_000)
@@ -46,6 +56,18 @@ export function Dashboard({ householdId, domownicy, wiadomosci, onBlad, onEkran 
   const tablica = useTablica(onBlad)
   const zakupy = useZakupy(onBlad)
   const { pogoda, blad: bladPogody } = usePogoda()
+
+  // Bloki „Szkoła" nie mieszkają w `events` (patrz kalendarz ogólny w App.tsx),
+  // więc grafik dnia trzeba nimi ręcznie dosycić - inaczej dzień z samymi
+  // lekcjami wygląda jak dzień bez niczego zaplanowanego. Filtr do „dzisiaj":
+  // `blokiSzkolne` grupuje WSZYSTKIE zsynchronizowane lekcje, nie tylko dziś.
+  const wydarzeniaZeSzkola = useMemo(
+    () => [
+      ...dane.wydarzenia,
+      ...blokiSzkolne(lekcje, uczniowie).filter((w) => klucz(w.start) === dzisiaj),
+    ],
+    [dane.wydarzenia, lekcje, uczniowie, dzisiaj],
+  )
 
   const liczbaPilnychTerminow = useMemo(
     () => liczPilneTerminy(terminy.terminy, dzisiaj),
@@ -86,7 +108,7 @@ export function Dashboard({ householdId, domownicy, wiadomosci, onBlad, onEkran 
         </div>
       </div>
 
-      <GrafikDnia domownicy={domownicy} wydarzenia={dane.wydarzenia} />
+      <GrafikDnia domownicy={domownicy} wydarzenia={wydarzeniaZeSzkola} />
 
       <div className="dash-liczniki">
         <LicznikDnia
