@@ -176,52 +176,52 @@ export async function synchronizujDom(
           `Ostrzeżenie: ${lekcje.length} lekcji dla ucznia ${uczen.id} odrzuconych przez filtr daty/godzin - możliwy brak/inna nazwa pola.`,
         )
       }
-      const wierszeLekcji = lekcjePrzefiltrowane
-        .map((l) => ({
+
+      // `getChangedLessons` na eduVULCAN NIE zwraca własnej daty/godziny/
+      // przedmiotu (`lessonDate`/`time`/`subject` zawsze `null` - potwierdzone
+      // żywą diagnostyką 2026-09-16) - to jedynie powiadomienie "ten slot planu
+      // (scheduleId) ma zastępstwo", identyfikowane przez `scheduleId`, który
+      // odpowiada `Lesson.id` tej samej, zwykłej lekcji z `getLessons`. Zamiast
+      // budować z `zmiany` osobne, nigdy niekompletne wiersze - łączymy każdą
+      // zmianę z jej lekcją po tym id i podmieniamy tylko nauczyciela (w
+      // zaobserwowanych przypadkach zastępujący nauczyciel różni się od
+      // `Lesson.teacherPrimary`, który zostaje niezmieniony - to STAŁY
+      // przydział przedmiotu, nie tego dnia).
+      const zmianyPoScheduleId = new Map(
+        zmiany.filter((z) => z.scheduleId != null).map((z) => [z.scheduleId as number, z]),
+      )
+      if (zmiany.length > 0 && zmianyPoScheduleId.size === 0) {
+        console.error(
+          `Ostrzeżenie: ${zmiany.length} zmian planu dla ucznia ${uczen.id} bez scheduleId - możliwy brak/inna nazwa pola.`,
+        )
+      } else if (zmianyPoScheduleId.size > 0) {
+        const dopasowane = lekcjePrzefiltrowane.filter((l) => zmianyPoScheduleId.has(l.id)).length
+        if (dopasowane === 0) {
+          // scheduleId nie trafia w żadną lekcję z TEGO SAMEGO okna - albo
+          // zmiana dotyczy dnia poza oknem 4 tygodni, albo (jak wcześniej z
+          // Lesson.date) eduVULCAN znów zmienił kształt odpowiedzi.
+          console.error(
+            `Ostrzeżenie: ${zmianyPoScheduleId.size} zmian planu dla ucznia ${uczen.id} nie dopasowanych do żadnej lekcji w oknie synchronizacji.`,
+          )
+        }
+      }
+
+      const wierszePlanu = lekcjePrzefiltrowane.map((l) => {
+        const zmiana = zmianyPoScheduleId.get(l.id)
+        const zmieniona = Boolean(l.change) || Boolean(zmiana)
+        return {
           student_id: uczen.id,
           household_id: householdId,
           lesson_date: l.date!.date,
           start_time: l.timeSlot!.start,
           end_time: l.timeSlot!.end,
           subject: l.subject?.name ?? l.event ?? '(brak przedmiotu)',
-          teacher: l.teacherPrimary?.displayName ?? null,
+          teacher: zmiana?.teacher?.displayName ?? l.teacherPrimary?.displayName ?? null,
           room: l.room?.code ?? null,
-          changed: false,
-          change_note: null as string | null,
-        }))
-
-      // Zmiany NADPISUJĄ zwykłą lekcję w tym samym slocie (ten sam klucz
-      // unikalności student_id+lesson_date+start_time), dlatego lądują w
-      // scalonej tablicy PO zwykłych lekcjach - `bezDuplikatow` zostawia
-      // ostatni wiersz, czyli zmianę.
-      const zmianyPrzefiltrowane = zmiany.filter((z) => z.lessonDate?.date && z.time?.start && z.time?.end)
-      if (zmiany.length > 0 && zmianyPrzefiltrowane.length === 0) {
-        // Ten sam wzorzec cichego bledu, ktory ukrywal Lesson.date przez dwie
-        // rundy diagnozy na zywo (eduVULCAN potrafi nazwac pole daty inaczej,
-        // niz zaklada biblioteka) - tu nie mamy jeszcze dowodu na konkretna
-        // przyczyne, wiec tylko ostrzegamy zamiast zgadywac poprawke.
-        console.error(
-          `Ostrzeżenie: ${zmiany.length} zmian planu dla ucznia ${uczen.id} odrzuconych przez filtr daty/godzin - możliwy brak/inna nazwa pola.`,
-        )
-      }
-      const wierszeZmian = zmianyPrzefiltrowane
-        .map((z) => ({
-          student_id: uczen.id,
-          household_id: householdId,
-          lesson_date: z.lessonDate!.date,
-          start_time: z.time!.start,
-          end_time: z.time!.end,
-          subject: z.subject?.name ?? z.event ?? '(zmiana planu)',
-          teacher: z.teacher?.displayName ?? null,
-          room: z.room?.code ?? null,
-          changed: true,
-          change_note: (z.note ?? z.reason ?? z.event ?? null) as string | null,
-        }))
-
-      const wierszePlanu = bezDuplikatow(
-        [...wierszeLekcji, ...wierszeZmian],
-        (w) => `${w.student_id}|${w.lesson_date}|${w.start_time}`,
-      )
+          changed: zmieniona,
+          change_note: zmieniona ? ((zmiana?.note ?? zmiana?.reason ?? 'Zastępstwo') as string) : null,
+        }
+      })
 
       // Najpierw kasujemy całe zsynchronizowane okno tego ucznia, dopiero
       // potem wstawiamy nowy plan. Sam upsert zostawiłby na zawsze lekcje

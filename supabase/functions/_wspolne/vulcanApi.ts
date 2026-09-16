@@ -1,4 +1,4 @@
-import { Keystore, Lesson, Student, VulcanHebe } from 'npm:vulcan-api-js@3.5.4'
+import { Exam, Homework, Keystore, Lesson, Student, VulcanHebe } from 'npm:vulcan-api-js@3.5.4'
 import { zbudujNaglowki } from './vulcanPodpis.ts'
 
 const BASE_URL = 'https://lekcjaplus.vulcan.net.pl/'
@@ -37,19 +37,40 @@ const BASE_URL = 'https://lekcjaplus.vulcan.net.pl/'
  * brakuje - jeśli kiedyś endpoint zacznie zwracać `Date` wprost, ta gałąź
  * się nie uruchomi.
  *
- * Obie łatki wyżej opierają się na kształcie biblioteki, którego typy
+ * TRZECI przypadek TEGO SAMEGO wzorca (`XAt` zamiast `X`), znaleziony
+ * 2026-09-16 żywą diagnostyką (zrzut surowego źródła PRZED `serialize()`,
+ * nie tylko po) po tym, jak `vulcan_assignments` zostawało puste mimo
+ * realnych zadań domowych w Vulcan: `Homework` wiąże `Deadline`
+ * (`bind("Deadline")`, typ `Date` - zwykła wartość, bez zagnieżdżenia jak
+ * `DateTime`), a eduVULCAN zwraca `DeadlineAt` (potwierdzone:
+ * `"2026-09-16"`). Podstawiamy `Deadline: source.DeadlineAt` wprost, bez
+ * owijania - w przeciwieństwie do `Lesson.Date` to pole NIE jest typu
+ * `Serializable` (zobacz `serialize()`: `this[srcKey] = typeData.prototype
+ * instanceof Serializable ? new typeData().serialize(srcObj) : srcObj`),
+ * więc trafia do `this.deadline` bez żadnej dalszej obróbki.
+ *
+ * CZWARTY, ANALOGICZNY przypadek dla `Exam.deadline` (też `bind("Deadline")`,
+ * ale typu `DateTime` jak `Lesson.date`) - podstawiony tym samym wzorcem co
+ * `Lesson.Date/DateAt` (owinięty w `{Date: ...}`), na wypadek gdyby
+ * eduVULCAN nazywał to pole tak samo jak w `Homework`. NIEPOTWIERDZONY
+ * żywym testem (żadnych sprawdzianów w oknie synchronizacji w chwili
+ * naprawy) - jeśli okaże się błędny, funkcja i tak tylko odrzuci wiersz
+ * (istniejące „Ostrzeżenie: N sprawdzianów odrzuconych” w vulcanSync.ts),
+ * nie zepsuje niczego innego.
+ *
+ * Wszystkie łatki wyżej opierają się na kształcie biblioteki, którego typy
  * publiczne (`index.d.ts`) nie gwarantują (wspólny, nieeksportowany
- * prototyp; nazwa klasy `Lesson` zachowana w skompilowanym kodzie).
- * Wersja jest przypięta na sztywno (`npm:vulcan-api-js@3.5.4`), więc
- * ryzyko cichej zmiany jest niskie, ale asercje niżej zamieniają
- * ewentualne rozjechanie się założeń w GŁOŚNY błąd przy starcie funkcji
- * (zamiast cichego `date: null` i zsynchronizowanego "sukcesu" z zerem
- * wierszy - dokładnie tak ukrywał się błąd `Lesson.date` przez dwie rundy
- * diagnozy na żywo).
+ * prototyp; nazwy klas zachowane w skompilowanym kodzie). Wersja jest
+ * przypięta na sztywno (`npm:vulcan-api-js@3.5.4`), więc ryzyko cichej
+ * zmiany jest niskie, ale asercje niżej zamieniają ewentualne rozjechanie
+ * się założeń w GŁOŚNY błąd przy starcie funkcji (zamiast cichego
+ * `date: null`/`deadline: undefined` i zsynchronizowanego "sukcesu" z zerem
+ * wierszy - dokładnie tak ukrywały się te błędy przez wiele rund diagnozy
+ * na żywo).
  */
-if (Lesson.name !== 'Lesson') {
+if (Lesson.name !== 'Lesson' || Homework.name !== 'Homework' || Exam.name !== 'Exam') {
   throw new Error(
-    'vulcan-api-js: klasa Lesson zmieniła nazwę w skompilowanym kodzie (możliwa minifikacja) - łatka pola DateAt przestałaby cicho działać.',
+    'vulcan-api-js: klasa Lesson/Homework/Exam zmieniła nazwę w skompilowanym kodzie (możliwa minifikacja) - łatki pól *At przestałyby cicho działać.',
   )
 }
 ;(() => {
@@ -59,9 +80,11 @@ if (Lesson.name !== 'Lesson') {
   }
   const oryginalnySerialize = wspolnyPrototyp.serialize
   wspolnyPrototyp.serialize = function (this: unknown, source: unknown) {
+    const nazwaKlasy = (this as { constructor?: { name?: string } })?.constructor?.name
     let poprawioneZrodlo = source
+
     if (
-      (this as { constructor?: { name?: string } })?.constructor?.name === 'Lesson' &&
+      nazwaKlasy === 'Lesson' &&
       source &&
       typeof source === 'object' &&
       (source as Record<string, unknown>).Date == null &&
@@ -72,6 +95,33 @@ if (Lesson.name !== 'Lesson') {
         Date: { Date: (source as Record<string, unknown>).DateAt },
       }
     }
+
+    if (
+      nazwaKlasy === 'Homework' &&
+      source &&
+      typeof source === 'object' &&
+      (source as Record<string, unknown>).Deadline == null &&
+      (source as Record<string, unknown>).DeadlineAt != null
+    ) {
+      poprawioneZrodlo = {
+        ...(poprawioneZrodlo as Record<string, unknown>),
+        Deadline: (source as Record<string, unknown>).DeadlineAt,
+      }
+    }
+
+    if (
+      nazwaKlasy === 'Exam' &&
+      source &&
+      typeof source === 'object' &&
+      (source as Record<string, unknown>).Deadline == null &&
+      (source as Record<string, unknown>).DeadlineAt != null
+    ) {
+      poprawioneZrodlo = {
+        ...(poprawioneZrodlo as Record<string, unknown>),
+        Deadline: { Date: (source as Record<string, unknown>).DeadlineAt },
+      }
+    }
+
     return oryginalnySerialize.call(this, poprawioneZrodlo ?? null)
   }
 })()
