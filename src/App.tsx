@@ -9,6 +9,7 @@ import {
   tydzienOd,
 } from './dates'
 import { nastepnyDzien, opisCzasu, poczatekDnia } from './czas'
+import { Dashboard } from './Dashboard'
 import { MojDom } from './MojDom'
 import { Szkola } from './Szkola'
 import { Zakupy } from './Zakupy'
@@ -354,7 +355,15 @@ function App({ profil, email }: Props) {
 
       {ekran === 'dom' && telefon && <KontoKarta profil={profil} email={email} />}
 
-      {ekran === 'zakupy' ? (
+      {ekran === 'dashboard' ? (
+        <Dashboard
+          householdId={profil.household_id}
+          domownicy={osoby.domownicy}
+          wiadomosci={vulcan.wiadomosci}
+          onBlad={setBlad}
+          onEkran={przelaczEkran}
+        />
+      ) : ekran === 'zakupy' ? (
         <Zakupy
           jestemRodzicem={jestemRodzicem}
           mojeId={profil.id}
