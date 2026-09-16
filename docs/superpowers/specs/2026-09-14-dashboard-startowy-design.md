@@ -87,7 +87,7 @@ Function i bez sekretów do trzymania.
 
 | Licznik | Źródło | Warunek |
 | --- | --- | --- |
-| Pilne terminy | `terminy` z `useTerminy` | `!zalatwiony && powiadom !== null && czyPrzeterminowany(powiadom, dzisiaj)` — ta sama funkcja z `terminy.ts`, która już dziś liczy `powiadomienieMinelo` na ekranie „Terminy" (`WazneTerminy.tsx:171`), więc dashboard pokazuje dokładnie te same terminy, które tam świecą się jako spóźnione z powiadomieniem — czerwony, gdy >0 |
+| Pilne terminy | `terminy` z `useTerminy` | `!zalatwiony && powiadom !== null && czyPrzeterminowany(powiadom, dzisiaj)` — ta sama funkcja `czyPrzeterminowany` z `terminy.ts`, której używa też `powiadomienieMinelo` na ekranie „Terminy" (`WazneTerminy.tsx:171`) — z jedną różnicą: dashboard liczy wyłącznie terminy niezałatwione, więc załatwiony termin z minioną datą powiadomienia świeci się jeszcze na „Terminach", ale do licznika już nie wchodzi — czerwony, gdy >0 |
 | Nowe wiadomości dziś | `vulcan.wiadomosci` (już ładowane centralnie w `App.tsx`) | `klucz(new Date(data)) === klucz(dzisiaj)`, liczone przez **wszystkich** uczniów łącznie (dashboard jest widokiem całego domu, nie jednego dziecka jak ekran „Szkoła") |
 | Otwarte tematy | `tablica.notatki` z `useTablica` | wszystkie notatki, bez rozróżnienia zrobione/niezrobione (Tablica dziś takiego pola nie ma) |
 | Do kupienia | `zakupy.pozycje` z `useZakupy` | gotowa funkcja `policzPozostale(pozycje)` z `pozycje.ts` — już liczy po całym domu, nie po jednej liście |

@@ -3,9 +3,8 @@ import type { DomownikDb } from '../lib/supabase'
 import type { Wydarzenie } from '../useWydarzenia'
 import { godzinaHM, minutyOdPolnocy, ukladajKolumny, wJednymDniu } from '../czas'
 import { kolor } from '../kolory'
-import { zakresGodzin } from './grafikDnia'
+import { MINUT_W_DOBIE, zakresGodzin } from './zakresGodzin'
 
-const MINUT_W_DOBIE = 24 * 60
 const WYSOKOSC_TORU = 28
 
 type Props = {
@@ -29,6 +28,21 @@ export function GrafikDnia({ domownicy, wydarzenia }: Props) {
   const liczbaGodzin = godzinaDo - godzinaOd
   const zakresOdMinut = godzinaOd * 60
   const zakresMinut = liczbaGodzin * 60
+
+  // Sama linijka godzin bez żadnego wiersza wygląda jak ekran, który się nie
+  // wczytał - lepiej powiedzieć wprost, że na dziś nic nie ma. Dotyczy też
+  // domu bez domowników.
+  const pusto =
+    domownicy.length === 0 ||
+    domownicy.every((osoba) => !godzinne.some((w) => w.osobyId.includes(osoba.id)))
+
+  if (pusto) {
+    return (
+      <div className="karta grafik-dnia">
+        <p className="pusto">Nic dziś nie zaplanowane.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="karta grafik-dnia">

@@ -11,11 +11,7 @@ import { useZakupy } from './useZakupy'
 import { opisPogody, usePogoda } from './usePogoda'
 import { liczPilneTerminy, liczWiadomosciDzis } from './dashboardLiczniki'
 import { policzPozostale } from './pozycje'
-// Rozszerzenie podane wprost: `./widoki/GrafikDnia` bez rozszerzenia na
-// systemie plików nieodróżniającym wielkości liter (Windows) trafia najpierw
-// w `./widoki/grafikDnia.ts` (Task 3, ta sama nazwa różniąca się tylko
-// wielkością litery) zamiast we właściwy komponent.
-import { GrafikDnia } from './widoki/GrafikDnia.tsx'
+import { GrafikDnia } from './widoki/GrafikDnia'
 
 type Props = {
   householdId: string
@@ -100,7 +96,7 @@ export function Dashboard({ householdId, domownicy, wiadomosci, onBlad, onEkran 
           onKlik={() => onEkran('terminy')}
         />
         <LicznikDnia
-          etykieta="Nowe wiadomości"
+          etykieta="Wiadomości dziś"
           wartosc={liczbaWiadomosciDzis}
           onKlik={() => onEkran('szkola')}
         />

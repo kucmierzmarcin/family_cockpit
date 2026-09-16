@@ -2,7 +2,8 @@ import { minutyOdPolnocy, type Przedzial } from '../czas'
 
 const DOMYSLNA_GODZINA_OD = 6
 const DOMYSLNA_GODZINA_DO = 23
-const MINUT_W_DOBIE = 24 * 60
+/** Doba w minutach - wspólna dla `zakresGodzin` i komponentu `GrafikDnia`. */
+export const MINUT_W_DOBIE = 24 * 60
 
 /**
  * Okno godzin do pokazania w poziomym grafiku dnia: domyślnie 6-23,

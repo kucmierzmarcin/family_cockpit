@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { zakresGodzin } from './grafikDnia'
+import { zakresGodzin } from './zakresGodzin'
 
 function d(tekst: string): Date {
   return new Date(tekst)
