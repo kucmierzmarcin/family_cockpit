@@ -67,3 +67,11 @@ export function godzina(wartosc: string | null): string | null {
 export function dlugaData(data: Date): string {
   return data.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })
 }
+
+/** Np. '16 września (środa)' - jak `dlugaData`, ale z dniem tygodnia w nawiasie
+ *  dla łatwiejszej orientacji tam, gdzie same daty kolejnych dni się mylą
+ *  (np. plan lekcji na kilka tygodni naprzód). */
+export function dlugaDataZDniem(data: Date): string {
+  const dzienTygodnia = data.toLocaleDateString('pl-PL', { weekday: 'long' }).toLowerCase()
+  return `${dlugaData(data)} (${dzienTygodnia})`
+}

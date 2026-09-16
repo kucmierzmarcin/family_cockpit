@@ -10,7 +10,8 @@ import {
   type Wiadomosc,
   type Wpis,
 } from './vulcan'
-import { dlugaData, klucz } from './dates'
+import { dlugaData, dlugaDataZDniem, klucz } from './dates'
+import { kolor } from './kolory'
 
 type Props = {
   domownicy: DomownikDb[]
@@ -36,6 +37,7 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
   const [pokazMinione, setPokazMinione] = useState(false)
 
   const uczniowie = status?.uczniowie.filter((u) => u.memberId !== null) ?? []
+  const domownikPoId = new Map(domownicy.map((d) => [d.id, d]))
   const nazwaDomownika = new Map(domownicy.map((d) => [d.id, d.name]))
 
   // Dane zawsze pokazujemy dla JEDNEGO wybranego ucznia - łączony widok
@@ -120,6 +122,11 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
               aria-pressed={filtrUczniaId === u.id}
               onClick={() => setWybranyUczen(u.id)}
             >
+              <span
+                className="kropka"
+                style={{ background: kolor(domownikPoId.get(u.memberId ?? '')?.color).kropka }}
+                aria-hidden="true"
+              />
               {nazwaDomownika.get(u.memberId ?? '') ?? u.imie}
             </button>
           ))}
@@ -163,7 +170,7 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
           <div className="plan-lekcji">
             {[...dniPlanu.entries()].map(([dzien, lekcjeDnia]) => (
               <section key={dzien} className="dzien-planu">
-                <h3 className="dzien-planu-naglowek">{dlugaData(new Date(`${dzien}T12:00:00`))}</h3>
+                <h3 className="dzien-planu-naglowek">{dlugaDataZDniem(new Date(`${dzien}T12:00:00`))}</h3>
                 <ul className="lista-lekcji">
                   {lekcjeDnia.map((l) => (
                     <li key={l.id} className={`lekcja${l.zmieniona ? ' lekcja-zmieniona' : ''}`}>
