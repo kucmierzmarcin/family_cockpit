@@ -85,15 +85,13 @@
   text-align: center;
 }
 
-.dash-godzina,
-.dash-temperatura {
+.dash-godzina {
   margin: 0;
   font-size: 40px;
   font-weight: 600;
 }
 
-.dash-data,
-.dash-opis-pogody {
+.dash-data {
   margin: 4px 0 0;
   color: var(--tekst-drugi);
   text-transform: capitalize;

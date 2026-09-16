@@ -8,10 +8,10 @@ import { useWydarzenia } from './useWydarzenia'
 import { useTerminy } from './useTerminy'
 import { useTablica } from './useTablica'
 import { useZakupy } from './useZakupy'
-import { opisPogody, usePogoda } from './usePogoda'
 import { liczPilneTerminy, liczWiadomosciDzis } from './dashboardLiczniki'
 import { policzPozostale } from './pozycje'
 import { GrafikDnia } from './widoki/GrafikDnia'
+import { PogodaWidget } from './widoki/PogodaWidget'
 
 type Props = {
   householdId: string
@@ -55,7 +55,6 @@ export function Dashboard({
   const terminy = useTerminy(householdId, onBlad)
   const tablica = useTablica(onBlad)
   const zakupy = useZakupy(onBlad)
-  const { pogoda, blad: bladPogody } = usePogoda()
 
   // Bloki „Szkoła" nie mieszkają w `events` (patrz kalendarz ogólny w App.tsx),
   // więc grafik dnia trzeba nimi ręcznie dosycić - inaczej dzień z samymi
@@ -95,16 +94,7 @@ export function Dashboard({
         </div>
 
         <div className="karta dash-pogoda">
-          {bladPogody ? (
-            <p className="pusto">Pogoda niedostępna.</p>
-          ) : !pogoda ? (
-            <p className="pusto">Wczytuję pogodę…</p>
-          ) : (
-            <>
-              <p className="dash-temperatura">{Math.round(pogoda.teraz.temperatura)}°C</p>
-              <p className="dash-opis-pogody">{opisPogody(pogoda.teraz.kod)}</p>
-            </>
-          )}
+          <PogodaWidget />
         </div>
       </div>
 
