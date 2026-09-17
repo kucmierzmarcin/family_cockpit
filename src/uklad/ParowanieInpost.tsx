@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+// Ten sam, przetestowany kształt ciała, którego używa funkcja brzegowa.
+// Moduł jest czysty (zero importów z Deno), więc wolno go wciągnąć do strony -
+// i lepiej go wciągnąć, niż powielić: rozjazd tych dwóch kształtów to
+// dokładnie ten błąd, który wywalał parowanie (HTTP 500 z pustym ciałem).
+import { cialoWyslaniaKodu } from '../../supabase/functions/_wspolne/inpostApi'
 
 /**
  * Stan połączenia z InPostem, tak jak zwraca go `status_polaczenia_inpost()`.
@@ -63,12 +68,55 @@ export function ParowanieInpost({ inpost }: Props) {
   const [blad, setBlad] = useState<string | null>(null)
   const [zapisywanie, setZapisywanie] = useState(false)
 
-  async function wyslij(e: React.FormEvent, krok: 'sms' | 'potwierdz') {
+  /**
+   * Krok 1 - prośba o SMS. NIE idzie przez funkcję brzegową.
+   *
+   * InPost odpowiada 200 i nie wysyła nic, gdy żądanie przychodzi z serwerowni
+   * (sprawdzone: to samo żądanie z łącza domowego wysyła SMS). Przeglądarka nie
+   * może zawołać InPostu wprost - preflight CORS dostaje 403 - więc idziemy
+   * przez proxy serwera deweloperskiego, patrz `vite.config.ts`.
+   *
+   * Nie jesteśmy tu przekaźnikiem SMS-ów dla nikogo obcego: żądanie wychodzi z
+   * maszyny domownika, a nie z naszej funkcji, więc bramka logowania, która
+   * chroniła tamten krok, przestaje być potrzebna właśnie dlatego, że nie ma
+   * już czego chronić.
+   */
+  async function wyslijProsbeOKod(e: React.FormEvent) {
+    e.preventDefault()
+    setBlad(null)
+
+    if (!import.meta.env.DEV) {
+      setBlad('Parowanie z InPostem działa tylko przy aplikacji uruchomionej lokalnie (npm run dev).')
+      return
+    }
+
+    setZapisywanie(true)
+    try {
+      const odp = await fetch('/inpost-api/v1/account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+        body: JSON.stringify(cialoWyslaniaKodu(phone.replace(/\D/g, ''))),
+      })
+      if (!odp.ok) {
+        setBlad(`InPost odrzucił prośbę o kod (HTTP ${odp.status}).`)
+        return
+      }
+      setEtap('kod')
+    } catch (e) {
+      setBlad(`Nie udało się wysłać prośby o kod: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setZapisywanie(false)
+    }
+  }
+
+  /** Krok 2 - potwierdzenie kodu. Zostaje po stronie serwera, żeby tokeny
+   *  InPostu trafiły prosto do bazy i nigdy nie przeszły przez przeglądarkę. */
+  async function potwierdzKod(e: React.FormEvent) {
     e.preventDefault()
     setZapisywanie(true)
     setBlad(null)
     const { error } = await supabase.functions.invoke('inpost-polacz', {
-      body: krok === 'sms' ? { krok, phone } : { krok, phone, kod },
+      body: { krok: 'potwierdz', phone, kod },
     })
     setZapisywanie(false)
 
@@ -77,14 +125,10 @@ export function ParowanieInpost({ inpost }: Props) {
       return
     }
 
-    if (krok === 'sms') {
-      setEtap('kod')
-    } else {
-      setKod('')
-      setPhone('')
-      setEtap('numer')
-      onOdswiez()
-    }
+    setKod('')
+    setPhone('')
+    setEtap('numer')
+    onOdswiez()
   }
 
   if (polaczenie && polaczenie.status === 'aktywne') {
@@ -124,7 +168,7 @@ export function ParowanieInpost({ inpost }: Props) {
       )}
 
       {etap === 'numer' ? (
-        <form className="formularz" onSubmit={(e) => void wyslij(e, 'sms')}>
+        <form className="formularz" onSubmit={(e) => void wyslijProsbeOKod(e)}>
           <label htmlFor="inpost-telefon">Numer telefonu w InPoście</label>
           <input
             id="inpost-telefon"
@@ -140,7 +184,7 @@ export function ParowanieInpost({ inpost }: Props) {
           </button>
         </form>
       ) : (
-        <form className="formularz" onSubmit={(e) => void wyslij(e, 'potwierdz')}>
+        <form className="formularz" onSubmit={(e) => void potwierdzKod(e)}>
           <label htmlFor="inpost-kod">Kod z SMS-a</label>
           <input
             id="inpost-kod"

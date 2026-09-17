@@ -117,8 +117,20 @@ wciągnąć do nowo założonego domu.
      żadnej paczki zsynchronizowanej.
    - Wdróż obie funkcje: `supabase functions deploy inpost-sync` i
      `supabase functions deploy inpost-polacz`.
-   - Domownik paruje numer telefonu w zakładce „Paczki" (SMS + kod) — nie
-     wymaga roli rodzica, w odróżnieniu od Vulcana.
+   - Domownik paruje numer telefonu na ekranie **„Mój dom"** (SMS + kod) — nie
+     wymaga roli rodzica, w odróżnieniu od Vulcana. Zakładka „Paczki" pokazuje
+     wyłącznie listę przesyłek.
+   - **Parowanie wymaga aplikacji uruchomionej lokalnie (`npm run dev`).**
+     InPost przyjmuje prośbę o kod SMS wysłaną z serwerowni (odpowiada HTTP
+     200), ale wtedy żadnego SMS-a nie wysyła — to samo żądanie z łącza
+     domowego SMS wysyła. Przeglądarka nie może zawołać InPostu wprost
+     (preflight CORS dostaje 403, a jedyny typ treści bez preflightu,
+     `text/plain`, API odrzuca), więc ten jeden krok idzie przez proxy serwera
+     deweloperskiego — `server.proxy['/inpost-api']` w `vite.config.ts`.
+     Potwierdzenie kodu leci już normalnie przez funkcję brzegową, żeby tokeny
+     InPostu trafiły prosto do bazy i nigdy nie przeszły przez przeglądarkę.
+     W zbudowanej, wdrożonej aplikacji tego proxy nie ma i parowanie się nie
+     uda — synchronizacja już sparowanego numeru działa wszędzie.
 
 ## Struktura
 
