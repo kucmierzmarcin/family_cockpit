@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cialoPotwierdzeniaKodu,
+  cialoWyslaniaKodu,
   czekaNaOdbior,
   naWierszePaczek,
+  numerDlaApi,
   rozpoznanyKsztaltOdpowiedzi,
   statusyNierozpoznane,
   statusyZOdpowiedzi,
@@ -187,5 +190,34 @@ describe('statusyNierozpoznane', () => {
       ],
     }
     expect(statusyNierozpoznane(odpowiedz)).toEqual([])
+  })
+})
+
+describe('cialo zadan logowania', () => {
+  it('wysyla numer jako obiekt {prefix, value}, nie jako string', () => {
+    // Regresja: plaski string dawal HTTP 500 z pustym cialem - patrz komentarz
+    // przy `numerDlaApi`. Sprawdzamy STRUKTURE, bo to ona decyduje.
+    expect(cialoWyslaniaKodu('600100200')).toEqual({
+      phoneNumber: { prefix: '+48', value: '600100200' },
+    })
+    expect(typeof (cialoWyslaniaKodu('600100200') as { phoneNumber: unknown }).phoneNumber).toBe(
+      'object',
+    )
+  })
+
+  it('potwierdzenie niesie kod, devicePlatform i ten sam obiekt numeru', () => {
+    expect(cialoPotwierdzeniaKodu('600100200', '123456')).toEqual({
+      smsCode: '123456',
+      devicePlatform: 'Android',
+      phoneNumber: { prefix: '+48', value: '600100200' },
+    })
+  })
+
+  it('nie nazywa platformy `phoneOS` - tak nazywa sie ona dopiero w /v1/authenticate', () => {
+    expect(cialoPotwierdzeniaKodu('600100200', '123456')).not.toHaveProperty('phoneOS')
+  })
+
+  it('doklada polski prefiks osobno, zamiast wklejac go do numeru', () => {
+    expect(numerDlaApi('600100200')).toEqual({ prefix: '+48', value: '600100200' })
   })
 })

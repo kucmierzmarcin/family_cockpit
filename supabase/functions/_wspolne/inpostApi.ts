@@ -175,3 +175,35 @@ export function naWierszePaczek(odpowiedz: unknown): WierszPaczki[] {
       stored_date: p.storedDate ?? null,
     }))
 }
+
+/**
+ * Numer telefonu w kształcie, jakiego wymaga API logowania: OBIEKT
+ * `{prefix, value}`, nie string.
+ *
+ * To nie jest kosmetyka - na tym poległo pierwsze parowanie. `POST /v1/account`
+ * z `{"phoneNumber": "600100200"}` zwraca **HTTP 500 z pustym ciałem** (pole jest
+ * rozpoznane, ale typ się nie zgadza i deserializacja wywala się za walidacją),
+ * podczas gdy `{"phoneNumber": {"prefix": "+48", "value": "600100200"}}` zwraca
+ * 200. Dla kontrastu nieznane pole (`{"phone": ...}`) daje uczciwe 400 - czyli
+ * 500 było JEDYNYM sygnałem, że kształt jest zły, i wyglądało jak awaria
+ * InPostu. Stąd testy poniżej: pilnują struktury, nie ładnych napisów.
+ */
+export function numerDlaApi(phone: string): { prefix: string; value: string } {
+  return { prefix: '+48', value: phone }
+}
+
+/** Ciało `POST /v1/account` - prośba o SMS z kodem. */
+export function cialoWyslaniaKodu(phone: string): Record<string, unknown> {
+  return { phoneNumber: numerDlaApi(phone) }
+}
+
+/**
+ * Ciało `POST /v1/account/verification` - potwierdzenie kodu.
+ *
+ * Uwaga na nazwę pola: tutaj platforma nazywa się `devicePlatform`, a w
+ * `POST /v1/authenticate` (odswiezenie tokenu w `inpost-sync`) ta sama wartość
+ * jedzie jako `phoneOS`. Niekonsekwencja jest po stronie API, nie nasza.
+ */
+export function cialoPotwierdzeniaKodu(phone: string, kod: string): Record<string, unknown> {
+  return { smsCode: kod, devicePlatform: 'Android', phoneNumber: numerDlaApi(phone) }
+}

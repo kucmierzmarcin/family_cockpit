@@ -148,9 +148,9 @@ export function ParowanieInpost({ inpost }: Props) {
             autoComplete="one-time-code"
             value={kod}
             onChange={(e) => setKod(e.target.value)}
-            maxLength={8}
+            maxLength={6}
           />
-          <button type="submit" disabled={zapisywanie || !kod.trim()}>
+          <button type="submit" disabled={zapisywanie || kod.replace(/\D/g, '').length !== 6}>
             {zapisywanie ? 'Sprawdzam…' : 'Połącz'}
           </button>
           <button

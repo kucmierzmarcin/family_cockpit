@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { cialoPotwierdzeniaKodu, cialoWyslaniaKodu } from '../_wspolne/inpostApi.ts'
 
 const HOST = 'https://api-inmobile-pl.easypack24.net'
 
@@ -9,6 +10,14 @@ const CORS_HEADERS = {
 }
 
 type Cialo = { krok?: 'sms' | 'potwierdz'; phone?: string; kod?: string }
+
+// Naglowki 1:1 jak w aplikacji mobilnej (za `IFOSSA/inpost-python`). `charset`
+// w Content-Type i User-Agent nie sa ozdoba - to jedyne, czym to API odroznia
+// swojego klienta; wysylamy je, zeby nie roznic sie od dzialajacej referencji.
+const NAGLOWKI_INPOST = {
+  'Content-Type': 'application/json; charset=UTF-8',
+  'User-Agent': 'InPost-Mobile/3.23.0(32300001) (Android 9; unknown; unknown unknown; en)',
+}
 
 function bladJson(tekst: string, status: number): Response {
   return new Response(JSON.stringify({ blad: tekst }), {
@@ -74,8 +83,8 @@ Deno.serve(async (req) => {
     try {
       odp = await fetch(`${HOST}/v1/account`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: phone }),
+        headers: NAGLOWKI_INPOST,
+        body: JSON.stringify(cialoWyslaniaKodu(phone)),
       })
     } catch (e) {
       // Awaria DNS/TLS/sieci: bez try/catch Deno rzucalby tu nieobslugiwany
@@ -90,14 +99,15 @@ Deno.serve(async (req) => {
   if (cialo.krok !== 'potwierdz') return bladJson('Nieznany krok.', 400)
 
   const kod = (cialo.kod ?? '').replace(/\D/g, '')
-  if (kod.length === 0) return bladJson('Podaj kod z SMS-a.', 400)
+  // Szesc cyfr - tyle wysyla InPost i tyle waliduje referencyjny klient.
+  if (kod.length !== 6) return bladJson('Kod z SMS-a ma sześć cyfr.', 400)
 
   let odp: Response
   try {
     odp = await fetch(`${HOST}/v1/account/verification`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phoneNumber: phone, smsCode: kod }),
+      headers: NAGLOWKI_INPOST,
+      body: JSON.stringify(cialoPotwierdzeniaKodu(phone, kod)),
     })
   } catch (e) {
     return bladJson(`InPost nie odpowiada: ${String(e)}`, 502)
