@@ -1,0 +1,59 @@
+.paczki {
+  display: flex;
+  flex-direction: column;
+  gap: var(--odstep-4);
+  align-items: flex-start;
+}
+
+.lista-paczek {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--odstep-3);
+}
+
+.karta-paczki {
+  display: flex;
+  flex-direction: column;
+  gap: var(--odstep-2);
+}
+
+/* Pilna paczka bierze to samo tlo co przeterminowany wiersz w Terminach -
+   jeden jezyk alarmu w calej aplikacji. */
+.karta-paczki.pilna {
+  background: var(--blad-tlo);
+}
+
+.paczka-nadawca {
+  margin: 0;
+  font-size: var(--tekst-m);
+  font-weight: 600;
+}
+
+.paczka-punkt {
+  margin: 0;
+  font-size: var(--tekst-s);
+  color: var(--tekst-drugi);
+}
+
+.paczka-stopka {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--odstep-3);
+  flex-wrap: wrap;
+  margin-top: var(--odstep-1);
+}
+
+.paczka-termin {
+  font-size: var(--tekst-s);
+  color: var(--tekst-drugi);
+}
+
+.paczka-termin.pilny {
+  color: var(--blad);
+  font-weight: 600;
+}

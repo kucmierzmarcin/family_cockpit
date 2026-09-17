@@ -15,6 +15,7 @@ import { Szkola } from './Szkola'
 import { Zakupy } from './Zakupy'
 import { Tablica } from './Tablica'
 import { Terminy } from './WazneTerminy'
+import { Paczki } from './PaczkiInpost'
 import { Miesiac } from './widoki/Miesiac'
 import { Tydzien } from './widoki/Tydzien'
 import { Dzien } from './widoki/Dzien'
@@ -22,6 +23,7 @@ import { FormularzWydarzenia } from './FormularzWydarzenia'
 import { ImportAI } from './ImportAI'
 import { useDomownicy } from './useDomownicy'
 import { useVulcan } from './useVulcan'
+import { useInpost } from './useInpost'
 import { useWydarzenia, type Wydarzenie } from './useWydarzenia'
 import { blokiSzkolne } from './vulcan'
 import { BEZ_OSOBY, osobyWydarzenia, widocznePrzyFiltrze } from './osoby'
@@ -70,6 +72,7 @@ function App({ profil, email }: Props) {
 
   const osoby = useDomownicy(setBlad)
   const vulcan = useVulcan(setBlad)
+  const inpost = useInpost(setBlad)
   const telefon = useTelefon()
   const szerokiKalendarz = useSzerokiKalendarz()
   const [dodawanie, setDodawanie] = useState<Ekran | null>(null)
@@ -126,6 +129,14 @@ function App({ profil, email }: Props) {
   const osobaPoId = useMemo(
     () => new Map(osoby.domownicy.map((d) => [d.id, d])),
     [osoby.domownicy],
+  )
+
+  // Sekcja parowania w "Mój dom" pokazuje wyłącznie połączenie zalogowanego
+  // domownika - InPost wiąże konto z numerem telefonu konkretnej osoby, nie
+  // całego domu (patrz komentarz przy `inpost_connections` w schema.sql).
+  const polaczenieInpost = useMemo(
+    () => inpost.polaczenia.find((p) => p.memberId === profil.id) ?? null,
+    [inpost.polaczenia, profil.id],
   )
 
   function przesun(o: number) {
@@ -409,6 +420,13 @@ function App({ profil, email }: Props) {
           szczegolZAdresu={trasa.szczegol}
           onSzczegol={trasa.ustawSzczegol}
         />
+      ) : ekran === 'paczki' ? (
+        <Paczki
+          paczki={inpost.paczki}
+          ladowanie={inpost.ladowanie}
+          osobaPoId={osobaPoId}
+          onOdswiez={() => void inpost.odswiez()}
+        />
       ) : ekran === 'dom' ? (
         <MojDom
           domownicy={osoby.domownicy}
@@ -422,9 +440,7 @@ function App({ profil, email }: Props) {
           onUstawPowiadomienia={osoby.ustawPowiadomienia}
           onPolaczTelegram={osoby.polaczTelegram}
           vulcan={vulcan}
-          // Zaślepka do Taska 8: `useInpost` jeszcze nie istnieje. Podłącz tam
-          // prawdziwe `polaczenie`/`onOdswiez` - to nie jest docelowy stan.
-          inpost={{ polaczenie: null, onOdswiez: () => {} }}
+          inpost={{ polaczenie: polaczenieInpost, onOdswiez: () => void inpost.odswiez() }}
           dodawanie={trybDodawania('dom')}
         />
       ) : telefon ? (
