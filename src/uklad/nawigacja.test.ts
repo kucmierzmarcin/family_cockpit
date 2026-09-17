@@ -9,7 +9,7 @@ import {
 } from './nawigacja'
 
 describe('EKRANY', () => {
-  it('siedem ekranów w kolejności zakładek, dashboard pierwszy', () => {
+  it('osiem ekranów w kolejności zakładek, dashboard pierwszy', () => {
     expect(EKRANY).toEqual([
       'dashboard',
       'kalendarz',
@@ -17,6 +17,7 @@ describe('EKRANY', () => {
       'tablica',
       'terminy',
       'szkola',
+      'paczki',
       'dom',
     ])
   })
@@ -74,5 +75,10 @@ describe('podział nawigacji na telefonie', () => {
   it('zakładka „Więcej" świeci się, gdy jesteśmy na schowanym pod nią ekranie', () => {
     for (const e of EKRANY_WIECEJ) expect(wZakladceWiecej(e)).toBe(true)
     for (const e of EKRANY_TELEFON) expect(wZakladceWiecej(e)).toBe(false)
+  })
+
+  it('„Paczki" chowają się pod „Więcej" - pasek ma komplet pięciu celów', () => {
+    expect(EKRANY_WIECEJ).toContain('paczki')
+    expect(EKRANY_TELEFON).not.toContain('paczki')
   })
 })

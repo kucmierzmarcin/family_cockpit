@@ -5,22 +5,22 @@
  * same odpowiedzi z jednego miejsca, a nie każda ze swojego.
  */
 
-export type Ekran = 'dashboard' | 'kalendarz' | 'zakupy' | 'tablica' | 'terminy' | 'szkola' | 'dom'
+export type Ekran = 'dashboard' | 'kalendarz' | 'zakupy' | 'tablica' | 'terminy' | 'szkola' | 'paczki' | 'dom'
 
 /** Kolejność zakładek - ta sama u góry na biurku i na dole na telefonie. */
-export const EKRANY: Ekran[] = ['dashboard', 'kalendarz', 'zakupy', 'tablica', 'terminy', 'szkola', 'dom']
+export const EKRANY: Ekran[] = ['dashboard', 'kalendarz', 'zakupy', 'tablica', 'terminy', 'szkola', 'paczki', 'dom']
 
 /**
- * Dolny pasek telefonu mieści pięć celów - przy siedmiu każdy ma 51px na
- * 360-pikselowym ekranie, a samo słowo „Kalendarz” potrzebuje ~58px i nie ma
- * się gdzie złamać. Więc cztery najczęstsze ekrany stoją wprost w pasku,
- * a reszta chowa się pod „Więcej”. Na biurku zostaje cała siódemka - tam
- * miejsca nie brakuje (patrz EKRANY wyżej).
+ * Dolny pasek telefonu mieści pięć celów - przy ośmiu każdy ma jeszcze mniej
+ * miejsca na 360-pikselowym ekranie, a samo słowo „Kalendarz” potrzebuje
+ * ~58px i nie ma się gdzie złamać. Więc cztery najczęstsze ekrany stoją
+ * wprost w pasku, a reszta chowa się pod „Więcej”. Na biurku zostaje cała
+ * ósemka - tam miejsca nie brakuje (patrz EKRANY wyżej).
  */
 export const EKRANY_TELEFON: Ekran[] = ['dashboard', 'kalendarz', 'zakupy', 'szkola']
 
 /** Ekrany spod „Więcej” - rzadsze niż te w pasku, ale nie mniej ważne. */
-export const EKRANY_WIECEJ: Ekran[] = ['tablica', 'terminy', 'dom']
+export const EKRANY_WIECEJ: Ekran[] = ['tablica', 'terminy', 'paczki', 'dom']
 
 /**
  * Czy zakładka „Więcej” ma świecić jako aktywna. Bez tego wejście na Tablicę
@@ -37,6 +37,7 @@ export const TYTULY: Record<Ekran, string> = {
   tablica: 'Tablica',
   terminy: 'Terminy',
   szkola: 'Szkoła',
+  paczki: 'Paczki',
   dom: 'Mój dom',
 }
 
@@ -53,6 +54,7 @@ export const SLUGI: Record<Ekran, string> = {
   tablica: 'tablica',
   terminy: 'terminy',
   szkola: 'szkola',
+  paczki: 'paczki',
   dom: 'dom',
 }
 
@@ -75,6 +77,8 @@ export function etykietaDodania(ekran: Ekran, jestemRodzicem: boolean): string |
     case 'terminy':
       return 'Dodaj termin'
     case 'szkola':
+      return null
+    case 'paczki':
       return null
     case 'dom':
       return jestemRodzicem ? 'Dodaj domownika' : null

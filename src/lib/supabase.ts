@@ -157,6 +157,21 @@ export type LekcjaDb = {
   created_at: string
 }
 
+/** Paczka InPost w tabeli inpost_parcels. */
+export type PaczkaDb = {
+  id: string
+  household_id: string
+  member_id: string
+  shipment_number: string
+  status: string
+  sender_name: string | null
+  point_name: string | null
+  point_address: string | null
+  expiry_date: string | null
+  stored_date: string | null
+  updated_at: string
+}
+
 export type WpisDb = {
   id: string
   student_id: string
