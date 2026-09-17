@@ -21,6 +21,30 @@ export function czekaNaOdbior(status: string): boolean {
   return STATUSY_DO_ODBIORU.includes(status)
 }
 
+/**
+ * Statusy oznaczające, że przesyłka zakończyła swoją drogę - odebrana,
+ * zwrócona, anulowana albo w inny sposób "zamknięta". `/v4/parcels/tracked`
+ * Z ZAŁOŻENIA zwraca też takie paczki (patrz test `naWierszePaczek` mieszający
+ * status gotowy z `Doręczona` w jednej odpowiedzi) - to nie jest oznaka
+ * awarii, to normalna praca API.
+ *
+ * Ta lista NIE służy do filtrowania (do tego jest `czekaNaOdbior`/
+ * `STATUSY_DO_ODBIORU`) - służy WYŁĄCZNIE do odróżnienia "rozpoznany status
+ * zakończony" od "napisu, którego w ogóle nie znamy". Domownik, który właśnie
+ * odebrał swoją jedyną paczkę, ma w odpowiedzi same statusy końcowe i zero
+ * "gotowa do odbioru" - to nie ma być sygnałem "API się zepsuło".
+ */
+export const STATUSY_KONCOWE = [
+  'Doręczona',
+  'Odebrana z paczkomatu',
+  'Zwrócona do nadawcy',
+  'Odebrana od nadawcy',
+  'Odebrana przez Kuriera',
+  'Anulowana',
+  'Nie dostarczona',
+  'Odrzucona przez odbiorcę',
+]
+
 export type PaczkaZApi = {
   shipmentNumber: string
   status: string
@@ -77,29 +101,28 @@ export function rozpoznanyKsztaltOdpowiedzi(odpowiedz: unknown): boolean {
  * Precedens z tego repo: awaria `Lesson.date`/`DateAt` w Vulcanie była zmianą
  * NAZWY POLA, nie zniknięciem korzenia odpowiedzi - `parcels` przetrwałby
  * taką zmianę tak samo, jak przetrwałby zmianę NAPISU statusu (np. „Gotowa do
- * odbioru" → „Gotowa do odbioru 24/7"). W obu przypadkach `naWierszePaczek`
- * odfiltruje WSZYSTKO (żaden wiersz nie przejdzie przez `czekaNaOdbior` albo
- * przez odczyt pola), `wiersze` wyjdzie puste, a wywołujący (`inpost-sync`)
- * skasowałby wtedy WSZYSTKIE realne, wciąż czekające paczki domownika -
- * zero błędów, zero logów, bo `[]` wygląda identycznie jak legalne „wszystko
- * odebrane".
+ * odbioru" → „Gotowa do odbioru 24/7").
  *
- * Sygnał, który odróżnia te dwie sytuacje: `parcels` NIE jest pusta (API
- * naprawdę coś zwróciło), a mimo to `wiersze` (po przejściu przez
- * `naWierszePaczek`) jest puste. Legalne „wszystko odebrane" to `parcels: []`
- * pusta OD RAZU - to rozróżnienie musi zrobić wywołujący, samo `[]` z
- * `naWierszePaczek` go nie niesie.
+ * WCZEŚNIEJSZA wersja tej funkcji uznawała za podejrzane KAŻDE `wiersze:
+ * []` przy niepustym `parcels` - ale `/v4/parcels/tracked` z założenia
+ * zwraca też paczki w stanach końcowych (patrz `STATUSY_KONCOWE`), więc
+ * domownik, który ma w danej chwili WYŁĄCZNIE paczki już odebrane/zwrócone,
+ * dawał dokładnie taki wynik (`wiersze: []`, `parcels` niepuste) i był
+ * fałszywie alarmowany o "zmianie kształtu API", mimo że nic się nie zepsuło.
+ *
+ * Poprawny sygnał: nie "zero wierszy przeszło filtr", tylko "występuje status,
+ * którego nie ma ANI na liście `STATUSY_DO_ODBIORU`, ANI na liście
+ * `STATUSY_KONCOWE`" - czyli napis, jakiego jeszcze nie widzieliśmy. Rozpoznany
+ * status końcowy (np. `Doręczona`) to normalna praca API, nie awaria.
  */
-export function wygladaNaNiezgodnoscKsztaltu(odpowiedz: unknown, wiersze: WierszPaczki[]): boolean {
-  const paczki = (odpowiedz as { parcels?: unknown })?.parcels
-  return Array.isArray(paczki) && paczki.length > 0 && wiersze.length === 0
+export function zawieraNierozpoznanyStatus(odpowiedz: unknown): boolean {
+  return statusyNierozpoznane(odpowiedz).length > 0
 }
 
 /**
  * Statusy z odpowiedzi, do logu - WYŁĄCZNIE statusy, nigdy całe paczki ani
  * surowa odpowiedź. Statusy nie niosą tajemnic (w przeciwieństwie do
- * `openCode` - klucza do skrytki), więc bezpiecznie trafiają do `console.warn`
- * i pomagają rozpoznać, JAKI nowy napis status InPost zaczął zwracać.
+ * `openCode` - klucza do skrytki), więc bezpiecznie trafiają do `console.warn`.
  */
 export function statusyZOdpowiedzi(odpowiedz: unknown): string[] {
   const paczki = (odpowiedz as { parcels?: unknown })?.parcels
@@ -109,6 +132,19 @@ export function statusyZOdpowiedzi(odpowiedz: unknown): string[] {
     if (p && typeof p.status === 'string') zbior.add(p.status)
   }
   return [...zbior]
+}
+
+/**
+ * Podzbiór `statusyZOdpowiedzi`, który zostaje po odrzuceniu statusów
+ * rozpoznanych (obu list - i "czeka na odbiór", i "zakończona"). To WŁAŚNIE
+ * te napisy warto pokazać w `console.warn`/`last_error` w `inpost-sync` -
+ * wypisywanie tam WSZYSTKICH statusów (łącznie z całkiem normalnym
+ * `Doręczona`) myliłoby czytającego, sugerując awarię tam, gdzie jej nie ma.
+ */
+export function statusyNierozpoznane(odpowiedz: unknown): string[] {
+  return statusyZOdpowiedzi(odpowiedz).filter(
+    (status) => !STATUSY_DO_ODBIORU.includes(status) && !STATUSY_KONCOWE.includes(status),
+  )
 }
 
 /**

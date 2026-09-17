@@ -3,8 +3,9 @@ import {
   czekaNaOdbior,
   naWierszePaczek,
   rozpoznanyKsztaltOdpowiedzi,
+  statusyNierozpoznane,
   statusyZOdpowiedzi,
-  wygladaNaNiezgodnoscKsztaltu,
+  zawieraNierozpoznanyStatus,
 } from './inpostApi'
 
 describe('czekaNaOdbior', () => {
@@ -99,32 +100,47 @@ describe('rozpoznanyKsztaltOdpowiedzi', () => {
   })
 })
 
-describe('wygladaNaNiezgodnoscKsztaltu', () => {
-  it('zaznacza podejrzenie, gdy API zwrocilo paczki, ale zadna nie przeszla przez naWierszePaczek', () => {
+describe('zawieraNierozpoznanyStatus', () => {
+  // Regresja, ktora ta poprawka naprawia: wczesniejsza wersja tej funkcji
+  // (`wygladaNaNiezgodnoscKsztaltu`) alarmowala przy KAZDYM "zero wierszy
+  // przeszlo filtr", nawet gdy wszystkie statusy byly rozpoznanymi stanami
+  // koncowymi. Domownik, ktory ma w danej chwili wylacznie paczki juz
+  // odebrane/zwrocone (np. wlasnie odebral swoja jedyna paczke), dostawal
+  // wtedy falszywy alarm i nieaktualne wiersze zostawaly w tabeli.
+  it('nie zaznacza, gdy wszystkie statusy sa rozpoznanymi stanami koncowymi (zero gotowych do odbioru)', () => {
+    const odpowiedz = {
+      parcels: [
+        { shipmentNumber: '1', status: 'Doręczona' },
+        { shipmentNumber: '2', status: 'Odebrana z paczkomatu' },
+      ],
+    }
+    expect(zawieraNierozpoznanyStatus(odpowiedz)).toBe(false)
+  })
+
+  it('zaznacza, gdy w odpowiedzi wystepuje status spoza obu list (nierozpoznany)', () => {
     // Symulacja zmiany napisu statusu, np. "Gotowa do odbioru" -> "Gotowa do odbioru 24/7":
-    // `parcels` niepusta, ale `czekaNaOdbior` nie rozpoznaje nowego napisu.
+    // taki napis nie jest ani na liscie "czeka na odbior", ani na liscie stanow koncowych.
     const odpowiedz = { parcels: [{ shipmentNumber: '1', status: 'Gotowa do odbioru 24/7' }] }
-    expect(wygladaNaNiezgodnoscKsztaltu(odpowiedz, naWierszePaczek(odpowiedz))).toBe(true)
+    expect(zawieraNierozpoznanyStatus(odpowiedz)).toBe(true)
   })
 
-  it('nie zaznacza legalnego "wszystko odebrane" (parcels puste od razu)', () => {
-    const odpowiedz = { parcels: [] }
-    expect(wygladaNaNiezgodnoscKsztaltu(odpowiedz, naWierszePaczek(odpowiedz))).toBe(false)
-  })
-
-  it('nie zaznacza, gdy przynajmniej jedna paczka poprawnie przeszla filtr', () => {
+  it('nie zaznacza mieszanki: jedna paczka gotowa do odbioru, jedna w stanie koncowym', () => {
     const odpowiedz = {
       parcels: [
         { shipmentNumber: '1', status: 'Gotowa do odbioru' },
         { shipmentNumber: '2', status: 'Doręczona' },
       ],
     }
-    expect(wygladaNaNiezgodnoscKsztaltu(odpowiedz, naWierszePaczek(odpowiedz))).toBe(false)
+    expect(zawieraNierozpoznanyStatus(odpowiedz)).toBe(false)
   })
 
-  it('nie zaznacza dla nierozpoznanego ksztaltu odpowiedzi (to osobny sygnal)', () => {
-    expect(wygladaNaNiezgodnoscKsztaltu({}, [])).toBe(false)
-    expect(wygladaNaNiezgodnoscKsztaltu(null, [])).toBe(false)
+  it('nie zaznacza dla pustej tablicy parcels - to legalne "nic nie czeka"', () => {
+    expect(zawieraNierozpoznanyStatus({ parcels: [] })).toBe(false)
+  })
+
+  it('nie zaznacza dla nierozpoznanego ksztaltu odpowiedzi (to osobny sygnal - rozpoznanyKsztaltOdpowiedzi)', () => {
+    expect(zawieraNierozpoznanyStatus({})).toBe(false)
+    expect(zawieraNierozpoznanyStatus(null)).toBe(false)
   })
 })
 
@@ -148,5 +164,28 @@ describe('statusyZOdpowiedzi', () => {
   it('pusta lista dla nierozpoznanego ksztaltu', () => {
     expect(statusyZOdpowiedzi({})).toEqual([])
     expect(statusyZOdpowiedzi(null)).toEqual([])
+  })
+})
+
+describe('statusyNierozpoznane', () => {
+  it('pomija statusy z obu list (gotowe i koncowe), zwraca tylko nierozpoznane', () => {
+    const odpowiedz = {
+      parcels: [
+        { shipmentNumber: '1', status: 'Gotowa do odbioru' },
+        { shipmentNumber: '2', status: 'Doręczona' },
+        { shipmentNumber: '3', status: 'Gotowa do odbioru 24/7' },
+      ],
+    }
+    expect(statusyNierozpoznane(odpowiedz)).toEqual(['Gotowa do odbioru 24/7'])
+  })
+
+  it('pusta lista, gdy wszystkie statusy w odpowiedzi sa rozpoznane', () => {
+    const odpowiedz = {
+      parcels: [
+        { shipmentNumber: '1', status: 'Doręczona' },
+        { shipmentNumber: '2', status: 'Gotowa do odbioru' },
+      ],
+    }
+    expect(statusyNierozpoznane(odpowiedz)).toEqual([])
   })
 })

@@ -3,8 +3,8 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import {
   naWierszePaczek,
   rozpoznanyKsztaltOdpowiedzi,
-  statusyZOdpowiedzi,
-  wygladaNaNiezgodnoscKsztaltu,
+  statusyNierozpoznane,
+  zawieraNierozpoznanyStatus,
 } from '../_wspolne/inpostApi.ts'
 import { jestWywolaniemSerwisowym } from '../_wspolne/autoryzacjaSerwisowa.ts'
 
@@ -123,21 +123,22 @@ async function synchronizujPolaczenia(baza: SupabaseClient, polaczenia: Polaczen
 
       const wiersze = naWierszePaczek(surowaOdpowiedz)
 
-      // Drugi sygnal, subtelniejszy niz "parcels" znika: API zwrocilo
-      // paczki (`parcels` NIE jest puste), ale zaden wiersz nie przeszedl
-      // przez `naWierszePaczek` - np. InPost zmienil NAPIS statusu ("Gotowa
-      // do odbioru" -> "Gotowa do odbioru 24/7") albo nazwe pola w paczce.
-      // Ten sam wzorzec cichego bledu co rozjazd `Lesson.date`/`DateAt` w
-      // Vulcanie - zmiana nazwy POLA, nie zniknieciem korzenia odpowiedzi.
-      // Legalne "wszystko odebrane" to `parcels: []` PUSTE OD RAZU - to
-      // odrozniamy tutaj i w tym przypadku (w odroznieniu od legalnego)
-      // NIE kasujemy nic, tylko zglaszamy podejrzenie.
-      if (wygladaNaNiezgodnoscKsztaltu(surowaOdpowiedz, wiersze)) {
-        const statusy = statusyZOdpowiedzi(surowaOdpowiedz)
+      // Drugi sygnal, subtelniejszy niz "parcels" znika: w odpowiedzi
+      // wystepuje status, ktorego nie ma ANI na liscie "czeka na odbior"
+      // (`STATUSY_DO_ODBIORU`), ANI na liscie stanow koncowych
+      // (`STATUSY_KONCOWE`) - czyli napis, jakiego jeszcze nie widzielismy
+      // (np. InPost zmienil "Gotowa do odbioru" na "Gotowa do odbioru 24/7").
+      // Rozpoznany status koncowy (np. "Doreczona") to NORMALNA praca API -
+      // domownik, ktory ma w danej chwili same odebrane/zwrocone paczki,
+      // NIE jest sygnalem awarii, wiec nie wywraca synchronizacji. Dopiero
+      // status spoza obu list jest podejrzany - w tym przypadku (w
+      // odroznieniu od legalnego "wszystko rozpoznane") NIE kasujemy nic,
+      // tylko zglaszamy podejrzenie.
+      if (zawieraNierozpoznanyStatus(surowaOdpowiedz)) {
+        const statusy = statusyNierozpoznane(surowaOdpowiedz)
         console.warn(
-          `Polaczenie ${p.member_id}: API InPost zwrocilo paczki, ale zaden wiersz nie przeszedl ` +
-            `przez rozpoznawanie statusu - mozliwa zmiana napisu statusu albo nazwy pola. ` +
-            `Nierozpoznane statusy: ${statusy.join(', ') || 'brak'}.`,
+          `Polaczenie ${p.member_id}: API InPost zwrocilo status spoza znanych list - ` +
+            `mozliwa zmiana napisu statusu. Nierozpoznane statusy: ${statusy.join(', ') || 'brak'}.`,
         )
         throw new Error(
           `Nierozpoznane statusy paczek (InPost mogl zmienic napisy statusow) - pominieto kasowanie. ` +
