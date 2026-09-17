@@ -34,3 +34,23 @@ input {
   outline: 2px solid #7c3aed;
   outline-offset: 2px;
 }
+
+/**
+ * Systemowa prośba o mniej ruchu obowiązuje w całej aplikacji, nie tylko tam,
+ * gdzie ktoś o niej pamiętał. Nie `animation: none` - zerowanie czasu zamiast
+ * usuwania animacji zostawia zdarzenia `animationend`, na których potrafią
+ * polegać biblioteki (u nas Radix przy zamykaniu arkusza).
+ *
+ * `!important` jest tu na miejscu: to nadpisanie preferencją użytkownika
+ * wszystkiego, co deklarują style niżej.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

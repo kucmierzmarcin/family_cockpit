@@ -5,6 +5,7 @@ import { kiedy, posortujNotatki, type Notatka } from './notatki'
 import { kolor } from './kolory'
 import { Arkusz } from './uklad/Arkusz'
 import type { TrybDodawania } from './uklad/nawigacja'
+import { Wczytywanie } from './uklad/Wczytywanie'
 
 type Props = {
   jestemRodzicem: boolean
@@ -35,7 +36,7 @@ export function Tablica({ jestemRodzicem, mojeId, osobaPoId, onBlad, dodawanie }
       )}
 
       {dane.ladowanie ? (
-        <p className="pusto">Wczytuję…</p>
+        <Wczytywanie wierszy={3} />
       ) : uporzadkowane.length === 0 ? (
         <p className="pusto">Tablica jest pusta. Powieś pierwszą kartkę.</p>
       ) : (

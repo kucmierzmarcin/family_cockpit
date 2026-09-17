@@ -25,6 +25,7 @@ import { Arkusz } from './uklad/Arkusz'
 import { Popup } from './uklad/Popup'
 import { useTelefon } from './uklad/useTelefon'
 import type { TrybDodawania } from './uklad/nawigacja'
+import { Wczytywanie } from './uklad/Wczytywanie'
 
 type Props = {
   jestemRodzicem: boolean
@@ -145,7 +146,7 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, onBlad, dodawanie
       </label>
 
       {dane.ladowanie ? (
-        <p className="pusto">Wczytuję…</p>
+        <Wczytywanie wierszy={4} />
       ) : widoczne.length === 0 ? (
         <p className="pusto">Brak terminów do pokazania.</p>
       ) : telefon ? (

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
+import { useZamykanieWstecz } from './useZamykanieWstecz'
 
 type Props = {
   otwarty: boolean
@@ -15,10 +16,14 @@ type Props = {
  * fokusa po zamknięciu przychodzą z Radiksa. Napisane ręcznie zajęłyby dzień
  * i wyszłyby gorzej.
  *
- * Uchwyt u góry jest ozdobą: arkusz zamyka krzyżyk, stuknięcie w tło i Escape.
+ * Uchwyt u góry jest ozdobą: arkusz zamyka krzyżyk, stuknięcie w tło, Escape
+ * oraz systemowy „Wstecz" (patrz useZamykanieWstecz - to jedyne miejsce, w
+ * którym trzeba było to wpiąć, bo każdy arkusz w aplikacji idzie tędy).
  * Przeciągnięcie palcem w dół wymagałoby biblioteki gestów.
  */
 export function Arkusz({ otwarty, tytul, onZamknij, children }: Props) {
+  useZamykanieWstecz(otwarty, onZamknij)
+
   return (
     <Dialog.Root
       open={otwarty}

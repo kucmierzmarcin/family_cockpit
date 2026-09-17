@@ -14,7 +14,7 @@
 }
 
 .gd-godzina {
-  font-size: 12px;
+  font-size: var(--tekst-xs);
   color: var(--tekst-drugi);
   border-left: 1px solid var(--kreska);
   padding-left: 4px;
@@ -37,7 +37,7 @@
   display: flex;
   align-items: center;
   gap: var(--odstep-1);
-  font-size: 14px;
+  font-size: var(--tekst-s);
   padding-right: var(--odstep-2);
 }
 
@@ -62,7 +62,7 @@
   border-radius: var(--promien-s);
   border-left: 3px solid;
   padding: 2px 6px;
-  font-size: 12px;
+  font-size: var(--tekst-xs);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -114,7 +114,7 @@
 
 .dash-godzina {
   margin: 0;
-  font-size: 40px;
+  font-size: var(--tekst-4xl);
   font-weight: 600;
 }
 
@@ -141,14 +141,14 @@
 }
 
 .dash-licznik-wartosc {
-  font-size: 32px;
+  font-size: var(--tekst-3xl);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .dash-licznik-etykieta {
   color: var(--tekst-drugi);
-  font-size: 13px;
+  font-size: var(--tekst-s);
 }
 
 .dash-licznik-pilny {
@@ -187,7 +187,7 @@
   align-items: center;
   gap: var(--odstep-2);
   margin: 0 0 var(--odstep-1);
-  font-size: 15px;
+  font-size: var(--tekst-m);
   font-weight: 600;
 }
 
@@ -206,7 +206,7 @@
   display: flex;
   align-items: baseline;
   gap: var(--odstep-3);
-  font-size: 15px;
+  font-size: var(--tekst-m);
 }
 
 .plan-wydarzenia .czas {
@@ -214,7 +214,7 @@
   /* Stała szerokość i cyfry jednakowej szerokości - tytuły ustawiają się w
      jedną kolumnę zamiast skakać zależnie od godziny. */
   min-width: 96px;
-  font-size: 13px;
+  font-size: var(--tekst-s);
   font-variant-numeric: tabular-nums;
 }
 
@@ -223,5 +223,5 @@
   padding-top: var(--odstep-3);
   border-top: 1px solid var(--kreska);
   color: var(--tekst-drugi);
-  font-size: 14px;
+  font-size: var(--tekst-s);
 }

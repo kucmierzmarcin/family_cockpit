@@ -9,6 +9,19 @@ export type Trasa = {
   ekran: Ekran
   widok: Widok
   kotwica: Date
+  /**
+   * Wybór wewnątrz ekranu, jako kolejne segmenty adresu: wybrana lista w
+   * Zakupach (`#/zakupy/<id>`), podzakładka i uczeń w Szkole
+   * (`#/szkola/frekwencja/<id>`).
+   *
+   * Celowo nietypowane - trasa nie musi wiedzieć, co znaczy dany segment, a
+   * każdy ekran i tak sprawdza swoją wartość u siebie (lista mogła zostać
+   * usunięta, uczeń odpięty). Zawsze tablica, nigdy `undefined` - wołający nie
+   * musi się pilnować.
+   *
+   * Kalendarz jej nie używa: jego dwa segmenty to widok i data.
+   */
+  szczegol: string[]
 }
 
 const EKRAN_STARTOWY: Ekran = 'dashboard'
@@ -53,13 +66,13 @@ export function trasaZTekstu(hash: string, teraz: Date): Trasa {
   // Widok i data mają sens wyłącznie w kalendarzu. Gdyby je czytać wszędzie,
   // `#/zakupy/tydzien/...` byłoby adresem legalnym, a nie jest.
   if (ekran !== 'kalendarz') {
-    return { ekran, widok: WIDOK_DOMYSLNY, kotwica: teraz }
+    return { ekran, widok: WIDOK_DOMYSLNY, kotwica: teraz, szczegol: czesci.slice(1) }
   }
 
   const kandydat = czesci[1] as Widok | undefined
   const widok = kandydat && WIDOKI.includes(kandydat) ? kandydat : WIDOK_DOMYSLNY
 
-  return { ekran, widok, kotwica: dataZTekstu(czesci[2]) ?? teraz }
+  return { ekran, widok, kotwica: dataZTekstu(czesci[2]) ?? teraz, szczegol: [] }
 }
 
 /**
@@ -68,6 +81,8 @@ export function trasaZTekstu(hash: string, teraz: Date): Trasa {
  */
 export function tekstZTrasy(trasa: Trasa): string {
   const slug = SLUGI[trasa.ekran]
-  if (trasa.ekran !== 'kalendarz') return `#/${slug}`
-  return `#/${slug}/${trasa.widok}/${klucz(trasa.kotwica)}`
+  if (trasa.ekran === 'kalendarz') return `#/${slug}/${trasa.widok}/${klucz(trasa.kotwica)}`
+
+  const ogon = trasa.szczegol.filter(Boolean)
+  return ogon.length > 0 ? `#/${slug}/${ogon.join('/')}` : `#/${slug}`
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { DomownikDb } from './lib/supabase'
 import {
   czyNieusprawiedliwiona,
@@ -15,6 +15,7 @@ import {
 } from './vulcan'
 import { dlugaData, dlugaDataZDniem, klucz } from './dates'
 import { kolor } from './kolory'
+import { Wczytywanie } from './uklad/Wczytywanie'
 
 type Props = {
   domownicy: DomownikDb[]
@@ -24,9 +25,14 @@ type Props = {
   wiadomosci: Wiadomosc[]
   obecnosci: Obecnosc[]
   ladowanie: boolean
+  /** Podzakładka i uczeń z adresu (`#/szkola/<podzakladka>/<uczenId>`). */
+  szczegolZAdresu: string[]
+  onSzczegol: (czesci: string[]) => void
 }
 
 type PodZakladka = 'plan' | 'wpisy' | 'wiadomosci' | 'frekwencja'
+
+const PODZAKLADKI: PodZakladka[] = ['plan', 'wpisy', 'wiadomosci', 'frekwencja']
 
 const OPISY_TYPU: Record<Wpis['typ'], string> = {
   sprawdzian: 'Sprawdzian',
@@ -34,10 +40,38 @@ const OPISY_TYPU: Record<Wpis['typ'], string> = {
 }
 
 /** Ekran „Szkoła": plan lekcji, sprawdziany/zadania domowe i wiadomości z Vulcan. */
-export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, obecnosci, ladowanie }: Props) {
-  const [podZakladka, setPodZakladka] = useState<PodZakladka>('plan')
-  const [wybranyUczen, setWybranyUczen] = useState<string | null>(null)
+export function Szkola({
+  domownicy,
+  status,
+  lekcje,
+  wpisy,
+  wiadomosci,
+  obecnosci,
+  ladowanie,
+  szczegolZAdresu,
+  onSzczegol,
+}: Props) {
+  // Podzakładka i uczeń mieszkają w adresie, więc link do „Frekwencji Zuzi"
+  // da się wysłać, a odświeżenie nie wraca na plan lekcji. Nieznana nazwa w
+  // adresie schodzi do planu - te same zasady co w reszcie trasy.
+  const [zAdresu, uczenZAdresu] = szczegolZAdresu
+  const podZakladka: PodZakladka = PODZAKLADKI.includes(zAdresu as PodZakladka)
+    ? (zAdresu as PodZakladka)
+    : 'plan'
+  const wybranyUczen = uczenZAdresu ?? null
+  const setPodZakladka = (p: PodZakladka) => onSzczegol([p, wybranyUczen ?? ''])
+  const setWybranyUczen = (id: string) => onSzczegol([podZakladka, id])
   const [rozwinieta, setRozwinieta] = useState<string | null>(null)
+
+  // Adres ma opisywać to, co widać. Nieznana nazwa w adresie i tak schodzi wyżej
+  // do planu, więc prostujemy też sam adres - inaczej link mówiłby „frekwencja
+  // Zuzi", a ekran pokazywał plan lekcji. Pusty segment zostawiamy w spokoju:
+  // `#/szkola` znaczy „domyślna podzakładka" i to jest poprawny adres.
+  useEffect(() => {
+    if (zAdresu && !PODZAKLADKI.includes(zAdresu as PodZakladka)) {
+      onSzczegol(['plan', uczenZAdresu ?? ''])
+    }
+  }, [zAdresu, uczenZAdresu, onSzczegol])
   const [pokazMinione, setPokazMinione] = useState(false)
 
   const uczniowie = status?.uczniowie.filter((u) => u.memberId !== null) ?? []
@@ -108,7 +142,7 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, obecnosci
     [obecnosciUcznia],
   )
 
-  if (ladowanie) return <p className="pusto">Wczytuję…</p>
+  if (ladowanie) return <Wczytywanie wierszy={5} />
 
   if (!status?.istnieje || uczniowie.length === 0) {
     return (

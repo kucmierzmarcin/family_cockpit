@@ -378,6 +378,8 @@ function App({ profil, email }: Props) {
           mojeId={profil.id}
           onBlad={setBlad}
           dodawanie={trybDodawania('zakupy')}
+          wybranaZAdresu={trasa.szczegol[0] ?? ''}
+          onWybierzListe={(id) => trasa.ustawSzczegol([id])}
         />
       ) : ekran === 'tablica' ? (
         <Tablica
@@ -404,6 +406,8 @@ function App({ profil, email }: Props) {
           wiadomosci={vulcan.wiadomosci}
           obecnosci={vulcan.obecnosci}
           ladowanie={vulcan.ladowanie}
+          szczegolZAdresu={trasa.szczegol}
+          onSzczegol={trasa.ustawSzczegol}
         />
       ) : ekran === 'dom' ? (
         <MojDom

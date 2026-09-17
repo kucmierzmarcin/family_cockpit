@@ -21,7 +21,7 @@
 
 .miesiac {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--tekst-2xl);
   font-weight: 600;
   min-width: 210px;
   text-align: center;
@@ -30,7 +30,7 @@
 .strzalka {
   width: 38px;
   height: 38px;
-  font-size: 22px;
+  font-size: var(--tekst-2xl);
   line-height: 1;
   border: 1px solid var(--kreska);
   border-radius: 10px;
@@ -52,7 +52,7 @@
   border-radius: 10px;
   background: var(--karta);
   color: var(--tekst);
-  font-size: 15px;
+  font-size: var(--tekst-m);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
@@ -72,7 +72,7 @@
   background: var(--akcent);
   color: #fff;
   font: inherit;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -97,7 +97,7 @@
 
 .dni-tygodnia span {
   text-align: center;
-  font-size: 13px;
+  font-size: var(--tekst-s);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -148,7 +148,7 @@
 }
 
 .numer {
-  font-size: 15px;
+  font-size: var(--tekst-m);
   font-weight: 600;
 }
 
@@ -169,7 +169,7 @@
   border-radius: 6px;
   background: var(--akcent-jasny);
   color: #4c1d95;
-  font-size: 12px;
+  font-size: var(--tekst-xs);
   line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
@@ -182,7 +182,7 @@
 }
 
 .wiecej {
-  font-size: 11px;
+  font-size: var(--tekst-xs);
   color: var(--tekst-drugi);
   padding-left: 6px;
 }
@@ -214,7 +214,7 @@
 
 .kropki-nadmiar {
   flex: 0 0 auto;
-  font-size: 9px;
+  font-size: var(--tekst-xs);
   font-weight: 700;
   line-height: 1;
   color: var(--tekst-drugi);
@@ -244,7 +244,7 @@
   background: var(--karta);
   color: var(--tekst-drugi);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--tekst-s);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
@@ -324,7 +324,7 @@
 }
 
 .sg-nazwa-dnia {
-  font-size: 12px;
+  font-size: var(--tekst-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -332,7 +332,7 @@
 }
 
 .sg-numer-dnia {
-  font-size: 18px;
+  font-size: var(--tekst-l);
   font-weight: 600;
 }
 
@@ -360,7 +360,7 @@
 .sg-etykieta-pasa {
   padding: 0 6px;
   border-right: 1px solid var(--kreska);
-  font-size: 11px;
+  font-size: var(--tekst-xs);
   color: var(--tekst-drugi);
   text-align: right;
   align-self: center;
@@ -377,7 +377,7 @@
   border: none;
   border-radius: 6px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--tekst-xs);
   font-weight: 500;
   text-align: left;
   white-space: nowrap;
@@ -413,7 +413,7 @@
   position: absolute;
   top: -7px;
   right: 6px;
-  font-size: 11px;
+  font-size: var(--tekst-xs);
   font-variant-numeric: tabular-nums;
   color: var(--tekst-drugi);
   background: var(--karta);
@@ -449,7 +449,7 @@
   border-left: 3px solid transparent;
   border-radius: 5px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--tekst-xs);
   line-height: 1.25;
   text-align: left;
   overflow: hidden;
@@ -481,7 +481,7 @@
 
 .lista .wpis .czas {
   min-width: 78px;
-  font-size: 12px;
+  font-size: var(--tekst-xs);
 }
 
 /* Pigułka wydarzenia ciągłego w siatce miesiąca */
@@ -529,11 +529,11 @@
   }
 
   .pigulka {
-    font-size: 11px;
+    font-size: var(--tekst-xs);
   }
 
   .miesiac {
-    font-size: 19px;
+    font-size: var(--tekst-xl);
     min-width: 0;
     flex: 1;
   }
@@ -646,12 +646,12 @@
   }
 
   .pigulka {
-    font-size: 11px;
+    font-size: var(--tekst-xs);
     padding: 1px var(--odstep-1);
   }
 
   .wiecej {
-    font-size: 10px;
+    font-size: var(--tekst-xs);
   }
 
   /* Tydzień przewijany w bok zamiast ściskany do siedmiu wąskich kolumn.

@@ -23,7 +23,7 @@
   padding: 10px 12px;
   border: 1px solid var(--kreska);
   border-radius: 10px;
-  font-size: 15px;
+  font-size: var(--tekst-m);
 }
 
 /* Wiersz osoby w trybie edycji rozwija się na cały formularz. */
@@ -70,7 +70,7 @@
   border-radius: 999px;
   background: var(--akcent);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--tekst-xs);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -126,7 +126,7 @@
   flex: 1;
   min-width: 0;
   padding: 6px 0;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   cursor: pointer;
 }
 
@@ -151,7 +151,7 @@
   border-radius: 999px;
   background: var(--tlo);
   color: var(--tekst-drugi);
-  font-size: 13px;
+  font-size: var(--tekst-s);
   font-variant-numeric: tabular-nums;
 }
 
@@ -210,7 +210,7 @@
   padding: 2px 9px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
-  font-size: 11px;
+  font-size: var(--tekst-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -218,7 +218,7 @@
 
 .tresc-karteczki {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -237,7 +237,7 @@
   align-items: center;
   gap: 6px;
   margin-right: auto;
-  font-size: 12px;
+  font-size: var(--tekst-xs);
   color: var(--tekst-drugi);
 }
 
@@ -248,7 +248,7 @@
 
 .stopka-karteczki .drobny {
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: var(--tekst-xs);
 }
 
 @media (max-width: 900px) {
@@ -339,7 +339,7 @@
   align-items: center;
   gap: 8px;
   align-self: flex-start;
-  font-size: 14px;
+  font-size: var(--tekst-s);
   color: var(--tekst-drugi);
   cursor: pointer;
 }
@@ -363,7 +363,7 @@
 .tabela-terminow th {
   text-align: left;
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: var(--tekst-xs);
   font-weight: 600;
   color: var(--tekst-drugi);
   border-bottom: 1px solid var(--kreska);
@@ -372,7 +372,7 @@
 
 .tabela-terminow td {
   padding: 10px 12px;
-  font-size: 14px;
+  font-size: var(--tekst-s);
   border-bottom: 1px solid var(--kreska);
   vertical-align: top;
 }
@@ -416,7 +416,7 @@
 }
 
 .dni-po-terminie {
-  font-size: 11px;
+  font-size: var(--tekst-xs);
   font-weight: 600;
   color: var(--blad);
 }
@@ -430,7 +430,7 @@
   border: 1px solid var(--kreska);
   border-radius: 8px;
   background: var(--karta);
-  font-size: 15px;
+  font-size: var(--tekst-m);
   line-height: 1;
   cursor: pointer;
   display: inline-flex;
@@ -452,7 +452,7 @@
   border-radius: 999px;
   background: var(--akcent);
   color: #fff;
-  font-size: 10px;
+  font-size: var(--tekst-xs);
   font-weight: 700;
   line-height: 1;
   display: flex;
@@ -481,7 +481,7 @@
 
 .pusto-male {
   margin: 0 0 4px;
-  font-size: 13px;
+  font-size: var(--tekst-s);
   color: var(--tekst-drugi);
 }
 
@@ -505,7 +505,7 @@
   display: inline-block;
   padding: 3px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--tekst-xs);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -533,7 +533,7 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  font-size: 18px;
+  font-size: var(--tekst-l);
   line-height: 1;
   color: var(--tekst-drugi);
   cursor: pointer;
@@ -557,7 +557,7 @@
   background: transparent;
   text-align: left;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--tekst-s);
   color: var(--tekst);
   cursor: pointer;
 }
@@ -597,12 +597,12 @@
 
 .frekwencja-licznik {
   margin: 0 0 12px;
-  font-size: 14px;
+  font-size: var(--tekst-s);
 }
 
 .dzien-planu-naglowek {
   margin: 0 0 8px;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   font-weight: 700;
 }
 
@@ -624,7 +624,7 @@
   border: 1px solid var(--kreska);
   border-radius: 10px;
   background: var(--karta);
-  font-size: 14px;
+  font-size: var(--tekst-s);
 }
 
 .lekcja-zmieniona {
@@ -645,7 +645,7 @@
 
 .lekcja-detale {
   color: var(--tekst-drugi);
-  font-size: 13px;
+  font-size: var(--tekst-s);
 }
 
 .lekcja-zmiana-etykieta {
@@ -653,7 +653,7 @@
   border-radius: 999px;
   background: var(--blad);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--tekst-xs);
   font-weight: 600;
 }
 
@@ -706,7 +706,7 @@
   margin: 0;
   padding: 0 12px 12px;
   white-space: pre-wrap;
-  font-size: 14px;
+  font-size: var(--tekst-s);
 }
 
 /* --- Terminy jako karty (telefon) --- */
@@ -738,14 +738,14 @@
 .karta-terminu .tytul-terminu {
   max-width: none;
   margin: 0;
-  font-size: 16px;
+  font-size: var(--tekst-m);
 }
 
 .karta-terminu .opis-terminu {
   margin: 0;
   min-width: 0;
   max-width: none;
-  font-size: 14px;
+  font-size: var(--tekst-s);
 }
 
 .karta-terminu-dol {
@@ -764,7 +764,7 @@
   align-items: baseline;
   gap: var(--odstep-2);
   white-space: normal;
-  font-size: 14px;
+  font-size: var(--tekst-s);
 }
 
 .karta-terminu.zalatwiony .tytul-terminu {

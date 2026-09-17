@@ -10,6 +10,7 @@ import { PALETA, kolor } from './kolory'
 import { Arkusz } from './uklad/Arkusz'
 import type { TrybDodawania } from './uklad/nawigacja'
 import { bladGodzinySync, MAKS_GODZIN_SYNC, type StatusPolaczenia } from './vulcan'
+import { Wczytywanie } from './uklad/Wczytywanie'
 
 const ROLE: Rola[] = ['rodzic', 'domownik', 'dziecko']
 
@@ -89,7 +90,7 @@ export function MojDom({
         </p>
 
         {ladowanie ? (
-          <p className="pusto">Wczytuję…</p>
+          <Wczytywanie wierszy={4} />
         ) : domownicy.length === 0 ? (
           <p className="pusto">Nikogo tu jeszcze nie ma.</p>
         ) : (

@@ -9,7 +9,7 @@
 }
 
 .formularz label {
-  font-size: 13px;
+  font-size: var(--tekst-s);
   font-weight: 600;
   color: var(--tekst-drugi);
 }
@@ -25,7 +25,7 @@
   background: var(--karta);
   color: var(--tekst);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--tekst-m);
 }
 
 .formularz input:focus {
@@ -42,7 +42,7 @@
   background: var(--akcent);
   color: #fff;
   font: inherit;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -60,7 +60,7 @@
 /* --- Wybór koloru w formularzu domownika --- */
 
 .etykieta-koloru {
-  font-size: 13px;
+  font-size: var(--tekst-s);
   font-weight: 600;
   color: var(--tekst-drugi);
 }
@@ -102,7 +102,7 @@
   background: var(--karta);
   color: var(--tekst);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   cursor: pointer;
 }
 
@@ -156,7 +156,7 @@
   align-items: center;
   gap: 8px;
   margin: 2px 0 10px;
-  font-size: 14px;
+  font-size: var(--tekst-s);
   font-weight: 500;
   color: var(--tekst);
   cursor: pointer;
@@ -213,7 +213,7 @@
   border-radius: 999px;
   background: var(--karta);
   color: var(--tekst-drugi);
-  font-size: 13px;
+  font-size: var(--tekst-s);
   font-weight: 500;
   opacity: 0.55;
 }
@@ -253,7 +253,7 @@
   background: var(--karta);
   color: var(--tekst);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--tekst-m);
 }
 
 .formularz-listy input:focus,
@@ -278,7 +278,7 @@
   background: var(--akcent);
   color: #fff;
   font: inherit;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   font-weight: 600;
   cursor: pointer;
 }
@@ -296,7 +296,7 @@
 }
 
 .formularz-notatki label {
-  font-size: 13px;
+  font-size: var(--tekst-s);
   font-weight: 600;
   color: var(--tekst-drugi);
 }
@@ -308,7 +308,7 @@
   background: var(--karta);
   color: var(--tekst);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   line-height: 1.45;
   resize: vertical;
 }
@@ -327,7 +327,7 @@
   background: var(--akcent);
   color: #fff;
   font: inherit;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   font-weight: 600;
   cursor: pointer;
 }
@@ -344,7 +344,7 @@
 }
 
 .formularz-terminu label {
-  font-size: 13px;
+  font-size: var(--tekst-s);
   font-weight: 600;
   color: var(--tekst-drugi);
 }
@@ -357,7 +357,7 @@
   background: var(--karta);
   color: var(--tekst);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   line-height: 1.45;
 }
 
@@ -380,7 +380,7 @@
   background: var(--akcent);
   color: #fff;
   font: inherit;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   font-weight: 600;
   cursor: pointer;
 }
@@ -406,7 +406,7 @@
   .formularz-notatki textarea,
   .formularz-terminu input,
   .formularz-terminu textarea {
-    font-size: 16px;
+    font-size: var(--tekst-m);
     min-height: var(--dotyk);
   }
 
@@ -438,7 +438,7 @@
   background: var(--karta);
   color: var(--tekst);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   resize: vertical;
   margin-bottom: 8px;
 }
@@ -469,7 +469,7 @@
 }
 
 .wiersz-pozycji-opis {
-  font-size: 14px;
+  font-size: var(--tekst-s);
   color: var(--tekst);
 }
 
@@ -492,7 +492,7 @@
   background: var(--karta);
   color: var(--tekst);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--tekst-s);
   font-family: monospace;
   resize: vertical;
 }
@@ -500,7 +500,7 @@
 .instrukcja-vulcan {
   margin: 0 0 14px;
   padding-left: 20px;
-  font-size: 14px;
+  font-size: var(--tekst-s);
   color: var(--tekst-drugi);
   line-height: 1.6;
 }
@@ -562,7 +562,7 @@
   background: var(--akcent);
   color: #fff;
   font: inherit;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -613,7 +613,7 @@
    wyłączona) - patrz `PanelVulcan` w `MojDom.tsx`. */
 .godziny-sync-wylaczone {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--tekst-s);
   color: var(--tekst-drugi);
 }
 

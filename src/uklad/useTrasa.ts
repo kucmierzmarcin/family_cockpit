@@ -59,6 +59,12 @@ export type Nawigacja = Trasa & {
   ustawWidok: (w: Widok, kotwica?: Date) => void
   /** Przesunięcie daty - podmienia wpis, patrz `przejdz`. */
   ustawKotwice: (d: Date) => void
+  /**
+   * Wybór wewnątrz ekranu (lista w Zakupach, podzakładka i uczeń w Szkole).
+   * Podmienia wpis, nie dokłada: klikanie po podzakładkach nie ma zasypywać
+   * historii, a „Wstecz" ma wracać na poprzedni EKRAN, nie na poprzednią listę.
+   */
+  ustawSzczegol: (czesci: string[]) => void
 }
 
 /**
@@ -100,8 +106,8 @@ export function useTrasa(): Nawigacja {
     const zapamietany = ostatniKalendarz.current
     const docelowa: Trasa =
       e === 'kalendarz' && zapamietany
-        ? { ekran: e, ...zapamietany }
-        : { ekran: e, widok: 'miesiac', kotwica: new Date() }
+        ? { ekran: e, ...zapamietany, szczegol: [] }
+        : { ekran: e, widok: 'miesiac', kotwica: new Date(), szczegol: [] }
     przejdz(tekstZTrasy(docelowa), false)
   }, [])
 
@@ -116,5 +122,10 @@ export function useTrasa(): Nawigacja {
     [trasa],
   )
 
-  return { ...trasa, idzDoEkranu, ustawWidok, ustawKotwice }
+  const ustawSzczegol = useCallback(
+    (czesci: string[]) => przejdz(tekstZTrasy({ ...trasa, szczegol: czesci }), true),
+    [trasa],
+  )
+
+  return { ...trasa, idzDoEkranu, ustawWidok, ustawKotwice, ustawSzczegol }
 }

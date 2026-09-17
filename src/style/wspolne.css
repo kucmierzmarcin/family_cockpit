@@ -20,7 +20,7 @@
   border-radius: 10px;
   background: var(--blad-tlo);
   color: var(--blad);
-  font-size: 15px;
+  font-size: var(--tekst-m);
 }
 
 /* --- Panel boczny --- */
@@ -33,14 +33,14 @@
 
 .panel-tytul {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--tekst-xl);
   font-weight: 600;
 }
 
 .panel-dzien {
   margin: 2px 0 18px;
   color: var(--tekst-drugi);
-  font-size: 14px;
+  font-size: var(--tekst-s);
   text-transform: capitalize;
 }
 
@@ -48,8 +48,8 @@
    „nic tu nie ma". Dotąd oba stany wyglądały identycznie - ten sam akapit w
    przerywanej ramce - więc ładowanie nie do odróżnienia od pustki.
 
-   Puls jest delikatny i wyłącza się przy `prefers-reduced-motion`; wtedy
-   zostaje samo statyczne tło, które i tak niesie całą informację. */
+   Puls jest delikatny i zamiera przy `prefers-reduced-motion` - obsługuje to
+   globalna reguła w index.css, więc nie ma tu własnego wyjątku. */
 .szkielet {
   background: linear-gradient(90deg, var(--tlo) 0%, #eceaf1 50%, var(--tlo) 100%);
   background-size: 200% 100%;
@@ -65,11 +65,16 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .szkielet {
-    animation: none;
-    background: var(--tlo);
-  }
+.wczytywanie {
+  display: flex;
+  flex-direction: column;
+  gap: var(--odstep-2);
+  padding: var(--odstep-2) 0 var(--odstep-4);
+}
+
+.wczytywanie-pasek {
+  height: 14px;
+  border-radius: var(--promien-s);
 }
 
 .pusto {
@@ -78,7 +83,7 @@
   border: 1px dashed var(--kreska);
   border-radius: 10px;
   color: var(--tekst-drugi);
-  font-size: 14px;
+  font-size: var(--tekst-s);
   text-align: center;
 }
 
@@ -98,7 +103,7 @@
   padding: 10px 12px;
   border: 1px solid var(--kreska);
   border-radius: 10px;
-  font-size: 15px;
+  font-size: var(--tekst-m);
 }
 
 .czas {
@@ -123,7 +128,7 @@
   border-radius: 6px;
   background: transparent;
   color: var(--tekst-drugi);
-  font-size: 19px;
+  font-size: var(--tekst-xl);
   line-height: 1;
   cursor: pointer;
 }
@@ -161,14 +166,14 @@
   align-items: center;
   gap: 5px;
   margin-left: 8px;
-  font-size: 12px;
+  font-size: var(--tekst-xs);
   color: var(--tekst-drugi);
   white-space: nowrap;
 }
 
 .meta {
   display: block;
-  font-size: 12px;
+  font-size: var(--tekst-xs);
   font-weight: 400;
   color: var(--tekst-drugi);
 }
@@ -179,7 +184,7 @@
   border-radius: 999px;
   background: var(--akcent-jasny);
   color: #4c1d95;
-  font-size: 11px;
+  font-size: var(--tekst-xs);
   font-weight: 600;
 }
 
@@ -193,7 +198,7 @@
   background: var(--karta);
   color: var(--tekst-drugi);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--tekst-s);
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
 }
@@ -219,7 +224,7 @@
   border: none;
   background: transparent;
   font: inherit;
-  font-size: 15px;
+  font-size: var(--tekst-m);
   text-align: left;
   cursor: pointer;
 }
@@ -340,7 +345,7 @@
   border-radius: 8px;
   background: var(--akcent-jasny);
   font-family: monospace;
-  font-size: 18px;
+  font-size: var(--tekst-l);
   font-weight: 700;
   letter-spacing: 1px;
 }

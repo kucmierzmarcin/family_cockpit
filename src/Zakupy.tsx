@@ -1,30 +1,48 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useZakupy } from './useZakupy'
 import { policzPozostale, posortujPozycje, saOdhaczone, type Pozycja } from './pozycje'
 import { Arkusz } from './uklad/Arkusz'
 import type { TrybDodawania } from './uklad/nawigacja'
+import { Wczytywanie } from './uklad/Wczytywanie'
 
 type Props = {
   jestemRodzicem: boolean
   mojeId: string
   onBlad: (tekst: string) => void
   dodawanie: TrybDodawania
+  /** Id listy z adresu (`#/zakupy/<id>`); pusty tekst = żadna jeszcze nie wybrana. */
+  wybranaZAdresu: string
+  onWybierzListe: (id: string) => void
 }
 
 /** Ekran „Zakupy": listy domu i ich pozycje, odświeżane na żywo. */
-export function Zakupy({ jestemRodzicem, mojeId, onBlad, dodawanie }: Props) {
+export function Zakupy({
+  jestemRodzicem,
+  mojeId,
+  onBlad,
+  dodawanie,
+  wybranaZAdresu,
+  onWybierzListe,
+}: Props) {
   const dane = useZakupy(onBlad)
-  const [klikniete, setKlikniete] = useState<string | null>(null)
   const [nowaLista, setNowaLista] = useState('')
   const [pokazFormularzListy, setPokazFormularzListy] = useState(false)
 
   // Wybraną listę liczymy podczas renderu, a nie efektem: pierwsza wybiera się
-  // sama, a gdy ktoś usunie tę oglądaną, wracamy na pierwszą dostępną.
-  const wybrana =
-    klikniete && dane.listy.some((l) => l.id === klikniete)
-      ? klikniete
-      : (dane.listy[0]?.id ?? null)
-  const setWybrana = setKlikniete
+  // sama, a gdy ktoś usunie tę oglądaną, wracamy na pierwszą dostępną. Ten sam
+  // mechanizm samoleczenia obsługuje teraz id z adresu - może wskazywać listę,
+  // której już nie ma (stara zakładka, link sprzed usunięcia).
+  const wybrana = dane.listy.some((l) => l.id === wybranaZAdresu)
+    ? wybranaZAdresu
+    : (dane.listy[0]?.id ?? null)
+  const setWybrana = onWybierzListe
+
+  // Ta sama zasada co w Szkole: adres ma mówić to, co widać. Dotyczy zarówno
+  // wejścia na gołe `#/zakupy` (uzupełniamy o pierwszą listę), jak i linku do
+  // listy, której już nie ma. Podmiana, nie dopisanie - patrz `ustawSzczegol`.
+  useEffect(() => {
+    if (wybrana && wybrana !== wybranaZAdresu) onWybierzListe(wybrana)
+  }, [wybrana, wybranaZAdresu, onWybierzListe])
 
   const pozycjeListy = useMemo(
     () => posortujPozycje(dane.pozycje.filter((p) => p.listaId === wybrana)),
@@ -53,7 +71,7 @@ export function Zakupy({ jestemRodzicem, mojeId, onBlad, dodawanie }: Props) {
   if (dane.ladowanie) {
     return (
       <div className="karta">
-        <p className="pusto">Wczytuję…</p>
+        <Wczytywanie wierszy={4} />
       </div>
     )
   }

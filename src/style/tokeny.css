@@ -14,6 +14,20 @@
   --blad: #b42318;
   --blad-tlo: #fef3f2;
   --cien: 0 1px 2px rgba(16, 12, 30, 0.06), 0 8px 24px rgba(16, 12, 30, 0.06);
+  /* Skala typograficzna. Wcześniej aplikacja miała 17 różnych rozmiarów fontu
+     (od 9px do 40px), dobieranych po jednym na potrzebę - co znaczyło, że nic
+     nie było naprawdę „o stopień większe" od czegokolwiek innego. Osiem kroków
+     wystarcza na całą hierarchię, a żeby dodać nowy rozmiar, trzeba świadomie
+     dopisać go tutaj. --tekst-m to baza 16px, czyli tyle, ile domyślnie ma
+     przeglądarka. */
+  --tekst-xs: 12px;
+  --tekst-s: 14px;
+  --tekst-m: 16px;
+  --tekst-l: 18px;
+  --tekst-xl: 20px;
+  --tekst-2xl: 24px;
+  --tekst-3xl: 32px;
+  --tekst-4xl: 40px;
   --odstep-1: 4px;
   --odstep-2: 8px;
   --odstep-3: 12px;

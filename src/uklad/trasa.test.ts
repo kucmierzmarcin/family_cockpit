@@ -98,12 +98,12 @@ describe('trasaZTekstu - śmieci', () => {
 
 describe('tekstZTrasy', () => {
   it('ekran bez kalendarza to sam slug - bez doklejania widoku i daty', () => {
-    expect(tekstZTrasy({ ekran: 'zakupy', widok: 'tydzien', kotwica: TERAZ })).toBe('#/zakupy')
-    expect(tekstZTrasy({ ekran: 'dashboard', widok: 'miesiac', kotwica: TERAZ })).toBe('#/dzis')
+    expect(tekstZTrasy({ ekran: 'zakupy', widok: 'tydzien', kotwica: TERAZ, szczegol: [] })).toBe('#/zakupy')
+    expect(tekstZTrasy({ ekran: 'dashboard', widok: 'miesiac', kotwica: TERAZ, szczegol: [] })).toBe('#/dzis')
   })
 
   it('kalendarz niesie widok i datę', () => {
-    expect(tekstZTrasy({ ekran: 'kalendarz', widok: 'tydzien', kotwica: TERAZ })).toBe(
+    expect(tekstZTrasy({ ekran: 'kalendarz', widok: 'tydzien', kotwica: TERAZ, szczegol: [] })).toBe(
       '#/kalendarz/tydzien/2026-09-17',
     )
   })
@@ -122,6 +122,48 @@ describe('obieg tekst → trasa → tekst', () => {
 
   it('adres pozostałych ekranów wraca bez zmian', () => {
     for (const adres of ['#/dzis', '#/zakupy', '#/tablica', '#/terminy', '#/szkola', '#/dom']) {
+      expect(tekstZTrasy(trasaZTekstu(adres, TERAZ))).toBe(adres)
+    }
+  })
+})
+
+describe('szczegół ekranu w adresie', () => {
+  it('Zakupy niosą wybraną listę', () => {
+    expect(trasaZTekstu('#/zakupy/lista-abc', TERAZ).szczegol).toEqual(['lista-abc'])
+  })
+
+  it('Szkoła niesie podzakładkę i ucznia', () => {
+    expect(trasaZTekstu('#/szkola/frekwencja/uczen-7', TERAZ).szczegol).toEqual([
+      'frekwencja',
+      'uczen-7',
+    ])
+  })
+
+  it('bez szczegółu to pusta lista, nie undefined - wołający nie musi się pilnować', () => {
+    expect(trasaZTekstu('#/zakupy', TERAZ).szczegol).toEqual([])
+    expect(trasaZTekstu('#/dzis', TERAZ).szczegol).toEqual([])
+  })
+
+  it('kalendarz nie ma szczegółu - jego dwa segmenty to widok i data', () => {
+    expect(trasaZTekstu('#/kalendarz/tydzien/2026-10-05', TERAZ).szczegol).toEqual([])
+  })
+
+  it('serializuje się z powrotem', () => {
+    expect(
+      tekstZTrasy({ ekran: 'zakupy', widok: 'miesiac', kotwica: TERAZ, szczegol: ['lista-abc'] }),
+    ).toBe('#/zakupy/lista-abc')
+    expect(
+      tekstZTrasy({
+        ekran: 'szkola',
+        widok: 'miesiac',
+        kotwica: TERAZ,
+        szczegol: ['plan', 'uczen-7'],
+      }),
+    ).toBe('#/szkola/plan/uczen-7')
+  })
+
+  it('obieg tekst → trasa → tekst zachowuje szczegół', () => {
+    for (const adres of ['#/zakupy/lista-abc', '#/szkola/wiadomosci/uczen-7', '#/tablica']) {
       expect(tekstZTrasy(trasaZTekstu(adres, TERAZ))).toBe(adres)
     }
   })
