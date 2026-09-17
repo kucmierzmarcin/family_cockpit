@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
-import type { LekcjaDb, WiadomoscDb, WpisDb } from './lib/supabase'
+import type { LekcjaDb, ObecnoscDb, WiadomoscDb, WpisDb } from './lib/supabase'
 import { useNaZywo } from './useNaZywo'
 import {
   lekcjaZBazy,
+  obecnoscZBazy,
   wiadomoscZBazy,
   wpisZBazy,
   type Lekcja,
+  type Obecnosc,
   type StatusPolaczenia,
   type Wiadomosc,
   type Wpis,
@@ -40,6 +42,7 @@ export function useVulcan(onBlad: (tekst: string) => void) {
   const [lekcje, setLekcje] = useState<Lekcja[]>([])
   const [wpisy, setWpisy] = useState<Wpis[]>([])
   const [wiadomosci, setWiadomosci] = useState<Wiadomosc[]>([])
+  const [obecnosci, setObecnosci] = useState<Obecnosc[]>([])
   const [ladowanie, setLadowanie] = useState(true)
 
   const wczytaj = useCallback(async () => {
@@ -77,11 +80,16 @@ export function useVulcan(onBlad: (tekst: string) => void) {
     czternascieDniTemu.setDate(czternascieDniTemu.getDate() - 13)
     czternascieDniTemu.setHours(0, 0, 0, 0)
 
-    const [{ data: daneLekcji, error: bladLekcji }, { data: daneWpisow, error: bladWpisow },
-      { data: daneWiadomosci, error: bladWiadomosci }] = await Promise.all([
+    const [
+      { data: daneLekcji, error: bladLekcji },
+      { data: daneWpisow, error: bladWpisow },
+      { data: daneWiadomosci, error: bladWiadomosci },
+      { data: daneObecnosci, error: bladObecnosci },
+    ] = await Promise.all([
       supabase.from('vulcan_lessons').select('*'),
       supabase.from('vulcan_assignments').select('*'),
       supabase.from('vulcan_messages').select('*').gte('sent_at', czternascieDniTemu.toISOString()),
+      supabase.from('vulcan_attendance').select('*'),
     ])
 
     if (bladLekcji) onBlad(`Nie udało się wczytać planu lekcji: ${bladLekcji.message}`)
@@ -92,6 +100,9 @@ export function useVulcan(onBlad: (tekst: string) => void) {
 
     if (bladWiadomosci) onBlad(`Nie udało się wczytać wiadomości: ${bladWiadomosci.message}`)
     else setWiadomosci(((daneWiadomosci ?? []) as WiadomoscDb[]).map(wiadomoscZBazy))
+
+    if (bladObecnosci) onBlad(`Nie udało się wczytać frekwencji: ${bladObecnosci.message}`)
+    else setObecnosci(((daneObecnosci ?? []) as ObecnoscDb[]).map(obecnoscZBazy))
   }, [onBlad])
 
   useEffect(() => {
@@ -107,7 +118,7 @@ export function useVulcan(onBlad: (tekst: string) => void) {
 
   useNaZywo(
     'vulcan-na-zywo',
-    ['vulcan_students', 'vulcan_lessons', 'vulcan_assignments', 'vulcan_messages'],
+    ['vulcan_students', 'vulcan_lessons', 'vulcan_assignments', 'vulcan_messages', 'vulcan_attendance'],
     () => void wczytaj(),
   )
 
@@ -175,6 +186,7 @@ export function useVulcan(onBlad: (tekst: string) => void) {
     lekcje,
     wpisy,
     wiadomosci,
+    obecnosci,
     ladowanie,
     polacz,
     rozlacz,

@@ -1,4 +1,4 @@
-import type { LekcjaDb, UczenDb, WiadomoscDb, WpisDb } from './lib/supabase'
+import type { LekcjaDb, ObecnoscDb, UczenDb, WiadomoscDb, WpisDb } from './lib/supabase'
 import { zloz } from './czas'
 import type { Wydarzenie } from './useWydarzenia'
 
@@ -39,6 +39,19 @@ export type Wiadomosc = {
   temat: string
   tresc: string
   data: string
+}
+
+export type Obecnosc = {
+  id: string
+  uczenId: string
+  data: string
+  przedmiot: string
+  /** Nazwa typu z Vulcan, np. "Nieobecność nieusprawiedliwiona" - do wyświetlenia wprost. */
+  nazwaTypu: string
+  nieobecnosc: boolean
+  usprawiedliwiona: boolean
+  /** Zwolnienie (np. lekarskie) - osobna kategoria niż zwykłe usprawiedliwienie. */
+  zwolnienie: boolean
 }
 
 export type StatusPolaczenia = {
@@ -95,6 +108,29 @@ export function wiadomoscZBazy(m: WiadomoscDb): Wiadomosc {
     tresc: m.content,
     data: m.sent_at,
   }
+}
+
+export function obecnoscZBazy(o: ObecnoscDb): Obecnosc {
+  return {
+    id: o.id,
+    uczenId: o.student_id,
+    data: o.attendance_date,
+    przedmiot: o.subject,
+    nazwaTypu: o.presence_name,
+    nieobecnosc: o.absence,
+    usprawiedliwiona: o.justified,
+    zwolnienie: o.exemption,
+  }
+}
+
+/** Nieobecnosc, ktorej nikt jeszcze nie usprawiedliwil ani nie zwolnil z niej ucznia. */
+export function czyNieusprawiedliwiona(o: Obecnosc): boolean {
+  return o.nieobecnosc && !o.usprawiedliwiona && !o.zwolnienie
+}
+
+/** Nieobecnosci od najnowszej. */
+export function posortujObecnosci<T extends { data: string }>(obecnosci: T[]): T[] {
+  return [...obecnosci].sort((a, b) => b.data.localeCompare(a.data))
 }
 
 /** Lekcje posortowane chronologicznie w obrębie dnia. */

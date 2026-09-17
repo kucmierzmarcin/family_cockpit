@@ -2,14 +2,31 @@ import { describe, expect, it } from 'vitest'
 import {
   bladGodzinySync,
   blokiSzkolne,
+  czyNieusprawiedliwiona,
   oczyscTrescWiadomosci,
   pogrupujLekcjePoDniu,
   posortujLekcje,
+  posortujObecnosci,
   posortujWiadomosci,
   posortujWpisy,
   type Lekcja,
+  type Obecnosc,
   type Uczen,
 } from './vulcan'
+
+function obecnosc(dane: Partial<Obecnosc>): Obecnosc {
+  return {
+    id: 'o1',
+    uczenId: 'u1',
+    data: '2026-09-14',
+    przedmiot: 'Matematyka',
+    nazwaTypu: 'Nieobecność nieusprawiedliwiona',
+    nieobecnosc: true,
+    usprawiedliwiona: false,
+    zwolnienie: false,
+    ...dane,
+  }
+}
 
 function lekcja(dane: Partial<Lekcja>): Lekcja {
   return {
@@ -140,6 +157,31 @@ describe('oczyscTrescWiadomosci', () => {
 
   it('nie zostawia potrojnych/wiekszych odstepow miedzy liniami', () => {
     expect(oczyscTrescWiadomosci('<p>A</p><p></p><p>B</p>')).toBe('A\n\nB')
+  })
+})
+
+describe('czyNieusprawiedliwiona', () => {
+  it('nieobecnosc bez usprawiedliwienia i bez zwolnienia - nieusprawiedliwiona', () => {
+    expect(czyNieusprawiedliwiona(obecnosc({}))).toBe(true)
+  })
+
+  it('nieobecnosc juz usprawiedliwiona - nie liczy sie', () => {
+    expect(czyNieusprawiedliwiona(obecnosc({ usprawiedliwiona: true }))).toBe(false)
+  })
+
+  it('zwolnienie (np. lekarskie) - nie liczy sie mimo braku usprawiedliwienia', () => {
+    expect(czyNieusprawiedliwiona(obecnosc({ zwolnienie: true }))).toBe(false)
+  })
+
+  it('obecnosc (nie nieobecnosc) - nigdy nie liczy sie', () => {
+    expect(czyNieusprawiedliwiona(obecnosc({ nieobecnosc: false }))).toBe(false)
+  })
+})
+
+describe('posortujObecnosci', () => {
+  it('sortuje od najnowszej', () => {
+    const wynik = posortujObecnosci([obecnosc({ id: 'a', data: '2026-09-01' }), obecnosc({ id: 'b', data: '2026-09-10' })])
+    expect(wynik.map((o) => o.id)).toEqual(['b', 'a'])
   })
 })
 

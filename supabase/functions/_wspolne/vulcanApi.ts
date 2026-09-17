@@ -1,4 +1,4 @@
-import { Exam, Homework, Keystore, Lesson, Student, VulcanHebe } from 'npm:vulcan-api-js@3.5.4'
+import { Attendance, Exam, Homework, Keystore, Lesson, Student, VulcanHebe } from 'npm:vulcan-api-js@3.5.4'
 import { zbudujNaglowki } from './vulcanPodpis.ts'
 
 const BASE_URL = 'https://lekcjaplus.vulcan.net.pl/'
@@ -58,6 +58,11 @@ const BASE_URL = 'https://lekcjaplus.vulcan.net.pl/'
  * (istniejące „Ostrzeżenie: N sprawdzianów odrzuconych” w vulcanSync.ts),
  * nie zepsuje niczego innego.
  *
+ * PIĄTY przypadek: `Attendance.date` wiąże `Day` (typ `DateTime`, jak
+ * `Lesson.date`), eduVULCAN zwraca `DayAt` (płaski string, potwierdzone
+ * żywo 2026-09-17: `"2026-09-16"`) - załatane tym samym wzorcem z
+ * owinięciem w `{Date: ...}`.
+ *
  * Wszystkie łatki wyżej opierają się na kształcie biblioteki, którego typy
  * publiczne (`index.d.ts`) nie gwarantują (wspólny, nieeksportowany
  * prototyp; nazwy klas zachowane w skompilowanym kodzie). Wersja jest
@@ -68,9 +73,14 @@ const BASE_URL = 'https://lekcjaplus.vulcan.net.pl/'
  * wierszy - dokładnie tak ukrywały się te błędy przez wiele rund diagnozy
  * na żywo).
  */
-if (Lesson.name !== 'Lesson' || Homework.name !== 'Homework' || Exam.name !== 'Exam') {
+if (
+  Lesson.name !== 'Lesson' ||
+  Homework.name !== 'Homework' ||
+  Exam.name !== 'Exam' ||
+  Attendance.name !== 'Attendance'
+) {
   throw new Error(
-    'vulcan-api-js: klasa Lesson/Homework/Exam zmieniła nazwę w skompilowanym kodzie (możliwa minifikacja) - łatki pól *At przestałyby cicho działać.',
+    'vulcan-api-js: klasa Lesson/Homework/Exam/Attendance zmieniła nazwę w skompilowanym kodzie (możliwa minifikacja) - łatki pól *At przestałyby cicho działać.',
   )
 }
 ;(() => {
@@ -119,6 +129,19 @@ if (Lesson.name !== 'Lesson' || Homework.name !== 'Homework' || Exam.name !== 'E
       poprawioneZrodlo = {
         ...(poprawioneZrodlo as Record<string, unknown>),
         Deadline: { Date: (source as Record<string, unknown>).DeadlineAt },
+      }
+    }
+
+    if (
+      nazwaKlasy === 'Attendance' &&
+      source &&
+      typeof source === 'object' &&
+      (source as Record<string, unknown>).Day == null &&
+      (source as Record<string, unknown>).DayAt != null
+    ) {
+      poprawioneZrodlo = {
+        ...(poprawioneZrodlo as Record<string, unknown>),
+        Day: { Date: (source as Record<string, unknown>).DayAt },
       }
     }
 

@@ -180,3 +180,17 @@ export type WiadomoscDb = {
   vulcan_key: string
   created_at: string
 }
+
+export type ObecnoscDb = {
+  id: string
+  student_id: string
+  household_id: string
+  attendance_date: string
+  subject: string
+  presence_name: string
+  absence: boolean
+  justified: boolean
+  exemption: boolean
+  vulcan_key: string
+  created_at: string
+}

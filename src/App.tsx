@@ -362,6 +362,7 @@ function App({ profil, email }: Props) {
           wiadomosci={vulcan.wiadomosci}
           lekcje={vulcan.lekcje}
           uczniowie={vulcan.status?.uczniowie ?? []}
+          obecnosci={vulcan.obecnosci}
           onBlad={setBlad}
           onEkran={przelaczEkran}
         />
@@ -395,6 +396,7 @@ function App({ profil, email }: Props) {
           lekcje={vulcan.lekcje}
           wpisy={vulcan.wpisy}
           wiadomosci={vulcan.wiadomosci}
+          obecnosci={vulcan.obecnosci}
           ladowanie={vulcan.ladowanie}
         />
       ) : ekran === 'dom' ? (

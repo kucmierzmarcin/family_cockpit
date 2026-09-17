@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { liczPilneTerminy, liczWiadomosciDzis } from './dashboardLiczniki'
+import { liczNieusprawiedliwione, liczPilneTerminy, liczWiadomosciDzis } from './dashboardLiczniki'
 import type { Termin } from './terminy'
-import type { Wiadomosc } from './vulcan'
+import type { Obecnosc, Wiadomosc } from './vulcan'
 
 function termin(zmiany: Partial<Termin>): Termin {
   return {
@@ -26,6 +26,20 @@ function wiadomosc(zmiany: Partial<Wiadomosc>): Wiadomosc {
     temat: 'Temat',
     tresc: 'Treść',
     data: '2026-09-14T08:00:00Z',
+    ...zmiany,
+  }
+}
+
+function obecnosc(zmiany: Partial<Obecnosc>): Obecnosc {
+  return {
+    id: 'id',
+    uczenId: 'uczen-1',
+    data: '2026-09-10',
+    przedmiot: 'Matematyka',
+    nazwaTypu: 'Nieobecność nieusprawiedliwiona',
+    nieobecnosc: true,
+    usprawiedliwiona: false,
+    zwolnienie: false,
     ...zmiany,
   }
 }
@@ -82,5 +96,21 @@ describe('liczWiadomosciDzis', () => {
       wiadomosc({ uczenId: 'b', data: '2026-09-14T09:00:00Z' }),
     ]
     expect(liczWiadomosciDzis(wiadomosci, dzisiaj)).toBe(2)
+  })
+})
+
+describe('liczNieusprawiedliwione', () => {
+  it('liczy nieusprawiedliwione nieobecnosci', () => {
+    expect(liczNieusprawiedliwione([obecnosc({})])).toBe(1)
+  })
+
+  it('nie liczy usprawiedliwionej ani zwolnienia', () => {
+    const lista = [obecnosc({ usprawiedliwiona: true }), obecnosc({ zwolnienie: true })]
+    expect(liczNieusprawiedliwione(lista)).toBe(0)
+  })
+
+  it('liczy przez wszystkich uczniow lacznie', () => {
+    const lista = [obecnosc({ uczenId: 'a' }), obecnosc({ uczenId: 'b' })]
+    expect(liczNieusprawiedliwione(lista)).toBe(2)
   })
 })

@@ -1452,6 +1452,26 @@ create table if not exists public.vulcan_messages (
   unique (student_id, vulcan_key)
 );
 
+-- Nieobecnosci (frekwencja) - bierzacy rok szkolny. `presence_name` to gotowa
+-- do wyswietlenia nazwa typu z Vulcan (np. "Nieobecnosc nieusprawiedliwiona").
+-- Trzy surowe flagi zamiast jednego wyliczonego "nieusprawiedliwiona", zgodnie
+-- z konwencja reszty apki (logika liczenia w czystej funkcji TS, nie w bazie) -
+-- patrz `czyNieusprawiedliwiona` w `vulcan.ts`.
+create table if not exists public.vulcan_attendance (
+  id               uuid primary key default gen_random_uuid(),
+  student_id       uuid not null references public.vulcan_students(id) on delete cascade,
+  household_id     uuid not null references public.households(id) on delete cascade,
+  attendance_date  date not null,
+  subject          text not null,
+  presence_name    text not null,
+  absence          boolean not null,
+  justified        boolean not null,
+  exemption        boolean not null,
+  vulcan_key       text not null,
+  created_at       timestamptz not null default now(),
+  unique (student_id, vulcan_key)
+);
+
 -- Anty-duplikacja syncu w tym samym oknie 15-minutowym - jak digest_log.
 create table if not exists public.vulcan_sync_log (
   id           uuid primary key default gen_random_uuid(),
@@ -1471,11 +1491,13 @@ create index if not exists vulcan_lessons_household_idx     on public.vulcan_les
 create index if not exists vulcan_lessons_student_date_idx  on public.vulcan_lessons (student_id, lesson_date);
 create index if not exists vulcan_assignments_household_idx on public.vulcan_assignments (household_id);
 create index if not exists vulcan_messages_household_idx    on public.vulcan_messages (household_id);
+create index if not exists vulcan_attendance_household_idx  on public.vulcan_attendance (household_id);
 
 alter table public.vulcan_students    alter column household_id set default public.moj_dom();
 alter table public.vulcan_lessons     alter column household_id set default public.moj_dom();
 alter table public.vulcan_assignments alter column household_id set default public.moj_dom();
 alter table public.vulcan_messages    alter column household_id set default public.moj_dom();
+alter table public.vulcan_attendance  alter column household_id set default public.moj_dom();
 
 alter table public.vulcan_connections enable row level security;
 alter table public.vulcan_sync_log    enable row level security;
@@ -1483,6 +1505,7 @@ alter table public.vulcan_students    enable row level security;
 alter table public.vulcan_lessons     enable row level security;
 alter table public.vulcan_assignments enable row level security;
 alter table public.vulcan_messages    enable row level security;
+alter table public.vulcan_attendance  enable row level security;
 
 -- vulcan_connections i vulcan_sync_log: CELOWO bez zadnej polityki dla
 -- authenticated/anon - trzymaja poswiadczenia, dostep wylacznie service_role.
@@ -1506,6 +1529,11 @@ create policy "Wpisy Vulcan - odczyt" on public.vulcan_assignments
 
 drop policy if exists "Wiadomosci Vulcan - odczyt" on public.vulcan_messages;
 create policy "Wiadomosci Vulcan - odczyt" on public.vulcan_messages
+  for select to authenticated
+  using (household_id = public.moj_dom());
+
+drop policy if exists "Frekwencja Vulcan - odczyt" on public.vulcan_attendance;
+create policy "Frekwencja Vulcan - odczyt" on public.vulcan_attendance
   for select to authenticated
   using (household_id = public.moj_dom());
 
@@ -1622,6 +1650,7 @@ alter publication supabase_realtime add table public.vulcan_students;
 alter publication supabase_realtime add table public.vulcan_lessons;
 alter publication supabase_realtime add table public.vulcan_assignments;
 alter publication supabase_realtime add table public.vulcan_messages;
+alter publication supabase_realtime add table public.vulcan_attendance;
 
 -- Kandydaci do synchronizacji - ten sam wzorzec "insert...on conflict...
 -- returning" co do_wyslania(): claim i wybor w jednym zapytaniu.

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { DomownikDb } from './lib/supabase'
-import { blokiSzkolne, type Lekcja, type Uczen, type Wiadomosc } from './vulcan'
+import { blokiSzkolne, type Lekcja, type Obecnosc, type Uczen, type Wiadomosc } from './vulcan'
 import type { Ekran } from './uklad/nawigacja'
 import { dlugaData, klucz } from './dates'
 import { godzinaHM, nastepnyDzien, poczatekDnia } from './czas'
@@ -8,7 +8,7 @@ import { useWydarzenia } from './useWydarzenia'
 import { useTerminy } from './useTerminy'
 import { useTablica } from './useTablica'
 import { useZakupy } from './useZakupy'
-import { liczPilneTerminy, liczWiadomosciDzis } from './dashboardLiczniki'
+import { liczNieusprawiedliwione, liczPilneTerminy, liczWiadomosciDzis } from './dashboardLiczniki'
 import { policzPozostale } from './pozycje'
 import { GrafikDnia } from './widoki/GrafikDnia'
 import { PogodaWidget } from './widoki/PogodaWidget'
@@ -19,17 +19,19 @@ type Props = {
   wiadomosci: Wiadomosc[]
   lekcje: Lekcja[]
   uczniowie: Uczen[]
+  obecnosci: Obecnosc[]
   onBlad: (tekst: string) => void
   onEkran: (e: Ekran) => void
 }
 
-/** Ekran „Dziś": pogoda, zegar, grafik dnia całej rodziny i cztery liczniki. */
+/** Ekran „Dziś": pogoda, zegar, grafik dnia całej rodziny i pięć liczników. */
 export function Dashboard({
   householdId,
   domownicy,
   wiadomosci,
   lekcje,
   uczniowie,
+  obecnosci,
   onBlad,
   onEkran,
 }: Props) {
@@ -78,6 +80,7 @@ export function Dashboard({
   )
   const liczbaOtwartychTematow = tablica.notatki.length
   const liczbaDoKupienia = policzPozostale(zakupy.pozycje)
+  const liczbaNieusprawiedliwionych = useMemo(() => liczNieusprawiedliwione(obecnosci), [obecnosci])
 
   const ladowanie = dane.ladowanie || terminy.ladowanie || tablica.ladowanie || zakupy.ladowanie
 
@@ -121,6 +124,12 @@ export function Dashboard({
           etykieta="Do kupienia"
           wartosc={liczbaDoKupienia}
           onKlik={() => onEkran('zakupy')}
+        />
+        <LicznikDnia
+          etykieta="Nieusprawiedliwione"
+          wartosc={liczbaNieusprawiedliwionych}
+          pilny={liczbaNieusprawiedliwionych > 0}
+          onKlik={() => onEkran('szkola')}
         />
       </div>
     </div>

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
-import type { Student } from 'npm:vulcan-api-js@3.5.4'
+import type { Attendance, Student } from 'npm:vulcan-api-js@3.5.4'
 import { pobierzWiadomosciEdu, zbudujVulcanHebe, type WierszPolaczenia } from './vulcanApi.ts'
 
 type WierszUcznia = { id: string; student_data: unknown }
@@ -23,6 +23,15 @@ function koniecOkna(poczatek: Date, tygodni: number): Date {
   const kopia = new Date(poczatek)
   kopia.setDate(kopia.getDate() + tygodni * 7)
   return kopia
+}
+
+/** 1 wrzesnia biezacego roku szkolnego (Polska: rok szkolny trwa wrzesien-czerwiec,
+ *  wiec od stycznia do sierpnia "biezacy" rok szkolny zaczal sie we WRZESNIU
+ *  POPRZEDNIEGO roku kalendarzowego). Uzywane jako dolna granica synchronizacji
+ *  frekwencji - nieobecnosci od poczatku roku szkolnego, nie caly czas. */
+function poczatekRokuSzkolnego(d: Date): Date {
+  const rokSzkolny = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1
+  return new Date(rokSzkolny, 8, 1)
 }
 
 /** 'RRRR-MM-DD' w czasie lokalnym - tak samo jak `klucz()` w aplikacji, żeby
@@ -296,6 +305,41 @@ export async function synchronizujDom(
           .from('vulcan_assignments')
           .upsert(wierszeZadan, { onConflict: 'student_id,kind,vulcan_key' })
         if (bladZapisu) throw new Error(`Zapis zadań domowych nie powiódł się: ${bladZapisu.message}`)
+      }
+
+      // Frekwencja: caly biezacy rok szkolny (nie tylko okno planu lekcji) -
+      // `getAttendance` MUTUJE swoj drugi argument (dopisuje jedna dobe), wiec
+      // dostaje ZAWSZE swiezy obiekt Date, nigdy `koniec` z lekcji wyzej.
+      const obecnosci = (await vulcan.getAttendance(poczatekRokuSzkolnego(new Date()), new Date())) as Attendance[]
+      const obecnosciPrzefiltrowane = obecnosci.filter((a) => a.date?.date && a.presenceType)
+      if (obecnosci.length > 0 && obecnosciPrzefiltrowane.length === 0) {
+        console.error(
+          `Ostrzeżenie: ${obecnosci.length} wpisów frekwencji dla ucznia ${uczen.id} odrzuconych przez filtr daty/typu - możliwy brak/inna nazwa pola.`,
+        )
+      }
+      // Zakres celowo ograniczony do nieobecności (ustalone z userem) - zwykła
+      // obecność na lekcji nie trafia do bazy, więc tabela zostaje mała i
+      // dotyczy dokładnie tego, po co ta integracja powstała.
+      const nieobecnosciPrzefiltrowane = obecnosciPrzefiltrowane.filter((a) => a.presenceType?.absence)
+      const wierszeObecnosci = bezDuplikatow(
+        nieobecnosciPrzefiltrowane.map((a) => ({
+          student_id: uczen.id,
+          household_id: householdId,
+          attendance_date: a.date!.date,
+          subject: a.subject?.name ?? '(brak przedmiotu)',
+          presence_name: a.presenceType?.name ?? '(brak nazwy)',
+          absence: Boolean(a.presenceType?.absence),
+          justified: Boolean(a.presenceType?.justified),
+          exemption: Boolean(a.presenceType?.exemption),
+          vulcan_key: String(a.id),
+        })),
+        (w) => `${w.student_id}|${w.vulcan_key}`,
+      )
+      if (wierszeObecnosci.length > 0) {
+        const { error: bladZapisu } = await baza
+          .from('vulcan_attendance')
+          .upsert(wierszeObecnosci, { onConflict: 'student_id,vulcan_key' })
+        if (bladZapisu) throw new Error(`Zapis frekwencji nie powiódł się: ${bladZapisu.message}`)
       }
     } catch (e) {
       // Tak samo jak przy budowie klienta wyżej: błąd JEDNEGO ucznia (np.

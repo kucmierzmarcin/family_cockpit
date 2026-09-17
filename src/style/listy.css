@@ -573,6 +573,11 @@
   margin-bottom: -8px;
 }
 
+.frekwencja-licznik {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
 .dzien-planu-naglowek {
   margin: 0 0 8px;
   font-size: 15px;

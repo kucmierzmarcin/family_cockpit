@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react'
 import type { DomownikDb } from './lib/supabase'
 import {
+  czyNieusprawiedliwiona,
   oczyscTrescWiadomosci,
   pogrupujLekcjePoDniu,
+  posortujObecnosci,
   posortujWiadomosci,
   posortujWpisy,
   type Lekcja,
+  type Obecnosc,
   type StatusPolaczenia,
   type Wiadomosc,
   type Wpis,
@@ -19,10 +22,11 @@ type Props = {
   lekcje: Lekcja[]
   wpisy: Wpis[]
   wiadomosci: Wiadomosc[]
+  obecnosci: Obecnosc[]
   ladowanie: boolean
 }
 
-type PodZakladka = 'plan' | 'wpisy' | 'wiadomosci'
+type PodZakladka = 'plan' | 'wpisy' | 'wiadomosci' | 'frekwencja'
 
 const OPISY_TYPU: Record<Wpis['typ'], string> = {
   sprawdzian: 'Sprawdzian',
@@ -30,7 +34,7 @@ const OPISY_TYPU: Record<Wpis['typ'], string> = {
 }
 
 /** Ekran „Szkoła": plan lekcji, sprawdziany/zadania domowe i wiadomości z Vulcan. */
-export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie }: Props) {
+export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, obecnosci, ladowanie }: Props) {
   const [podZakladka, setPodZakladka] = useState<PodZakladka>('plan')
   const [wybranyUczen, setWybranyUczen] = useState<string | null>(null)
   const [rozwinieta, setRozwinieta] = useState<string | null>(null)
@@ -95,6 +99,14 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
     [wiadomosci, filtrUczniaId, czternascieDniTemu],
   )
   const dniPlanu = useMemo(() => pogrupujLekcjePoDniu(lekcjeWidoczne), [lekcjeWidoczne])
+  const obecnosciUcznia = useMemo(
+    () => posortujObecnosci(obecnosci.filter((o) => o.uczenId === filtrUczniaId)),
+    [obecnosci, filtrUczniaId],
+  )
+  const liczbaNieusprawiedliwionych = useMemo(
+    () => obecnosciUcznia.filter(czyNieusprawiedliwiona).length,
+    [obecnosciUcznia],
+  )
 
   if (ladowanie) return <p className="pusto">Wczytuję…</p>
 
@@ -160,6 +172,15 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
           onClick={() => setPodZakladka('wiadomosci')}
         >
           Wiadomości
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={podZakladka === 'frekwencja'}
+          className={`zakladka${podZakladka === 'frekwencja' ? ' aktywna' : ''}`}
+          onClick={() => setPodZakladka('frekwencja')}
+        >
+          Frekwencja
         </button>
       </div>
 
@@ -266,6 +287,45 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, ladowanie
             ))}
           </ul>
         ))}
+
+      {podZakladka === 'frekwencja' && (
+        <>
+          <p className="frekwencja-licznik">
+            Nieusprawiedliwione nieobecności w tym roku szkolnym:{' '}
+            <strong>{liczbaNieusprawiedliwionych}</strong>
+          </p>
+          {obecnosciUcznia.length === 0 ? (
+            <p className="pusto">Brak nieobecności w tym roku szkolnym.</p>
+          ) : (
+            <div className="tabela-terminow-kontener">
+              <table className="tabela-terminow">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Przedmiot</th>
+                    <th>Typ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {obecnosciUcznia.map((o) => (
+                    <tr key={o.id}>
+                      <td>{dlugaData(new Date(`${o.data}T12:00:00`))}</td>
+                      <td className="tytul-terminu">{o.przedmiot}</td>
+                      <td>
+                        <span
+                          className={`status-terminu ${czyNieusprawiedliwiona(o) ? 'status-przeterminowany' : 'status-aktywny'}`}
+                        >
+                          {o.nazwaTypu}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { klucz } from './dates'
 import { czyPrzeterminowany, type Termin } from './terminy'
-import type { Wiadomosc } from './vulcan'
+import { czyNieusprawiedliwiona, type Obecnosc, type Wiadomosc } from './vulcan'
 
 /** Ile terminów ma już minioną datę powiadomienia i wciąż czeka na załatwienie. */
 export function liczPilneTerminy(terminy: Termin[], dzisiaj: string): number {
@@ -15,4 +15,10 @@ export function liczPilneTerminy(terminy: Termin[], dzisiaj: string): number {
  * lokalnej strefie czasu. */
 export function liczWiadomosciDzis(wiadomosci: Wiadomosc[], dzisiaj: string): number {
   return wiadomosci.filter((w) => klucz(new Date(w.data)) === dzisiaj).length
+}
+
+/** Ile nieusprawiedliwionych nieobecności w zsynchronizowanym oknie (bieżący rok szkolny),
+ * licząc przez wszystkich uczniów łącznie. */
+export function liczNieusprawiedliwione(obecnosci: Obecnosc[]): number {
+  return obecnosci.filter(czyNieusprawiedliwiona).length
 }
