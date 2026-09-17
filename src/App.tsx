@@ -425,9 +425,11 @@ function App({ profil, email }: Props) {
       ) : ekran === 'paczki' ? (
         <Paczki
           paczki={inpost.paczki}
+          polaczenia={inpost.polaczenia}
           ladowanie={inpost.ladowanie}
           osobaPoId={osobaPoId}
           onOdswiez={() => void inpost.odswiez()}
+          onPrzejdzDoDomu={() => trasa.idzDoEkranu('dom')}
         />
       ) : ekran === 'dom' ? (
         <MojDom

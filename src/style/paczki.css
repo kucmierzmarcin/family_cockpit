@@ -57,3 +57,29 @@
   color: var(--blad);
   font-weight: 600;
 }
+
+/* Pusty stan zakładki: nie tylko „nic nie ma", ale też co z tym zrobić.
+   Odrębna klasa, a nie `.pusto`, bo tamta jest stylem akapitu - tu mieszczą
+   się dwa zdania i przycisk. */
+.paczki-pusto {
+  margin: 0 0 18px;
+  padding: var(--odstep-4);
+  border: 1px dashed var(--kreska);
+  border-radius: 10px;
+  color: var(--tekst-drugi);
+  font-size: var(--tekst-s);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--odstep-2);
+}
+
+.paczki-pusto p {
+  margin: 0;
+}
+
+.paczki-pusto .pusto-tytul {
+  color: var(--tekst);
+  font-weight: 600;
+}
