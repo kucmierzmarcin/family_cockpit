@@ -13,14 +13,14 @@ import {
 
 describe('czekaNaOdbior', () => {
   it('rozpoznaje cztery statusy oznaczajace paczke w skrytce', () => {
-    expect(czekaNaOdbior('Gotowa do odbioru')).toBe(true)
-    expect(czekaNaOdbior('Gotowa do odbioru w PaczkoPunkcie')).toBe(true)
-    expect(czekaNaOdbior('Gotowa do odbioru z oddziału')).toBe(true)
-    expect(czekaNaOdbior('Przesyłka magazynowana w paczkomacie tymczasowym')).toBe(true)
+    expect(czekaNaOdbior('READY_TO_PICKUP')).toBe(true)
+    expect(czekaNaOdbior('READY_TO_PICKUP_FROM_POK')).toBe(true)
+    expect(czekaNaOdbior('READY_TO_PICKUP_FROM_BRANCH')).toBe(true)
+    expect(czekaNaOdbior('STACK_IN_BOX_MACHINE')).toBe(true)
   })
 
   it('odrzuca stany, w ktorych nie ma czego odbierac', () => {
-    for (const s of ['Doręczona', 'Odebrana z paczkomatu', 'Zwrócona do nadawcy', 'Anulowana']) {
+    for (const s of ['DELIVERED', 'UNSTACK_FROM_BOX_MACHINE', 'RETURNED_TO_SENDER', 'CANCELED']) {
       expect(czekaNaOdbior(s)).toBe(false)
     }
   })
@@ -33,17 +33,20 @@ describe('czekaNaOdbior', () => {
 describe('naWierszePaczek', () => {
   const paczka = {
     shipmentNumber: '640123456789',
-    status: 'Gotowa do odbioru',
+    status: 'READY_TO_PICKUP',
     expiryDate: '2026-09-20T18:00:00Z',
     storedDate: '2026-09-17T09:12:00Z',
     sender: { name: 'Allegro' },
-    pickUpPoint: { name: 'MIL01A', city: 'Milanówek', street: 'Krakowska', buildingNumber: '12' },
+    pickUpPoint: {
+      name: 'MIL01A',
+      addressDetails: { city: 'Milanówek', street: 'Krakowska', buildingNumber: '12' },
+    },
   }
 
   it('sklada adres punktu z ulicy, numeru i miasta', () => {
     expect(naWierszePaczek({ parcels: [paczka] })[0]).toEqual({
       shipment_number: '640123456789',
-      status: 'Gotowa do odbioru',
+      status: 'READY_TO_PICKUP',
       sender_name: 'Allegro',
       point_name: 'MIL01A',
       point_address: 'Krakowska 12, Milanówek',
@@ -53,15 +56,15 @@ describe('naWierszePaczek', () => {
   })
 
   it('przepuszcza wylacznie paczki czekajace na odbior', () => {
-    const odpowiedz = { parcels: [paczka, { ...paczka, shipmentNumber: '999', status: 'Doręczona' }] }
+    const odpowiedz = { parcels: [paczka, { ...paczka, shipmentNumber: '999', status: 'DELIVERED' }] }
     expect(naWierszePaczek(odpowiedz).map((p) => p.shipment_number)).toEqual(['640123456789'])
   })
 
   it('braki w danych nie wywracaja mapowania', () => {
-    const chuda = { shipmentNumber: '1', status: 'Gotowa do odbioru' }
+    const chuda = { shipmentNumber: '1', status: 'READY_TO_PICKUP' }
     expect(naWierszePaczek({ parcels: [chuda] })[0]).toEqual({
       shipment_number: '1',
-      status: 'Gotowa do odbioru',
+      status: 'READY_TO_PICKUP',
       sender_name: null,
       point_name: null,
       point_address: null,
@@ -89,7 +92,7 @@ describe('naWierszePaczek', () => {
 describe('rozpoznanyKsztaltOdpowiedzi', () => {
   it('rozpoznaje odpowiedz z tablica parcels (pusta lub nie)', () => {
     expect(rozpoznanyKsztaltOdpowiedzi({ parcels: [] })).toBe(true)
-    expect(rozpoznanyKsztaltOdpowiedzi({ parcels: [{ shipmentNumber: '1', status: 'Gotowa do odbioru' }] })).toBe(
+    expect(rozpoznanyKsztaltOdpowiedzi({ parcels: [{ shipmentNumber: '1', status: 'READY_TO_PICKUP' }] })).toBe(
       true,
     )
   })
@@ -113,8 +116,8 @@ describe('zawieraNierozpoznanyStatus', () => {
   it('nie zaznacza, gdy wszystkie statusy sa rozpoznanymi stanami koncowymi (zero gotowych do odbioru)', () => {
     const odpowiedz = {
       parcels: [
-        { shipmentNumber: '1', status: 'Doręczona' },
-        { shipmentNumber: '2', status: 'Odebrana z paczkomatu' },
+        { shipmentNumber: '1', status: 'DELIVERED' },
+        { shipmentNumber: '2', status: 'UNSTACK_FROM_BOX_MACHINE' },
       ],
     }
     expect(zawieraNierozpoznanyStatus(odpowiedz)).toBe(false)
@@ -123,15 +126,15 @@ describe('zawieraNierozpoznanyStatus', () => {
   it('zaznacza, gdy w odpowiedzi wystepuje status spoza obu list (nierozpoznany)', () => {
     // Symulacja zmiany napisu statusu, np. "Gotowa do odbioru" -> "Gotowa do odbioru 24/7":
     // taki napis nie jest ani na liscie "czeka na odbior", ani na liscie stanow koncowych.
-    const odpowiedz = { parcels: [{ shipmentNumber: '1', status: 'Gotowa do odbioru 24/7' }] }
+    const odpowiedz = { parcels: [{ shipmentNumber: '1', status: 'READY_TO_PICKUP_247' }] }
     expect(zawieraNierozpoznanyStatus(odpowiedz)).toBe(true)
   })
 
   it('nie zaznacza mieszanki: jedna paczka gotowa do odbioru, jedna w stanie koncowym', () => {
     const odpowiedz = {
       parcels: [
-        { shipmentNumber: '1', status: 'Gotowa do odbioru' },
-        { shipmentNumber: '2', status: 'Doręczona' },
+        { shipmentNumber: '1', status: 'READY_TO_PICKUP' },
+        { shipmentNumber: '2', status: 'DELIVERED' },
       ],
     }
     expect(zawieraNierozpoznanyStatus(odpowiedz)).toBe(false)
@@ -151,12 +154,12 @@ describe('statusyZOdpowiedzi', () => {
   it('zwraca unikalne statusy z paczek', () => {
     const odpowiedz = {
       parcels: [
-        { shipmentNumber: '1', status: 'Gotowa do odbioru 24/7' },
-        { shipmentNumber: '2', status: 'Gotowa do odbioru 24/7' },
-        { shipmentNumber: '3', status: 'Doręczona' },
+        { shipmentNumber: '1', status: 'READY_TO_PICKUP_247' },
+        { shipmentNumber: '2', status: 'READY_TO_PICKUP_247' },
+        { shipmentNumber: '3', status: 'DELIVERED' },
       ],
     }
-    expect(statusyZOdpowiedzi(odpowiedz)).toEqual(['Gotowa do odbioru 24/7', 'Doręczona'])
+    expect(statusyZOdpowiedzi(odpowiedz)).toEqual(['READY_TO_PICKUP_247', 'DELIVERED'])
   })
 
   it('nigdy nie zwraca calych paczek ani innych pol - tylko napisy statusow', () => {
@@ -174,22 +177,44 @@ describe('statusyNierozpoznane', () => {
   it('pomija statusy z obu list (gotowe i koncowe), zwraca tylko nierozpoznane', () => {
     const odpowiedz = {
       parcels: [
-        { shipmentNumber: '1', status: 'Gotowa do odbioru' },
-        { shipmentNumber: '2', status: 'Doręczona' },
-        { shipmentNumber: '3', status: 'Gotowa do odbioru 24/7' },
+        { shipmentNumber: '1', status: 'READY_TO_PICKUP' },
+        { shipmentNumber: '2', status: 'DELIVERED' },
+        { shipmentNumber: '3', status: 'READY_TO_PICKUP_247' },
       ],
     }
-    expect(statusyNierozpoznane(odpowiedz)).toEqual(['Gotowa do odbioru 24/7'])
+    expect(statusyNierozpoznane(odpowiedz)).toEqual(['READY_TO_PICKUP_247'])
   })
 
   it('pusta lista, gdy wszystkie statusy w odpowiedzi sa rozpoznane', () => {
     const odpowiedz = {
       parcels: [
-        { shipmentNumber: '1', status: 'Doręczona' },
-        { shipmentNumber: '2', status: 'Gotowa do odbioru' },
+        { shipmentNumber: '1', status: 'DELIVERED' },
+        { shipmentNumber: '2', status: 'READY_TO_PICKUP' },
       ],
     }
     expect(statusyNierozpoznane(odpowiedz)).toEqual([])
+  })
+})
+
+describe('statusy w drodze', () => {
+  it('paczka w tranzycie to ZNANY status, nie sygnal zmiany API', () => {
+    // Regresja: pierwsza wersja dzielila swiat na "czeka" i "zakonczona", a
+    // `/v4/parcels/tracked` zwraca tez paczki jadace do punktu. Pierwsza taka
+    // przesylka wywolalaby falszywy alarm i zablokowala cala synchronizacje.
+    const wDrodze = {
+      parcels: [
+        { shipmentNumber: '1', status: 'ADOPTED_AT_SORTING_CENTER' },
+        { shipmentNumber: '2', status: 'OUT_FOR_DELIVERY' },
+        { shipmentNumber: '3', status: 'CREATED' },
+      ],
+    }
+    expect(statusyNierozpoznane(wDrodze)).toEqual([])
+    expect(zawieraNierozpoznanyStatus(wDrodze)).toBe(false)
+    expect(naWierszePaczek(wDrodze)).toEqual([])
+  })
+
+  it('DELIVERED jest rozpoznany - to on zatrzymal pierwsza prawdziwa synchronizacje', () => {
+    expect(statusyNierozpoznane({ parcels: [{ shipmentNumber: '1', status: 'DELIVERED' }] })).toEqual([])
   })
 })
 

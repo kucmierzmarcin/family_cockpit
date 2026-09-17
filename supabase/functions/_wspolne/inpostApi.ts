@@ -6,15 +6,19 @@
  */
 
 /**
- * Cztery statusy, przy ktorych paczka fizycznie czeka w skrytce. Dokladnie te
- * napisy zwraca API - porownujemy doslownie, bo nieznany status ma znaczyc
- * "nie czeka" (lepiej nie pokazac niz sklamac, ze cos czeka).
+ * Cztery KODY statusu, przy ktorych paczka fizycznie czeka w skrytce.
+ *
+ * To sa kody z API (`READY_TO_PICKUP`), nie napisy pokazywane w aplikacji
+ * ("Gotowa do odbioru"). Pierwsza wersja tego pliku miala tu wlasnie napisy -
+ * wziete z TLUMACZEN referencyjnego klienta, nie z jego kodow - wiec zaden
+ * status nigdy sie nie zgadzal. Pierwsza prawdziwa synchronizacja zwrocila
+ * `DELIVERED` i bezpiecznik slusznie uznal to za nieznany status.
  */
 export const STATUSY_DO_ODBIORU = [
-  'Gotowa do odbioru',
-  'Gotowa do odbioru w PaczkoPunkcie',
-  'Gotowa do odbioru z oddziału',
-  'Przesyłka magazynowana w paczkomacie tymczasowym',
+  'READY_TO_PICKUP',
+  'READY_TO_PICKUP_FROM_POK',
+  'READY_TO_PICKUP_FROM_BRANCH',
+  'STACK_IN_BOX_MACHINE',
 ]
 
 export function czekaNaOdbior(status: string): boolean {
@@ -22,27 +26,63 @@ export function czekaNaOdbior(status: string): boolean {
 }
 
 /**
- * Statusy oznaczające, że przesyłka zakończyła swoją drogę - odebrana,
- * zwrócona, anulowana albo w inny sposób "zamknięta". `/v4/parcels/tracked`
- * Z ZAŁOŻENIA zwraca też takie paczki (patrz test `naWierszePaczek` mieszający
- * status gotowy z `Doręczona` w jednej odpowiedzi) - to nie jest oznaka
- * awarii, to normalna praca API.
+ * PELNY slownik kodow statusu, jakie zna API - wszystkie 42, nie tylko koncowe.
  *
- * Ta lista NIE służy do filtrowania (do tego jest `czekaNaOdbior`/
- * `STATUSY_DO_ODBIORU`) - służy WYŁĄCZNIE do odróżnienia "rozpoznany status
- * zakończony" od "napisu, którego w ogóle nie znamy". Domownik, który właśnie
- * odebrał swoją jedyną paczkę, ma w odpowiedzi same statusy końcowe i zero
- * "gotowa do odbioru" - to nie ma być sygnałem "API się zepsuło".
+ * Ta lista NIE filtruje paczek (do tego jest `czekaNaOdbior`); sluzy WYLACZNIE
+ * do odroznienia "status, ktory znamy" od "napisu, jakiego nigdy nie
+ * widzielismy" - czyli sygnalu, ze InPost zmienil API. `inpost-sync` kasuje z
+ * tabeli wszystko, czego nie ma na liscie "zostaja", wiec cicha zmiana
+ * slownika wyczyscilaby realne, wciaz czekajace paczki.
+ *
+ * POPRZEDNIA wersja nazywala sie STATUSY_KONCOWE i miala osiem pozycji -
+ * zakladala, ze paczka jest albo "czeka", albo "zakonczona". To bylo falszywe:
+ * `/v4/parcels/tracked` zwraca rowniez paczki W DRODZE (`ADOPTED_AT_SORTING_CENTER`,
+ * `OUT_FOR_DELIVERY`...), wiec pierwsza przesylka w tranzycie wywolalaby falszywy
+ * alarm o zmianie API. Dlatego tu jest caly slownik, a nie jego wycinek.
  */
-export const STATUSY_KONCOWE = [
-  'Doręczona',
-  'Odebrana z paczkomatu',
-  'Zwrócona do nadawcy',
-  'Odebrana od nadawcy',
-  'Odebrana przez Kuriera',
-  'Anulowana',
-  'Nie dostarczona',
-  'Odrzucona przez odbiorcę',
+export const STATUSY_ZNANE = [
+  'CREATED',
+  'OFFERS_PREPARED',
+  'OFFER_SELECTED',
+  'CONFIRMED',
+  'READY_TO_PICKUP_FROM_POK',
+  'OVERSIZED',
+  'DISPATCHED_BY_SENDER_TO_POK',
+  'DISPATCHED_BY_SENDER',
+  'COLLECTED_FROM_SENDER',
+  'TAKEN_BY_COURIER',
+  'ADOPTED_AT_SOURCE_BRANCH',
+  'SENT_FROM_SOURCE_BRANCH',
+  'READDRESSED',
+  'OUT_FOR_DELIVERY',
+  'READY_TO_PICKUP',
+  'PICKUP_REMINDER_SENT',
+  'PICKUP_TIME_EXPIRED',
+  'AVIZO',
+  'TAKEN_BY_COURIER_FROM_POK',
+  'REJECTED_BY_RECEIVER',
+  'UNDELIVERED',
+  'DELAY_IN_DELIVERY',
+  'RETURNED_TO_SENDER',
+  'READY_TO_PICKUP_FROM_BRANCH',
+  'DELIVERED',
+  'CANCELED',
+  'CLAIMED',
+  'STACK_IN_CUSTOMER_SERVICE_POINT',
+  'STACK_PARCEL_PICKUP_TIME_EXPIRED',
+  'UNSTACK_FROM_CUSTOMER_SERVICE_POINT',
+  'COURIER_AVIZO_IN_CUSTOMER_SERVICE_POINT',
+  'TAKEN_BY_COURIER_FROM_CUSTOMER_SERVICE_POINT',
+  'STACK_IN_BOX_MACHINE',
+  'STACK_PARCEL_IN_BOX_MACHINE_PICKUP_TIME_EXPIRED',
+  'UNSTACK_FROM_BOX_MACHINE',
+  'ADOPTED_AT_SORTING_CENTER',
+  'OUT_FOR_DELIVERY_TO_ADDRESS',
+  'PICKUP_REMINDER_SENT_ADDRESS',
+  'UNDELIVERED_WRONG_ADDRESS',
+  'UNDELIVERED_COD_CASH_RECEIVER',
+  'REDIRECT_TO_BOX',
+  'CANCELED_REDIRECT_TO_BOX',
 ]
 
 export type PaczkaZApi = {
@@ -53,9 +93,14 @@ export type PaczkaZApi = {
   sender?: { name?: string } | null
   pickUpPoint?: {
     name?: string
-    city?: string
-    street?: string
-    buildingNumber?: string
+    // Adres jest ZAGNIEZDZONY. Plaskie `p.city`/`p.street` (pierwsza wersja)
+    // zawsze dawaly `undefined`, wiec kazda paczka trafialaby do bazy z pustym
+    // adresem punktu - bez zadnego bledu, po cichu.
+    addressDetails?: {
+      city?: string
+      street?: string
+      buildingNumber?: string
+    } | null
   } | null
 }
 
@@ -72,8 +117,10 @@ export type WierszPaczki = {
 /** 'Krakowska 12, Milanówek'; brakujące części po prostu wypadają. */
 function adresPunktu(p: PaczkaZApi['pickUpPoint']): string | null {
   if (!p) return null
-  const ulica = [p.street, p.buildingNumber].filter(Boolean).join(' ')
-  const calosc = [ulica, p.city].filter(Boolean).join(', ')
+  const adres = p.addressDetails
+  if (!adres) return null
+  const ulica = [adres.street, adres.buildingNumber].filter(Boolean).join(' ')
+  const calosc = [ulica, adres.city].filter(Boolean).join(', ')
   return calosc || null
 }
 
@@ -105,14 +152,14 @@ export function rozpoznanyKsztaltOdpowiedzi(odpowiedz: unknown): boolean {
  *
  * WCZEŚNIEJSZA wersja tej funkcji uznawała za podejrzane KAŻDE `wiersze:
  * []` przy niepustym `parcels` - ale `/v4/parcels/tracked` z założenia
- * zwraca też paczki w stanach końcowych (patrz `STATUSY_KONCOWE`), więc
+ * zwraca też paczki w stanach końcowych i w drodze (patrz `STATUSY_ZNANE`), więc
  * domownik, który ma w danej chwili WYŁĄCZNIE paczki już odebrane/zwrócone,
  * dawał dokładnie taki wynik (`wiersze: []`, `parcels` niepuste) i był
  * fałszywie alarmowany o "zmianie kształtu API", mimo że nic się nie zepsuło.
  *
  * Poprawny sygnał: nie "zero wierszy przeszło filtr", tylko "występuje status,
- * którego nie ma ANI na liście `STATUSY_DO_ODBIORU`, ANI na liście
- * `STATUSY_KONCOWE`" - czyli napis, jakiego jeszcze nie widzieliśmy. Rozpoznany
+ * którego nie ma w słowniku
+ * `STATUSY_ZNANE`" - czyli napis, jakiego jeszcze nie widzieliśmy. Rozpoznany
  * status końcowy (np. `Doręczona`) to normalna praca API, nie awaria.
  */
 export function zawieraNierozpoznanyStatus(odpowiedz: unknown): boolean {
@@ -143,7 +190,7 @@ export function statusyZOdpowiedzi(odpowiedz: unknown): string[] {
  */
 export function statusyNierozpoznane(odpowiedz: unknown): string[] {
   return statusyZOdpowiedzi(odpowiedz).filter(
-    (status) => !STATUSY_DO_ODBIORU.includes(status) && !STATUSY_KONCOWE.includes(status),
+    (status) => !STATUSY_ZNANE.includes(status),
   )
 }
 
