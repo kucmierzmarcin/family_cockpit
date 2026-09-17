@@ -18,12 +18,14 @@ export type WydarzenieDnia = {
 
 export type NotatkaDnia = { id: string; content: string; pinned: boolean; autor: string }
 export type ListaDnia = { id: string; name: string; pozostalo: number }
+export type PaczkaDnia = { nadawca: string | null; punkt: string | null; odbierzDo: string | null }
 
 export type DanePodsumowania = {
   dzien: string // 'RRRR-MM-DD'
   wydarzenia: WydarzenieDnia[]
   notatki: NotatkaDnia[]
   listy: ListaDnia[]
+  paczki: PaczkaDnia[]
 }
 
 /** Do kogo piszemy - `memberId` służy wyróżnieniu jego własnych wydarzeń. */
@@ -82,6 +84,35 @@ export function liniaListy(l: ListaDnia): string {
   return `${l.name} — ${l.pozostalo} ${l.pozostalo === 1 ? 'rzecz' : 'rzeczy'}`
 }
 
+/**
+ * 'DD.MM' z instantu ISO, czytane w strefie Europe/Warsaw - NIE w strefie
+ * serwera. `expiry_date` to `timestamptz`, więc niesie prawdziwą chwilę w
+ * czasie (w przeciwieństwie do `starts_at`/`ends_at` wyżej), ale samo
+ * `new Date(...).getDate()` czytałoby dzień w strefie Deno (UTC), tak samo jak
+ * `new Date()` bez jawnej strefy potrafiło cofnąć "dzisiaj" o jeden w oknie
+ * 00:00-02:00 czasu warszawskiego (patrz `dzisiaj_w_warszawie()` w
+ * schema.sql). Dla terminu tuż przed północą w Warszawie (a więc jeszcze
+ * "dziś" po UTC) dawałoby to o jeden dzień za wcześnie.
+ */
+function dzienMiesiac(iso: string): string {
+  const czesci = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Warsaw',
+    day: '2-digit',
+    month: '2-digit',
+  }).formatToParts(new Date(iso))
+  const dzien = czesci.find((c) => c.type === 'day')?.value ?? '??'
+  const miesiac = czesci.find((c) => c.type === 'month')?.value ?? '??'
+  return `${dzien}.${miesiac}`
+}
+
+/** 'Allegro - MIL01A, odbierz do 20.09' albo bez terminu, gdy API go nie podało. */
+export function liniaPaczki(p: PaczkaDnia): string {
+  const kto = p.nadawca ?? 'Przesyłka'
+  const gdzie = p.punkt ? ` - ${p.punkt}` : ''
+  if (!p.odbierzDo) return `${kto}${gdzie}`
+  return `${kto}${gdzie}, odbierz do ${dzienMiesiac(p.odbierzDo)}`
+}
+
 /** Wydarzenia odbiorcy na wierzchu wzroku - mail idzie do konkretnej osoby. */
 function moje(w: WydarzenieDnia, memberId: string): boolean {
   return w.osoby.some((o) => o.id === memberId)
@@ -121,6 +152,13 @@ function sekcje(dane: DanePodsumowania, memberId: string, etykietaKalendarza: st
     wynik.push({
       tytul: 'ZAKUPY',
       linie: dane.listy.map((l) => ({ tresc: liniaListy(l), wyroznione: false })),
+    })
+  }
+
+  if (dane.paczki.length) {
+    wynik.push({
+      tytul: 'PACZKI DO ODBIORU',
+      linie: dane.paczki.map((p) => ({ tresc: liniaPaczki(p), wyroznione: false })),
     })
   }
 

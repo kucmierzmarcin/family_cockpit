@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   liniaListy,
   liniaNotatki,
+  liniaPaczki,
   liniaWydarzenia,
   naglowekDnia,
   odmienWydarzenia,
@@ -23,6 +24,7 @@ function dane(ile: number) {
     })),
     notatki: [],
     listy: [],
+    paczki: [],
   }
 }
 
@@ -155,6 +157,7 @@ const PELNE: DanePodsumowania = {
   ],
   notatki: [{ id: 'n1', content: 'Zebranie', pinned: true, autor: 'Marek' }],
   listy: [{ id: 'l1', name: 'Spożywcze', pozostalo: 4 }],
+  paczki: [],
 }
 
 const PUSTE: DanePodsumowania = {
@@ -162,6 +165,7 @@ const PUSTE: DanePodsumowania = {
   wydarzenia: [],
   notatki: [],
   listy: [],
+  paczki: [],
 }
 
 describe('zbudujPodsumowanie', () => {
@@ -258,5 +262,48 @@ describe('zbudujPodsumowanie - etykietaKalendarza', () => {
     const { tekst } = zbudujPodsumowanie(PELNE, ODBIORCA, { etykietaKalendarza: 'JUTRO W KALENDARZU' })
     expect(tekst).toContain('JUTRO W KALENDARZU')
     expect(tekst).not.toContain('DZIŚ W KALENDARZU')
+  })
+})
+
+describe('liniaPaczki', () => {
+  it('składa nadawcę, punkt i termin', () => {
+    expect(liniaPaczki({ nadawca: 'Allegro', punkt: 'MIL01A', odbierzDo: '2026-09-20T18:00:00Z' }))
+      .toBe('Allegro - MIL01A, odbierz do 20.09')
+  })
+
+  it('bez terminu nie dopisuje "odbierz do" - nie zmyślamy daty', () => {
+    expect(liniaPaczki({ nadawca: 'Allegro', punkt: 'MIL01A', odbierzDo: null }))
+      .toBe('Allegro - MIL01A')
+  })
+
+  it('nieznany nadawca dostaje neutralne słowo, nie puste miejsce', () => {
+    expect(liniaPaczki({ nadawca: null, punkt: null, odbierzDo: null })).toBe('Przesyłka')
+  })
+
+  it('czyta dzień w strefie Europe/Warsaw, nie w strefie serwera (Deno = UTC)', () => {
+    // 22:30 UTC to już 00:30 w Warszawie (lato, UTC+2) - dzień następny.
+    // Naiwne `new Date(...).getDate()` w środowisku UTC pokazałoby 20.09,
+    // czyli dzień wcześniej niż realny termin w Warszawie.
+    expect(liniaPaczki({ nadawca: 'Allegro', punkt: null, odbierzDo: '2026-09-20T22:30:00Z' }))
+      .toBe('Allegro, odbierz do 21.09')
+  })
+})
+
+describe('podsumowanie z paczkami', () => {
+  const puste = { dzien: '2026-09-17', wydarzenia: [], notatki: [], listy: [] }
+  const odbiorca = { memberId: 'm', imie: 'Marcin', email: 'a@b.pl' }
+
+  it('dzień z samą paczką nie jest dniem "spokojnym"', () => {
+    const mail = zbudujPodsumowanie(
+      { ...puste, paczki: [{ nadawca: 'Allegro', punkt: 'MIL01A', odbierzDo: null }] },
+      odbiorca,
+    )
+    expect(mail.tekst).toContain('PACZKI DO ODBIORU')
+    expect(mail.tekst).toContain('Allegro - MIL01A')
+  })
+
+  it('dzień bez paczek nie pokazuje pustej sekcji', () => {
+    const mail = zbudujPodsumowanie({ ...puste, paczki: [] }, odbiorca)
+    expect(mail.tekst).not.toContain('PACZKI DO ODBIORU')
   })
 })

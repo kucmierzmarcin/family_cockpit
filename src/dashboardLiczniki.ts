@@ -1,4 +1,5 @@
 import { klucz } from './dates'
+import { czyPilna, type Paczka } from './paczki'
 import { czyPrzeterminowany, type Termin } from './terminy'
 import { czyNieusprawiedliwiona, type Obecnosc, type Wiadomosc } from './vulcan'
 
@@ -21,4 +22,14 @@ export function liczWiadomosciDzis(wiadomosci: Wiadomosc[], dzisiaj: string): nu
  * licząc przez wszystkich uczniów łącznie. */
 export function liczNieusprawiedliwione(obecnosci: Obecnosc[]): number {
   return obecnosci.filter(czyNieusprawiedliwiona).length
+}
+
+/** Ile paczek czeka w paczkomatach całego domu. */
+export function liczPaczkiDoOdbioru(paczki: Paczka[]): number {
+  return paczki.length
+}
+
+/** Czy którakolwiek paczka ma termin dziś, jutro albo już miniony. */
+export function czyPilnePaczki(paczki: Paczka[], teraz: Date): boolean {
+  return paczki.some((p) => czyPilna(p.odbierzDo, teraz))
 }

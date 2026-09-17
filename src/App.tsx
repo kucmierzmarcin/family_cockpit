@@ -380,6 +380,8 @@ function App({ profil, email }: Props) {
           lekcje={vulcan.lekcje}
           uczniowie={vulcan.status?.uczniowie ?? []}
           obecnosci={vulcan.obecnosci}
+          paczki={inpost.paczki}
+          paczkiLadowanie={inpost.ladowanie}
           onBlad={setBlad}
           onEkran={przelaczEkran}
         />

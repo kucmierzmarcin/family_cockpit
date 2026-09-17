@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { liczNieusprawiedliwione, liczPilneTerminy, liczWiadomosciDzis } from './dashboardLiczniki'
+import {
+  czyPilnePaczki,
+  liczNieusprawiedliwione,
+  liczPaczkiDoOdbioru,
+  liczPilneTerminy,
+  liczWiadomosciDzis,
+} from './dashboardLiczniki'
+import type { Paczka } from './paczki'
 import type { Termin } from './terminy'
 import type { Obecnosc, Wiadomosc } from './vulcan'
 
@@ -27,6 +34,19 @@ function wiadomosc(zmiany: Partial<Wiadomosc>): Wiadomosc {
     tresc: 'Treść',
     data: '2026-09-14T08:00:00Z',
     ...zmiany,
+  }
+}
+
+function paczka(odbierzDo: Date | null): Paczka {
+  return {
+    id: 'x',
+    memberId: 'm',
+    numer: 'x',
+    status: 'Gotowa do odbioru',
+    nadawca: null,
+    punkt: null,
+    adres: null,
+    odbierzDo,
   }
 }
 
@@ -112,5 +132,22 @@ describe('liczNieusprawiedliwione', () => {
   it('liczy przez wszystkich uczniow lacznie', () => {
     const lista = [obecnosc({ uczenId: 'a' }), obecnosc({ uczenId: 'b' })]
     expect(liczNieusprawiedliwione(lista)).toBe(2)
+  })
+})
+
+describe('liczniki paczek', () => {
+  const TERAZ = new Date(2026, 8, 17, 10, 0)
+
+  it('liczy wszystkie czekajace paczki', () => {
+    expect(liczPaczkiDoOdbioru([paczka(null), paczka(new Date(2026, 8, 25))])).toBe(2)
+  })
+
+  it('czerwony alarm tylko wtedy, gdy ktorys termin nagli', () => {
+    expect(czyPilnePaczki([paczka(new Date(2026, 8, 25))], TERAZ)).toBe(false)
+    expect(czyPilnePaczki([paczka(new Date(2026, 8, 18))], TERAZ)).toBe(true)
+  })
+
+  it('pusta lista nie alarmuje', () => {
+    expect(czyPilnePaczki([], TERAZ)).toBe(false)
   })
 })

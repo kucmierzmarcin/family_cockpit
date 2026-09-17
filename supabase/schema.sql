@@ -690,7 +690,18 @@ as $$
            where sl.household_id = p_dom
         ) l
        where l.pozostalo > 0
-    ), '[]'::jsonb)
+    ), '[]'::jsonb),
+
+    -- Paczki czekajace w paczkomatach, najblizszy termin pierwszy.
+    'paczki', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+               'nadawca',   p.sender_name,
+               'punkt',     p.point_name,
+               'odbierzDo', p.expiry_date
+             ) order by p.expiry_date nulls last), '[]'::jsonb)
+      from public.inpost_parcels p
+      where p.household_id = p_dom
+    )
   )
 $$;
 

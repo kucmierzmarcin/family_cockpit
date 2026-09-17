@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { DomownikDb } from './lib/supabase'
+import type { Paczka } from './paczki'
 import { blokiSzkolne, type Lekcja, type Obecnosc, type Uczen, type Wiadomosc } from './vulcan'
 import type { Ekran } from './uklad/nawigacja'
 import { useTelefon } from './uklad/useTelefon'
@@ -9,7 +10,13 @@ import { useWydarzenia } from './useWydarzenia'
 import { useTerminy } from './useTerminy'
 import { useTablica } from './useTablica'
 import { useZakupy } from './useZakupy'
-import { liczNieusprawiedliwione, liczPilneTerminy, liczWiadomosciDzis } from './dashboardLiczniki'
+import {
+  czyPilnePaczki,
+  liczNieusprawiedliwione,
+  liczPaczkiDoOdbioru,
+  liczPilneTerminy,
+  liczWiadomosciDzis,
+} from './dashboardLiczniki'
 import { policzPozostale } from './pozycje'
 import { GrafikDnia } from './widoki/GrafikDnia'
 import { PogodaWidget } from './widoki/PogodaWidget'
@@ -21,11 +28,13 @@ type Props = {
   lekcje: Lekcja[]
   uczniowie: Uczen[]
   obecnosci: Obecnosc[]
+  paczki: Paczka[]
+  paczkiLadowanie: boolean
   onBlad: (tekst: string) => void
   onEkran: (e: Ekran) => void
 }
 
-/** Ekran „Dziś": pogoda, zegar, grafik dnia całej rodziny i pięć liczników. */
+/** Ekran „Dziś": pogoda, zegar, grafik dnia całej rodziny i sześć liczników. */
 export function Dashboard({
   householdId,
   domownicy,
@@ -33,6 +42,8 @@ export function Dashboard({
   lekcje,
   uczniowie,
   obecnosci,
+  paczki,
+  paczkiLadowanie,
   onBlad,
   onEkran,
 }: Props) {
@@ -83,6 +94,8 @@ export function Dashboard({
   const liczbaOtwartychTematow = tablica.notatki.length
   const liczbaDoKupienia = policzPozostale(zakupy.pozycje)
   const liczbaNieusprawiedliwionych = useMemo(() => liczNieusprawiedliwione(obecnosci), [obecnosci])
+  const liczbaPaczek = useMemo(() => liczPaczkiDoOdbioru(paczki), [paczki])
+  const paczkiPilne = useMemo(() => czyPilnePaczki(paczki, teraz), [paczki, teraz])
 
   // Żadnej bramki na cały ekran: każdy kawałek czeka na SWOJE dane, nie na
   // cudze. Wcześniej jedno `||` po czterech hakach chowało również zegar, który
@@ -143,6 +156,13 @@ export function Dashboard({
           wartosc={liczbaNieusprawiedliwionych}
           pilny={liczbaNieusprawiedliwionych > 0}
           onKlik={() => onEkran('szkola')}
+        />
+        <LicznikDnia
+          etykieta="Paczki do odbioru"
+          wartosc={liczbaPaczek}
+          pilny={paczkiPilne}
+          ladowanie={paczkiLadowanie}
+          onKlik={() => onEkran('paczki')}
         />
       </div>
     </div>
