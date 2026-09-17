@@ -191,7 +191,7 @@ export function Szkola({ domownicy, status, lekcje, wpisy, wiadomosci, obecnosci
           <div className="plan-lekcji">
             {[...dniPlanu.entries()].map(([dzien, lekcjeDnia]) => (
               <section key={dzien} className="dzien-planu">
-                <h3 className="dzien-planu-naglowek">{dlugaDataZDniem(new Date(`${dzien}T12:00:00`))}</h3>
+                <h2 className="dzien-planu-naglowek">{dlugaDataZDniem(new Date(`${dzien}T12:00:00`))}</h2>
                 <ul className="lista-lekcji">
                   {lekcjeDnia.map((l) => (
                     <li key={l.id} className={`lekcja${l.zmieniona ? ' lekcja-zmieniona' : ''}`}>

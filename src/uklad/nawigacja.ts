@@ -10,6 +10,26 @@ export type Ekran = 'dashboard' | 'kalendarz' | 'zakupy' | 'tablica' | 'terminy'
 /** Kolejność zakładek - ta sama u góry na biurku i na dole na telefonie. */
 export const EKRANY: Ekran[] = ['dashboard', 'kalendarz', 'zakupy', 'tablica', 'terminy', 'szkola', 'dom']
 
+/**
+ * Dolny pasek telefonu mieści pięć celów - przy siedmiu każdy ma 51px na
+ * 360-pikselowym ekranie, a samo słowo „Kalendarz” potrzebuje ~58px i nie ma
+ * się gdzie złamać. Więc cztery najczęstsze ekrany stoją wprost w pasku,
+ * a reszta chowa się pod „Więcej”. Na biurku zostaje cała siódemka - tam
+ * miejsca nie brakuje (patrz EKRANY wyżej).
+ */
+export const EKRANY_TELEFON: Ekran[] = ['dashboard', 'kalendarz', 'zakupy', 'szkola']
+
+/** Ekrany spod „Więcej” - rzadsze niż te w pasku, ale nie mniej ważne. */
+export const EKRANY_WIECEJ: Ekran[] = ['tablica', 'terminy', 'dom']
+
+/**
+ * Czy zakładka „Więcej” ma świecić jako aktywna. Bez tego wejście na Tablicę
+ * gasi cały pasek i nie widać już, gdzie się jest.
+ */
+export function wZakladceWiecej(ekran: Ekran): boolean {
+  return EKRANY_WIECEJ.includes(ekran)
+}
+
 export const TYTULY: Record<Ekran, string> = {
   dashboard: 'Dziś',
   kalendarz: 'Kalendarz',

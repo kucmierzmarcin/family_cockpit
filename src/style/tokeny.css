@@ -3,6 +3,9 @@
   --karta: #ffffff;
   --tekst: #1d1b22;
   --tekst-drugi: #6b6375;
+  /* Najsłabsza szarość, jaką wolno dać tekstowi: 4.59:1 na #fafafc,
+     4.77:1 na białym. Niżej zaczyna się tekst, którego nie da się przeczytać. */
+  --tekst-slaby: #757080;
   --kreska: #e5e3ea;
   --akcent: #7c3aed;
   --akcent-jasny: #f1eafe;
@@ -20,7 +23,7 @@
   --promien-m: 10px;
   --promien-l: 16px;
   --dotyk: 44px;
-  --pasek: 56px;
+  --pasek: 60px;
   --warstwa-pasek: 20;
   --warstwa-arkusz: 30;
 }

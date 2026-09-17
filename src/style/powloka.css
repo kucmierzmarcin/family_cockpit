@@ -43,6 +43,16 @@
   .kokpit-pelny .naglowek {
     flex: none;
   }
+
+  .kokpit-pelny .tytul-biurko {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* --- Ekran logowania i komunikaty bramy --- */
@@ -91,6 +101,19 @@
 }
 
 /* --- Pasek nad nagłówkiem: zakładki i zalogowany użytkownik --- */
+
+/* Tytuł ekranu na biurku. W trybie .kokpit-pelny (dzień/tydzień na całe okno)
+   schodzi do odczytu dla czytnika - tam każdy piksel wysokości idzie na
+   siatkę godzin, a zakładka i tak mówi, gdzie jesteśmy. */
+.tytul-biurko {
+  /* .naglowek jest wyśrodkowany, a pasek zakładek i tak wyrównuje się do lewej
+     - tytuł musi trzymać tę samą krawędź, inaczej wisi samotnie na środku. */
+  text-align: left;
+  margin: 0 0 var(--odstep-4);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
 
 .pasek {
   display: flex;
@@ -324,17 +347,83 @@
   border-top: 1px solid var(--kreska);
 }
 
+/* Ikona nad podpisem: przy pięciu kolumnach na 360px podpis ma ~72px toru,
+   więc „Kalendarz” mieści się bez łamania. Ikona daje drugi, szybszy trop -
+   przy 11-pikselowym podpisie sam tekst byłby jedyną różnicą między
+   zakładkami. */
 .zakladka-dolna {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
   min-height: var(--pasek);
+  padding: var(--odstep-1) 2px;
   border: 0;
   background: none;
   color: var(--tekst-drugi);
-  font-size: 12px;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.2;
   cursor: pointer;
+}
+
+.zakladka-dolna svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+/* Podpis nie łamie się na dwie linie - inaczej „Mój dom” byłby wyższy od
+   sąsiadów i cały pasek przestawałby mieć jedną linię bazową. */
+.zakladka-dolna-etykieta {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .zakladka-dolna.aktywna {
   color: var(--akcent);
   font-weight: 600;
   box-shadow: inset 0 2px 0 var(--akcent);
+}
+
+/* --- Lista ekranów spod „Więcej” --- */
+
+.lista-wiecej {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--odstep-1);
+}
+
+.pozycja-wiecej {
+  display: flex;
+  align-items: center;
+  gap: var(--odstep-3);
+  width: 100%;
+  min-height: var(--dotyk);
+  padding: var(--odstep-3) var(--odstep-2);
+  border: 0;
+  border-radius: var(--promien-m);
+  background: none;
+  color: var(--tekst);
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pozycja-wiecej:hover {
+  background: var(--tlo);
+}
+
+.pozycja-wiecej.aktywna {
+  background: var(--akcent-jasny);
+  color: #4c1d95;
+  font-weight: 600;
 }

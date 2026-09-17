@@ -49,6 +49,11 @@ export function UkladBiurko({ profil, email, ekran, onEkran, pelnyEkran, childre
             </button>
           </div>
         </div>
+
+        {/* Jedyny <h1> na stronie. Bez niego czytnik ekranu zaczynał od <h2>
+            („wrzesień 2026”, „Domownicy”...), a ekrany Dashboard, Tablica i
+            Terminy nie miały żadnej kotwicy. */}
+        <h1 className="tytul-biurko">{TYTULY[ekran]}</h1>
       </header>
 
       {children}

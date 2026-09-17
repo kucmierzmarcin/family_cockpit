@@ -26,7 +26,7 @@ import { useWydarzenia, type Wydarzenie } from './useWydarzenia'
 import { blokiSzkolne } from './vulcan'
 import { BEZ_OSOBY, osobyWydarzenia, widocznePrzyFiltrze } from './osoby'
 import { kolor } from './kolory'
-import { TYTULY, type Ekran, type TrybDodawania } from './uklad/nawigacja'
+import type { Ekran, TrybDodawania } from './uklad/nawigacja'
 import { useTelefon } from './uklad/useTelefon'
 import { useSzerokiKalendarz } from './uklad/useSzerokiKalendarz'
 import { UkladBiurko } from './uklad/UkladBiurko'
@@ -47,7 +47,9 @@ function App({ profil, email }: Props) {
   const dzisiaj = useMemo(() => new Date(), [])
   const jestemRodzicem = profil.role === 'rodzic'
 
-  const [ekran, setEkran] = useState<Ekran>('kalendarz')
+  // Start na „Dziś”: to ekran, który odpowiada na pytanie zadawane najczęściej
+  // („co się dzieje dzisiaj”), a kalendarz jest o jedno stuknięcie dalej.
+  const [ekran, setEkran] = useState<Ekran>('dashboard')
   const [widok, setWidok] = useState<Widok>('miesiac')
 
   // Jedna data odniesienia dla wszystkich trzech widoków - każdy bierze z niej
@@ -305,7 +307,8 @@ function App({ profil, email }: Props) {
           dzisiaj={dzisiaj}
           wybranyDzien={klucz(kotwica)}
           ladowanie={dane.ladowanie}
-          maksPigulek={telefon ? 2 : 3}
+          maksPigulek={3}
+          kropki={telefon}
           onWybierzDzien={(k) => {
             setKotwica(new Date(`${k}T12:00:00`))
             setEdytowane(null)
@@ -462,9 +465,7 @@ function App({ profil, email }: Props) {
               onPrzesun={przesun}
               onDzis={() => setKotwica(new Date())}
             />
-          ) : (
-            <h1 className="tytul-ekranu">{TYTULY[ekran]}</h1>
-          )
+          ) : null
         }
         onDodaj={() => setDodawanie(ekran)}
         dodawanieOtwarte={dodawanie !== null || (ekran === 'kalendarz' && edytowane !== null)}

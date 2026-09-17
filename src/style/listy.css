@@ -155,14 +155,16 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Kupione schodza na dol listy i sa przekreslone */
+/* Kupione schodza na dol listy i sa przekreslone. Bez `opacity` na całym
+   wierszu: przekreślona nazwa zeszłaby do 2.5:1, a odhaczoną rzecz trzeba
+   przeczytać, żeby ją cofnąć. Przekreślenie i szarość wystarczą za sygnał. */
 .pozycje li.kupione .pozycja-nazwa {
   text-decoration: line-through;
   color: var(--tekst-drugi);
 }
 
-.pozycje li.kupione {
-  opacity: 0.6;
+.pozycje li.kupione .pozycja-ilosc {
+  color: var(--tekst-slaby);
 }
 
 /* --- Ekran "Tablica" --- */

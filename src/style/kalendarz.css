@@ -129,9 +129,12 @@
   border-color: var(--akcent);
 }
 
+/* Dzień sąsiedniego miesiąca też jest klikalnym przyciskiem, więc jego numer
+   musi dać się przeczytać. Stłumienie niesie tło i --tekst-slaby (4.59:1),
+   nie szarość poniżej progu. */
 .dzien.obcy {
   background: #fafafc;
-  color: #b6b2bf;
+  color: var(--tekst-slaby);
 }
 
 .dzien.dzisiaj {
@@ -184,6 +187,40 @@
   padding-left: 6px;
 }
 
+/* --- Komórka dnia na telefonie: kropki zamiast pigułek (patrz Miesiac.tsx) --- */
+
+.kropki-dnia {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.kropka-dnia {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+/* Całodniowe i wielodniowe jako kreska, nie kółko - tę samą różnicę niosła
+   klasa `.pigulka.ciagle` na szerokim ekranie. */
+.kropka-dnia.ciagla {
+  width: 14px;
+  border-radius: 2px;
+}
+
+.kropki-nadmiar {
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--tekst-drugi);
+  font-variant-numeric: tabular-nums;
+}
+
 /* --- Filtry osób nad siatką --- */
 
 .filtry {
@@ -193,6 +230,10 @@
   margin-bottom: 16px;
 }
 
+/* Stan wyłączony nie ściemnia się `opacity` - imię domownika zeszloby wtedy
+   do 2.3:1, a to właśnie wyłączony filtr trzeba przeczytać, żeby wiedzieć,
+   kogo się włącza. Wygasza się sama kropka (ozdobna, `aria-hidden`), a
+   różnicę stanów niosą dodatkowo tło i grubość pisma - nie sam kolor. */
 .filtr {
   display: inline-flex;
   align-items: center;
@@ -206,14 +247,23 @@
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  opacity: 0.55;
-  transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.filtr .kropka {
+  opacity: 0.3;
+  transition: opacity 0.15s;
 }
 
 .filtr.wlaczony {
-  opacity: 1;
+  background: var(--tlo);
   color: var(--tekst);
   border-color: #cfc9d9;
+  font-weight: 600;
+}
+
+.filtr.wlaczony .kropka {
+  opacity: 1;
 }
 
 .filtr:hover {

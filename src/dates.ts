@@ -75,3 +75,37 @@ export function dlugaDataZDniem(data: Date): string {
   const dzienTygodnia = data.toLocaleDateString('pl-PL', { weekday: 'long' }).toLowerCase()
   return `${dlugaData(data)} (${dzienTygodnia})`
 }
+
+/**
+ * Pełny opis daty do odczytu: 'czwartek, 17 września 2026'.
+ *
+ * Komórka siatki miesiąca pokazuje sam numer dnia, a pasek z nazwami dni
+ * tygodnia jest `aria-hidden` (to scenografia, nie treść). Bez tego czytnik
+ * ekranu czytał „17" i nic więcej - nie dało się poznać ani dnia tygodnia,
+ * ani miesiąca.
+ */
+export function pelnaData(data: Date): string {
+  return data.toLocaleDateString('pl-PL', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+/**
+ * 'brak wydarzeń' / '1 wydarzenie' / '2 wydarzenia' / '5 wydarzeń'.
+ *
+ * Polska odmiana przez liczebnik: końcówka 2-4 daje mianownik liczby mnogiej,
+ * reszta dopełniacz - z wyjątkiem nastolatek (12, 13, 14), które mimo końcówki
+ * idą do dopełniacza.
+ */
+export function opisLiczbyWydarzen(ile: number): string {
+  if (ile === 0) return 'brak wydarzeń'
+  if (ile === 1) return '1 wydarzenie'
+
+  const koncowka = ile % 10
+  const nastolatka = ile % 100 >= 12 && ile % 100 <= 14
+  const forma = koncowka >= 2 && koncowka <= 4 && !nastolatka ? 'wydarzenia' : 'wydarzeń'
+  return `${ile} ${forma}`
+}

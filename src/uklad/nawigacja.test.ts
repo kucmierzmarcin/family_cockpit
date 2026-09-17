@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { EKRANY, TYTULY, etykietaDodania } from './nawigacja'
+import {
+  EKRANY,
+  EKRANY_TELEFON,
+  EKRANY_WIECEJ,
+  TYTULY,
+  etykietaDodania,
+  wZakladceWiecej,
+} from './nawigacja'
 
 describe('EKRANY', () => {
   it('siedem ekranów w kolejności zakładek, dashboard pierwszy', () => {
@@ -48,5 +55,24 @@ describe('etykietaDodania', () => {
     for (const e of EKRANY.filter((e) => e !== 'dom')) {
       expect(etykietaDodania(e, true)).toBe(etykietaDodania(e, false))
     }
+  })
+})
+
+describe('podział nawigacji na telefonie', () => {
+  it('dolny pasek ma najwyżej pięć celów, licząc „Więcej"', () => {
+    expect(EKRANY_TELEFON.length + 1).toBeLessThanOrEqual(5)
+  })
+
+  it('razem z „Więcej" obejmuje wszystkie ekrany, bez powtórek', () => {
+    expect([...EKRANY_TELEFON, ...EKRANY_WIECEJ].sort()).toEqual([...EKRANY].sort())
+  })
+
+  it('zaczyna od „Dziś" - to ekran startowy', () => {
+    expect(EKRANY_TELEFON[0]).toBe('dashboard')
+  })
+
+  it('zakładka „Więcej" świeci się, gdy jesteśmy na schowanym pod nią ekranie', () => {
+    for (const e of EKRANY_WIECEJ) expect(wZakladceWiecej(e)).toBe(true)
+    for (const e of EKRANY_TELEFON) expect(wZakladceWiecej(e)).toBe(false)
   })
 })
