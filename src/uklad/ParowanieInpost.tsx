@@ -52,7 +52,8 @@ export function ParowanieInpost({ inpost }: Props) {
   const [blad, setBlad] = useState<string | null>(null)
   const [zapisywanie, setZapisywanie] = useState(false)
 
-  async function wyslij(krok: 'sms' | 'potwierdz') {
+  async function wyslij(e: React.FormEvent, krok: 'sms' | 'potwierdz') {
+    e.preventDefault()
     setZapisywanie(true)
     setBlad(null)
     const { error } = await supabase.functions.invoke('inpost-polacz', {
@@ -101,7 +102,7 @@ export function ParowanieInpost({ inpost }: Props) {
       )}
 
       {etap === 'numer' ? (
-        <div className="formularz">
+        <form className="formularz" onSubmit={(e) => void wyslij(e, 'sms')}>
           <label htmlFor="inpost-telefon">Numer telefonu w InPoście</label>
           <input
             id="inpost-telefon"
@@ -112,16 +113,12 @@ export function ParowanieInpost({ inpost }: Props) {
             placeholder="np. 600100200"
             maxLength={15}
           />
-          <button
-            type="button"
-            disabled={zapisywanie || phone.replace(/\D/g, '').length !== 9}
-            onClick={() => void wyslij('sms')}
-          >
+          <button type="submit" disabled={zapisywanie || phone.replace(/\D/g, '').length !== 9}>
             {zapisywanie ? 'Wysyłam…' : 'Wyślij kod SMS'}
           </button>
-        </div>
+        </form>
       ) : (
-        <div className="formularz">
+        <form className="formularz" onSubmit={(e) => void wyslij(e, 'potwierdz')}>
           <label htmlFor="inpost-kod">Kod z SMS-a</label>
           <input
             id="inpost-kod"
@@ -131,13 +128,20 @@ export function ParowanieInpost({ inpost }: Props) {
             onChange={(e) => setKod(e.target.value)}
             maxLength={8}
           />
-          <button type="button" disabled={zapisywanie || !kod.trim()} onClick={() => void wyslij('potwierdz')}>
+          <button type="submit" disabled={zapisywanie || !kod.trim()}>
             {zapisywanie ? 'Sprawdzam…' : 'Połącz'}
           </button>
-          <button type="button" className="drobny" onClick={() => setEtap('numer')}>
+          <button
+            type="button"
+            className="drobny"
+            onClick={() => {
+              setKod('')
+              setEtap('numer')
+            }}
+          >
             Zmień numer
           </button>
-        </div>
+        </form>
       )}
     </section>
   )
