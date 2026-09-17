@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { cialoPotwierdzeniaKodu, cialoWyslaniaKodu } from '../_wspolne/inpostApi.ts'
+import { cialoPotwierdzeniaKodu } from '../_wspolne/inpostApi.ts'
 
 const HOST = 'https://api-inmobile-pl.easypack24.net'
 
@@ -9,7 +9,7 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-type Cialo = { krok?: 'sms' | 'potwierdz'; phone?: string; kod?: string }
+type Cialo = { phone?: string; kod?: string }
 
 // Naglowki 1:1 jak w aplikacji mobilnej (za `IFOSSA/inpost-python`). `charset`
 // w Content-Type i User-Agent nie sa ozdoba - to jedyne, czym to API odroznia
@@ -46,14 +46,19 @@ Deno.serve(async (req) => {
     return bladJson('Nieprawidłowy JSON.', 400)
   }
 
-  // Domownika bierzemy z JWT wolajacego, NIGDY z ciala zadania - inaczej
-  // kazdy moglby podpiac swoj numer pod cudze konto. Ten sam powod, dla
-  // ktorego sprawdzamy to PRZED krokiem 'sms': to zapytanie wysyla realny SMS
-  // pod dowolny numer, wiec bramka logowania obowiazuje od pierwszego kroku,
-  // nie dopiero przy zapisie (inaczej kazdy w internecie, majac tylko jawny
-  // klucz anon, mogliby uzyc tej funkcji do bombardowania SMS-ami cudzych
-  // numerow - klucz anon jest publiczny, wiec "wymagany JWT" na poziomie
-  // platformy Supabase go nie zatrzyma).
+  // Domownika bierzemy z JWT wolajacego, NIGDY z ciala zadania - inaczej kazdy
+  // moglby podpiac swoj numer pod cudze konto.
+  //
+  // Ta funkcja miala kiedys drugi krok, 'sms', ktory prosil InPost o kod.
+  // Zostal usuniety, bo z serwerowni nie dziala: InPost odpowiada 200 i nie
+  // wysyla nic. Prosba o kod idzie dzis wprost z przegladarki domownika przez
+  // proxy serwera deweloperskiego (patrz `vite.config.ts`).
+  //
+  // GDYBY ktos kiedys chcial ten krok tu przywrocic: bramka ponizej MUSI
+  // obowiazywac takze jego. Zapytanie o kod wysyla realny SMS pod dowolny
+  // numer, a klucz anon jest publiczny - "wymagany JWT" na poziomie platformy
+  // Supabase sam z siebie nie zatrzyma nikogo, kto chcialby uzyc tej funkcji
+  // do bombardowania SMS-ami cudzych numerow.
   const autoryzacja = req.headers.get('Authorization')
   if (!autoryzacja) return bladJson('Brak autoryzacji.', 401)
 
@@ -75,28 +80,6 @@ Deno.serve(async (req) => {
 
   const phone = (cialo.phone ?? '').replace(/\D/g, '')
   if (phone.length !== 9) return bladJson('Podaj dziewięciocyfrowy numer telefonu.', 400)
-
-  // Krok 1: poprosic InPost o SMS. Nic nie zapisujemy - dopoki kod nie zostanie
-  // potwierdzony, nie mamy zadnego dowodu, ze numer nalezy do tej osoby.
-  if (cialo.krok === 'sms') {
-    let odp: Response
-    try {
-      odp = await fetch(`${HOST}/v1/account`, {
-        method: 'POST',
-        headers: NAGLOWKI_INPOST,
-        body: JSON.stringify(cialoWyslaniaKodu(phone)),
-      })
-    } catch (e) {
-      // Awaria DNS/TLS/sieci: bez try/catch Deno rzucalby tu nieobslugiwany
-      // wyjatek (500 ze stosem) zamiast czytelnego komunikatu - ten sam wzorzec
-      // co w `vulcan-polacz/index.ts`.
-      return bladJson(`InPost nie odpowiada: ${String(e)}`, 502)
-    }
-    if (!odp.ok) return bladJson(`InPost odrzucił prośbę o kod (HTTP ${odp.status}).`, 502)
-    return okJson()
-  }
-
-  if (cialo.krok !== 'potwierdz') return bladJson('Nieznany krok.', 400)
 
   const kod = (cialo.kod ?? '').replace(/\D/g, '')
   // Szesc cyfr - tyle wysyla InPost i tyle waliduje referencyjny klient.

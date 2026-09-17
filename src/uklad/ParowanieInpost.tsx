@@ -116,7 +116,7 @@ export function ParowanieInpost({ inpost }: Props) {
     setZapisywanie(true)
     setBlad(null)
     const { error } = await supabase.functions.invoke('inpost-polacz', {
-      body: { krok: 'potwierdz', phone, kod },
+      body: { phone, kod },
     })
     setZapisywanie(false)
 
