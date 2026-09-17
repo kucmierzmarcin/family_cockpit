@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { czekaNaOdbior, naWierszePaczek } from './inpostApi'
+import { czekaNaOdbior, naWierszePaczek, rozpoznanyKsztaltOdpowiedzi } from './inpostApi'
 
 describe('czekaNaOdbior', () => {
   it('rozpoznaje cztery statusy oznaczajace paczke w skrytce', () => {
@@ -73,5 +73,22 @@ describe('naWierszePaczek', () => {
     const wiersz = naWierszePaczek({ parcels: [zKodem] })[0]
     expect(JSON.stringify(wiersz)).not.toContain('987654')
     expect('open_code' in wiersz).toBe(false)
+  })
+})
+
+describe('rozpoznanyKsztaltOdpowiedzi', () => {
+  it('rozpoznaje odpowiedz z tablica parcels (pusta lub nie)', () => {
+    expect(rozpoznanyKsztaltOdpowiedzi({ parcels: [] })).toBe(true)
+    expect(rozpoznanyKsztaltOdpowiedzi({ parcels: [{ shipmentNumber: '1', status: 'Gotowa do odbioru' }] })).toBe(
+      true,
+    )
+  })
+
+  it('odrzuca odpowiedz bez tablicy parcels - to sygnal zmiany ksztaltu API, nie "brak paczek"', () => {
+    expect(rozpoznanyKsztaltOdpowiedzi({})).toBe(false)
+    expect(rozpoznanyKsztaltOdpowiedzi(null)).toBe(false)
+    expect(rozpoznanyKsztaltOdpowiedzi({ parcels: null })).toBe(false)
+    expect(rozpoznanyKsztaltOdpowiedzi({ parcels: 'nie-tablica' })).toBe(false)
+    expect(rozpoznanyKsztaltOdpowiedzi({ paczki: [] })).toBe(false)
   })
 })

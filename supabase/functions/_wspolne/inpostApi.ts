@@ -54,10 +54,30 @@ function adresPunktu(p: PaczkaZApi['pickUpPoint']): string | null {
 }
 
 /**
+ * Czy `odpowiedz` ma rozpoznany kształt (`{ parcels: [...] }`)?
+ *
+ * `naWierszePaczek` poniżej celowo zwraca `[]` zarówno dla „domownik
+ * naprawdę nie ma żadnych paczek", jak i dla „API zwróciło coś, czego
+ * struktura się nie zgadza" (pole `parcels` zniknęło/zmieniło nazwę/przestało
+ * być tablicą) - te dwie sytuacje są nie do odróżnienia z samego wyniku
+ * `naWierszePaczek`, a wywołujący (`inpost-sync`) MUSI je rozróżnić: pustą
+ * listę wolno zapisać jako „nic nie czeka", ale nierozpoznanej odpowiedzi nie
+ * wolno pomylić z pustą listą, bo `inpost-sync` czyści z tabeli wszystko,
+ * czego nie ma na liście „zostają" - cicha zmiana kształtu API wyczyściłaby
+ * wtedy realne, wciąż czekające paczki wszystkim domownikom.
+ */
+export function rozpoznanyKsztaltOdpowiedzi(odpowiedz: unknown): boolean {
+  return Array.isArray((odpowiedz as { parcels?: unknown })?.parcels)
+}
+
+/**
  * Odpowiedź `/v4/parcels/tracked` na wiersze `inpost_parcels`.
  *
  * `unknown` na wejściu, bo to cudze, nieoficjalne API - kształt może się
- * zmienić bez uprzedzenia i wolimy pustą listę niż wyjątek w cronie.
+ * zmienić bez uprzedzenia i wolimy pustą listę niż wyjątek w cronie. Wołający,
+ * któremu zależy na odróżnieniu nierozpoznanej odpowiedzi od naprawdę pustej
+ * listy, sprawdza to OSOBNO przez `rozpoznanyKsztaltOdpowiedzi` - ta funkcja
+ * samą niejednoznaczność nie rozwiązuje, tylko nie rzuca na niej wyjątkiem.
  *
  * `openCode` NIE jest tu przepisywany i nie ma go w `WierszPaczki` - kod
  * odbioru to klucz do skrytki, patrz spec.

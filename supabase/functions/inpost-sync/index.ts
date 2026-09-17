@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
-import { naWierszePaczek } from '../_wspolne/inpostApi.ts'
+import { naWierszePaczek, rozpoznanyKsztaltOdpowiedzi } from '../_wspolne/inpostApi.ts'
 
 const HOST = 'https://api-inmobile-pl.easypack24.net'
 
@@ -81,13 +81,18 @@ async function synchronizujPolaczenia(baza: SupabaseClient, polaczenia: Polaczen
       if (!odswiez.ok) {
         // Padnieta sesja to STATUS, nie wyjatek - jeden domownik nie moze
         // zatrzymac synchronizacji pozostalych.
-        await baza
+        const { error: bladZapisuStatusu } = await baza
           .from('inpost_connections')
           .update({
             status: 'wymaga_ponownego_logowania',
             last_error: `Odświeżenie sesji nie powiodło się (HTTP ${odswiez.status}).`,
           })
           .eq('member_id', p.member_id)
+        if (bladZapisuStatusu) {
+          console.error(
+            `Nie udalo sie zapisac statusu "wymaga_ponownego_logowania" dla polaczenia ${p.member_id}: ${bladZapisuStatusu.message}`,
+          )
+        }
         continue
       }
 
@@ -96,7 +101,12 @@ async function synchronizujPolaczenia(baza: SupabaseClient, polaczenia: Polaczen
         refreshToken?: string
       }
 
-      await baza
+      // supabase-js NIE rzuca wyjatkiem przy bledzie zapytania - zwraca
+      // { data, error }. Trzeba sprawdzic `error` jawnie, inaczej cichy blad
+      // zapisu tokenu przechodzi dalej niezauwazony: kolejny przebieg uzylby
+      // wtedy starego (juz zuzytego u InPostu, jednorazowego) refresh_tokena
+      // i falszywie oznaczylby dzialajaca sesje jako niewazna.
+      const { error: bladZapisuTokenu } = await baza
         .from('inpost_connections')
         .update({
           auth_token: authToken,
@@ -104,16 +114,38 @@ async function synchronizujPolaczenia(baza: SupabaseClient, polaczenia: Polaczen
           last_error: null,
         })
         .eq('member_id', p.member_id)
+      if (bladZapisuTokenu) {
+        throw new Error(`Zapis odświeżonego tokenu nie powiódł się: ${bladZapisuTokenu.message}`)
+      }
 
       const odp = await fetch(`${HOST}/v4/parcels/tracked`, {
         headers: { Authorization: authToken },
       })
       if (!odp.ok) throw new Error(`Pobranie paczek nie powiodło się (HTTP ${odp.status}).`)
 
-      const wiersze = naWierszePaczek(await odp.json())
+      const surowaOdpowiedz = await odp.json()
+
+      // `naWierszePaczek` zwraca `[]` zarowno dla "naprawde nic nie czeka",
+      // jak i dla "ksztalt odpowiedzi sie nie zgadza" (pole `parcels`
+      // zniknelo/zmienilo nazwe) - te dwie sytuacje NIE wolno pomylic, bo
+      // nizej kasujemy z tabeli wszystko, czego nie ma na liscie "zostaja".
+      // Cicha zmiana ksztaltu API skutkowalaby wtedy wyczyszczeniem
+      // WSZYSTKICH realnie czekajacych paczek kazdemu domownikowi, bez
+      // jednego bledu w logach - dokladnie ten wzorzec cichego bledu, ktory
+      // w Vulcanie zlapal rozjazd `Lesson.date`/`DateAt`. Rzucamy wiec
+      // wyjatek PRZED jakimkolwiek zapisem/kasowaniem, gdy ksztaltu nie da
+      // sie rozpoznac - to zostawia stare dane w tabeli nietkniete i widoczny
+      // `last_error`, zamiast cichego wyczyszczenia.
+      if (!rozpoznanyKsztaltOdpowiedzi(surowaOdpowiedz)) {
+        throw new Error(
+          'Nierozpoznany ksztalt odpowiedzi API paczek (pole "parcels" nie jest tablica) - InPost mogl zmienic API.',
+        )
+      }
+
+      const wiersze = naWierszePaczek(surowaOdpowiedz)
 
       if (wiersze.length > 0) {
-        await baza.from('inpost_parcels').upsert(
+        const { error: bladZapisuPaczek } = await baza.from('inpost_parcels').upsert(
           wiersze.map((w) => ({
             ...w,
             member_id: p.member_id,
@@ -122,6 +154,11 @@ async function synchronizujPolaczenia(baza: SupabaseClient, polaczenia: Polaczen
           })),
           { onConflict: 'member_id,shipment_number' },
         )
+        // Nie kasujemy nizej, jesli ten zapis sie nie udal - inaczej
+        // usunelibysmy z tabeli paczki, ktorych swiezo NIE zapisalismy.
+        if (bladZapisuPaczek) {
+          throw new Error(`Zapis paczek nie powiódł się: ${bladZapisuPaczek.message}`)
+        }
       }
 
       // Stan biezacy, nie historia: co znika z API, znika z tabeli. `.notIn`
@@ -134,14 +171,28 @@ async function synchronizujPolaczenia(baza: SupabaseClient, polaczenia: Polaczen
       // shipment_number.
       const zostaja = wiersze.map((w) => w.shipment_number)
       const usun = baza.from('inpost_parcels').delete().eq('member_id', p.member_id)
-      await (zostaja.length > 0 ? usun.notIn('shipment_number', zostaja) : usun)
+      const { error: bladKasowania } = await (zostaja.length > 0
+        ? usun.notIn('shipment_number', zostaja)
+        : usun)
+      if (bladKasowania) {
+        throw new Error(`Czyszczenie nieaktualnych paczek nie powiodło się: ${bladKasowania.message}`)
+      }
 
       zsynchronizowane++
     } catch (e) {
-      await baza
+      const tekstBledu = e instanceof Error ? e.message : String(e)
+      // Logujemy WYLACZNIE nasz wlasny, skonstruowany komunikat bledu -
+      // NIGDY surowej odpowiedzi API, ktora moze zawierac `openCode`.
+      console.error(`Synchronizacja polaczenia ${p.member_id} nie powiodla sie: ${tekstBledu}`)
+      const { error: bladZapisuBledu } = await baza
         .from('inpost_connections')
-        .update({ last_error: e instanceof Error ? e.message : String(e) })
+        .update({ last_error: tekstBledu })
         .eq('member_id', p.member_id)
+      if (bladZapisuBledu) {
+        console.error(
+          `Dodatkowo nie udalo sie zapisac last_error dla polaczenia ${p.member_id}: ${bladZapisuBledu.message}`,
+        )
+      }
     }
   }
 
