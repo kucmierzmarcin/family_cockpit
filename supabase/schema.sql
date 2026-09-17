@@ -1762,3 +1762,107 @@ select cron.schedule('vulcan-sync', '*/15 * * * *', $$
     timeout_milliseconds := 30000
   );
 $$);
+
+-- ============================================================
+--  23. Integracja z InPost
+-- ============================================================
+
+-- ===== Paczki InPost =====
+-- Poswiadczenia per DOMOWNIK (nie per dom, jak Vulcan) - InPost wiaze konto z
+-- numerem telefonu konkretnej osoby. RLS wlaczone i CELOWO bez zadnej polityki:
+-- dostep wylacznie service_role, tak jak vulcan_connections.
+create table if not exists public.inpost_connections (
+  id                uuid primary key default gen_random_uuid(),
+  member_id         uuid not null references public.members(id) on delete cascade,
+  household_id      uuid not null references public.households(id) on delete cascade,
+  phone             text not null,
+  auth_token        text not null,
+  refresh_token     text not null,
+  token_expires_at  timestamptz,
+  status            text not null default 'aktywne',
+  last_error        text,
+  created_at        timestamptz not null default now(),
+  constraint inpost_connections_status_check
+    check (status in ('aktywne', 'wymaga_ponownego_logowania')),
+  unique (member_id)
+);
+
+-- Stan biezacy, nie historia: wiersz znika, gdy paczka przestaje czekac.
+-- Kolumny open_code NIE MA i miec nie bedzie - to klucz do skrytki.
+create table if not exists public.inpost_parcels (
+  id               uuid primary key default gen_random_uuid(),
+  household_id     uuid not null references public.households(id) on delete cascade,
+  member_id        uuid not null references public.members(id) on delete cascade,
+  shipment_number  text not null,
+  status           text not null,
+  sender_name      text,
+  point_name       text,
+  point_address    text,
+  expiry_date      timestamptz,
+  stored_date      timestamptz,
+  updated_at       timestamptz not null default now(),
+  unique (member_id, shipment_number)
+);
+
+create index if not exists inpost_parcels_dom_idx
+  on public.inpost_parcels (household_id, expiry_date);
+
+alter table public.inpost_connections enable row level security;
+alter table public.inpost_parcels     enable row level security;
+
+-- inpost_connections: CELOWO bez zadnej polityki dla authenticated/anon -
+-- trzyma tokeny, dostep wylacznie service_role (wzorzec vulcan_connections).
+
+drop policy if exists "Paczki InPost - odczyt" on public.inpost_parcels;
+create policy "Paczki InPost - odczyt" on public.inpost_parcels
+  for select to authenticated
+  using (household_id = public.moj_dom());
+-- Zapisu z klienta nie ma wcale: dane plyna tylko z Edge Function kluczem
+-- serwisowym, ktory i tak omija RLS.
+
+-- Stan polaczen domu BEZ poswiadczen. Numer skrocony do trzech ostatnich cyfr -
+-- wystarczy, zeby domownik poznal swoj, a nie wystarczy, zeby go uzyc.
+create or replace function public.status_polaczenia_inpost()
+  returns table (member_id uuid, imie text, phone text, status text, ostatni_blad text)
+  language sql stable security definer set search_path = public
+as $$
+  select c.member_id,
+         m.name,
+         '•••' || right(c.phone, 3),
+         c.status,
+         c.last_error
+  from public.inpost_connections c
+  join public.members m on m.id = c.member_id
+  where c.household_id = public.moj_dom()
+$$;
+
+revoke execute on function public.status_polaczenia_inpost() from public, anon;
+grant  execute on function public.status_polaczenia_inpost() to authenticated;
+
+-- ============================================================
+--  24. Integracja z InPost - harmonogram
+-- ============================================================
+
+-- Sekret Vault z URL-em tej funkcji trzeba zalozyc recznie (patrz README),
+-- tym samym wzorcem co przy vulcan-sync:
+--
+--   select vault.create_secret(
+--     'https://TWOJ-PROJEKT.supabase.co/functions/v1/inpost-sync',
+--     'kokpit_url_funkcji_inpost_sync');
+--
+-- `kokpit_klucz_serwisowy` jest juz zalozony (poranne podsumowanie).
+
+-- Co 30 minut: termin odbioru liczy sie w dniach, nie minutach.
+select cron.schedule('inpost-sync', '*/30 * * * *', $$
+  select net.http_post(
+    url     := (select decrypted_secret from vault.decrypted_secrets
+                 where name = 'kokpit_url_funkcji_inpost_sync'),
+    headers := jsonb_build_object(
+                 'Content-Type', 'application/json',
+                 'Authorization', 'Bearer ' ||
+                   (select decrypted_secret from vault.decrypted_secrets
+                     where name = 'kokpit_klucz_serwisowy')),
+    body    := '{}'::jsonb,
+    timeout_milliseconds := 30000
+  );
+$$);
