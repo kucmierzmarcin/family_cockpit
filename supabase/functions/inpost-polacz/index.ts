@@ -70,11 +70,19 @@ Deno.serve(async (req) => {
   // Krok 1: poprosic InPost o SMS. Nic nie zapisujemy - dopoki kod nie zostanie
   // potwierdzony, nie mamy zadnego dowodu, ze numer nalezy do tej osoby.
   if (cialo.krok === 'sms') {
-    const odp = await fetch(`${HOST}/v1/account`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phoneNumber: phone }),
-    })
+    let odp: Response
+    try {
+      odp = await fetch(`${HOST}/v1/account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: phone }),
+      })
+    } catch (e) {
+      // Awaria DNS/TLS/sieci: bez try/catch Deno rzucalby tu nieobslugiwany
+      // wyjatek (500 ze stosem) zamiast czytelnego komunikatu - ten sam wzorzec
+      // co w `vulcan-polacz/index.ts`.
+      return bladJson(`InPost nie odpowiada: ${String(e)}`, 502)
+    }
     if (!odp.ok) return bladJson(`InPost odrzucił prośbę o kod (HTTP ${odp.status}).`, 502)
     return okJson()
   }
@@ -84,11 +92,16 @@ Deno.serve(async (req) => {
   const kod = (cialo.kod ?? '').replace(/\D/g, '')
   if (kod.length === 0) return bladJson('Podaj kod z SMS-a.', 400)
 
-  const odp = await fetch(`${HOST}/v1/account/verification`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phoneNumber: phone, smsCode: kod }),
-  })
+  let odp: Response
+  try {
+    odp = await fetch(`${HOST}/v1/account/verification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phoneNumber: phone, smsCode: kod }),
+    })
+  } catch (e) {
+    return bladJson(`InPost nie odpowiada: ${String(e)}`, 502)
+  }
   if (!odp.ok) return bladJson('Kod niepoprawny albo wygasł.', 400)
 
   const tokeny = (await odp.json()) as {

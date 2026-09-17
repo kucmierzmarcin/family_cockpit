@@ -306,4 +306,14 @@ describe('podsumowanie z paczkami', () => {
     const mail = zbudujPodsumowanie({ ...puste, paczki: [] }, odbiorca)
     expect(mail.tekst).not.toContain('PACZKI DO ODBIORU')
   })
+
+  it('stary ksztalt danych bez klucza "paczki" (zywa baza sprzed tej zmiany) nie wywala funkcji', () => {
+    // Rzutowanie celowe: typ `DanePodsumowania` WYMAGA `paczki`, ale
+    // `podsumowanie_domu()` w bazie produkcyjnej jeszcze go nie zwraca -
+    // schemat SQL-a aktualizuje sie osobno (patrz Zadanie 1 w recenzji).
+    const staryKsztalt = { ...puste } as unknown as DanePodsumowania
+    expect(() => zbudujPodsumowanie(staryKsztalt, odbiorca)).not.toThrow()
+    const mail = zbudujPodsumowanie(staryKsztalt, odbiorca)
+    expect(mail.tekst).not.toContain('PACZKI DO ODBIORU')
+  })
 })

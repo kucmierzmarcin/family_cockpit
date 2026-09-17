@@ -155,10 +155,17 @@ function sekcje(dane: DanePodsumowania, memberId: string, etykietaKalendarza: st
     })
   }
 
-  if (dane.paczki.length) {
+  // `?? []`: w żywej bazie `podsumowanie_domu()` może jeszcze nie zwracać
+  // klucza `paczki` (schemat SQL-a stosowany osobno, później niż ten plik) -
+  // bez tej asekuracji `dane.paczki.length` rzuca `TypeError` dla KAŻDEGO
+  // odbiorcy maila, a `poranne-podsumowanie`/`telegram-bot` łapią wyjątek per
+  // osoba, więc nikt nie dostałby podsumowania i nic by na to nie wskazywało
+  // poza wpisem w `digest_log`.
+  const paczki = dane.paczki ?? []
+  if (paczki.length) {
     wynik.push({
       tytul: 'PACZKI DO ODBIORU',
-      linie: dane.paczki.map((p) => ({ tresc: liniaPaczki(p), wyroznione: false })),
+      linie: paczki.map((p) => ({ tresc: liniaPaczki(p), wyroznione: false })),
     })
   }
 

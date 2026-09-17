@@ -1,6 +1,12 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
-import { naWierszePaczek, rozpoznanyKsztaltOdpowiedzi } from '../_wspolne/inpostApi.ts'
+import {
+  naWierszePaczek,
+  rozpoznanyKsztaltOdpowiedzi,
+  statusyZOdpowiedzi,
+  wygladaNaNiezgodnoscKsztaltu,
+} from '../_wspolne/inpostApi.ts'
+import { jestWywolaniemSerwisowym } from '../_wspolne/autoryzacjaSerwisowa.ts'
 
 const HOST = 'https://api-inmobile-pl.easypack24.net'
 
@@ -22,33 +28,6 @@ function odpowiedz(tresc: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   })
-}
-
-/**
- * Czy to wywołanie z pg_cron (klucz service_role), czy z przeglądarki (JWT
- * domownika klikającego "Odśwież teraz" w zakładce Paczki)?
- *
- * Dokładnie ten sam mechanizm co `jestWywolaniemSerwisowym` w
- * `vulcan-sync/index.ts` (patrz komentarz tam po pełne uzasadnienie): rolę
- * czytamy z ładunku już zweryfikowanego przez bramkę Supabase (`verify_jwt:
- * true` dla tej funkcji) tokenu, a nie przez porównanie ze stringiem z env -
- * bo `Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')` po migracji API keys może
- * być w innym formacie niż legacy JWT, którym pg_cron faktycznie się
- * przedstawia.
- */
-export function jestWywolaniemSerwisowym(naglowekAutoryzacji: string): boolean {
-  const dopasowanie = naglowekAutoryzacji.match(/^Bearer\s+(.+)$/)
-  if (!dopasowanie) return false
-  const czesci = dopasowanie[1].trim().split('.')
-  if (czesci.length !== 3) return false
-  try {
-    const base64 = czesci[1].replace(/-/g, '+').replace(/_/g, '/')
-    const uzupelnione = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
-    const ladunek = JSON.parse(atob(uzupelnione)) as { role?: unknown }
-    return ladunek.role === 'service_role'
-  } catch {
-    return false
-  }
 }
 
 /**
@@ -143,6 +122,28 @@ async function synchronizujPolaczenia(baza: SupabaseClient, polaczenia: Polaczen
       }
 
       const wiersze = naWierszePaczek(surowaOdpowiedz)
+
+      // Drugi sygnal, subtelniejszy niz "parcels" znika: API zwrocilo
+      // paczki (`parcels` NIE jest puste), ale zaden wiersz nie przeszedl
+      // przez `naWierszePaczek` - np. InPost zmienil NAPIS statusu ("Gotowa
+      // do odbioru" -> "Gotowa do odbioru 24/7") albo nazwe pola w paczce.
+      // Ten sam wzorzec cichego bledu co rozjazd `Lesson.date`/`DateAt` w
+      // Vulcanie - zmiana nazwy POLA, nie zniknieciem korzenia odpowiedzi.
+      // Legalne "wszystko odebrane" to `parcels: []` PUSTE OD RAZU - to
+      // odrozniamy tutaj i w tym przypadku (w odroznieniu od legalnego)
+      // NIE kasujemy nic, tylko zglaszamy podejrzenie.
+      if (wygladaNaNiezgodnoscKsztaltu(surowaOdpowiedz, wiersze)) {
+        const statusy = statusyZOdpowiedzi(surowaOdpowiedz)
+        console.warn(
+          `Polaczenie ${p.member_id}: API InPost zwrocilo paczki, ale zaden wiersz nie przeszedl ` +
+            `przez rozpoznawanie statusu - mozliwa zmiana napisu statusu albo nazwy pola. ` +
+            `Nierozpoznane statusy: ${statusy.join(', ') || 'brak'}.`,
+        )
+        throw new Error(
+          `Nierozpoznane statusy paczek (InPost mogl zmienic napisy statusow) - pominieto kasowanie. ` +
+            `Statusy w odpowiedzi: ${statusy.join(', ') || 'brak'}.`,
+        )
+      }
 
       if (wiersze.length > 0) {
         const { error: bladZapisuPaczek } = await baza.from('inpost_parcels').upsert(

@@ -1,0 +1,30 @@
+# Konfiguracja per-funkcja dla Supabase CLI (`supabase functions deploy`).
+#
+# `verify_jwt = true` dla obu funkcji sync NIE jest tu nowym ustawieniem -
+# jest jedynie zapisaniem w wersjonowanym pliku tego, co dziś istnieje
+# wyłącznie w panelu Supabase (Dashboard → Edge Functions → ... → Details).
+# Od tej bramki zależy bezpieczeństwo `jestWywolaniemSerwisowym()`
+# (`supabase/functions/_wspolne/autoryzacjaSerwisowa.ts`): funkcja czyta rolę
+# z ładunku JWT BEZ WERYFIKACJI PODPISU, bo zakłada, że podpis zweryfikowała
+# już właśnie ta bramka. Jeśli `verify_jwt` byłby wyłączony (albo redeploy
+# nadpisał to inaczej ustawionym domyślnym), podrobiony nagłówek
+# `Authorization: Bearer <dowolny-token>.<base64 {"role":"service_role"}>.<x>`
+# wystarczyłby, by zsynchronizować WSZYSTKIE domy w całej instalacji.
+#
+# UWAGA (na przyszłość - nie tylko dla tych dwóch): każda kolejna funkcja,
+# która rozróżnia wywołanie serwisowe (cron) od wywołania z przeglądarki tym
+# samym mechanizmem, MUSI dostać tu analogiczną sekcję - inaczej zabezpieczenie
+# istnieje tylko "case by case" w panelu, poza wersjonowaniem i poza code
+# review.
+#
+# `project_id` celowo NIE jest tu ustawiony - ten plik dopisuje wyłącznie
+# konfigurację dwóch funkcji sync, a prawdziwy identyfikator projektu nie był
+# znany w tej poprawce (zgadywanie go byłoby gorsze niż jego brak). Przy
+# pierwszym użyciu Supabase CLI w tym repo (`supabase link --project-ref
+# <id-projektu>`) CLI dopisze `project_id` do tego pliku samo.
+
+[functions.inpost-sync]
+verify_jwt = true
+
+[functions.vulcan-sync]
+verify_jwt = true

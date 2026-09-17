@@ -1850,6 +1850,8 @@ $$;
 revoke execute on function public.status_polaczenia_inpost() from public, anon;
 grant  execute on function public.status_polaczenia_inpost() to authenticated;
 
+alter publication supabase_realtime add table public.inpost_parcels;
+
 -- ============================================================
 --  24. Integracja z InPost - harmonogram
 -- ============================================================

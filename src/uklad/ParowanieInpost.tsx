@@ -81,6 +81,17 @@ export function ParowanieInpost({ inpost }: Props) {
       <section className="karta">
         <h2 className="panel-tytul">Paczki InPost</h2>
         <p className="polaczono">Połączono z numerem {polaczenie.phone}</p>
+        {/* `ostatni_blad` przy statusie "aktywne" - patrz `synchronizujPolaczenia`
+            w `inpost-sync/index.ts`: tylko padnięte ODŚWIEŻENIE TOKENU ustawia
+            "wymaga_ponownego_logowania"; każda inna awaria (401/5xx przy
+            pobieraniu paczek, nierozpoznany kształt odpowiedzi, nieudany zapis)
+            zapisuje `last_error`, ale ZOSTAWIA status "aktywne" - bez tego pokazywalibyśmy
+            "Połączono" przy połączeniu, które nie zsynchronizowało się od tygodnia. */}
+        {polaczenie.ostatniBlad && (
+          <p className="blad" role="alert">
+            {polaczenie.ostatniBlad}
+          </p>
+        )}
       </section>
     )
   }

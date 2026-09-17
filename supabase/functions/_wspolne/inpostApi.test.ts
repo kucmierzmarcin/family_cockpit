@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { czekaNaOdbior, naWierszePaczek, rozpoznanyKsztaltOdpowiedzi } from './inpostApi'
+import {
+  czekaNaOdbior,
+  naWierszePaczek,
+  rozpoznanyKsztaltOdpowiedzi,
+  statusyZOdpowiedzi,
+  wygladaNaNiezgodnoscKsztaltu,
+} from './inpostApi'
 
 describe('czekaNaOdbior', () => {
   it('rozpoznaje cztery statusy oznaczajace paczke w skrytce', () => {
@@ -90,5 +96,57 @@ describe('rozpoznanyKsztaltOdpowiedzi', () => {
     expect(rozpoznanyKsztaltOdpowiedzi({ parcels: null })).toBe(false)
     expect(rozpoznanyKsztaltOdpowiedzi({ parcels: 'nie-tablica' })).toBe(false)
     expect(rozpoznanyKsztaltOdpowiedzi({ paczki: [] })).toBe(false)
+  })
+})
+
+describe('wygladaNaNiezgodnoscKsztaltu', () => {
+  it('zaznacza podejrzenie, gdy API zwrocilo paczki, ale zadna nie przeszla przez naWierszePaczek', () => {
+    // Symulacja zmiany napisu statusu, np. "Gotowa do odbioru" -> "Gotowa do odbioru 24/7":
+    // `parcels` niepusta, ale `czekaNaOdbior` nie rozpoznaje nowego napisu.
+    const odpowiedz = { parcels: [{ shipmentNumber: '1', status: 'Gotowa do odbioru 24/7' }] }
+    expect(wygladaNaNiezgodnoscKsztaltu(odpowiedz, naWierszePaczek(odpowiedz))).toBe(true)
+  })
+
+  it('nie zaznacza legalnego "wszystko odebrane" (parcels puste od razu)', () => {
+    const odpowiedz = { parcels: [] }
+    expect(wygladaNaNiezgodnoscKsztaltu(odpowiedz, naWierszePaczek(odpowiedz))).toBe(false)
+  })
+
+  it('nie zaznacza, gdy przynajmniej jedna paczka poprawnie przeszla filtr', () => {
+    const odpowiedz = {
+      parcels: [
+        { shipmentNumber: '1', status: 'Gotowa do odbioru' },
+        { shipmentNumber: '2', status: 'Doręczona' },
+      ],
+    }
+    expect(wygladaNaNiezgodnoscKsztaltu(odpowiedz, naWierszePaczek(odpowiedz))).toBe(false)
+  })
+
+  it('nie zaznacza dla nierozpoznanego ksztaltu odpowiedzi (to osobny sygnal)', () => {
+    expect(wygladaNaNiezgodnoscKsztaltu({}, [])).toBe(false)
+    expect(wygladaNaNiezgodnoscKsztaltu(null, [])).toBe(false)
+  })
+})
+
+describe('statusyZOdpowiedzi', () => {
+  it('zwraca unikalne statusy z paczek', () => {
+    const odpowiedz = {
+      parcels: [
+        { shipmentNumber: '1', status: 'Gotowa do odbioru 24/7' },
+        { shipmentNumber: '2', status: 'Gotowa do odbioru 24/7' },
+        { shipmentNumber: '3', status: 'Doręczona' },
+      ],
+    }
+    expect(statusyZOdpowiedzi(odpowiedz)).toEqual(['Gotowa do odbioru 24/7', 'Doręczona'])
+  })
+
+  it('nigdy nie zwraca calych paczek ani innych pol - tylko napisy statusow', () => {
+    const odpowiedz = { parcels: [{ shipmentNumber: '1', status: 'X', openCode: '987654' }] }
+    expect(statusyZOdpowiedzi(odpowiedz)).toEqual(['X'])
+  })
+
+  it('pusta lista dla nierozpoznanego ksztaltu', () => {
+    expect(statusyZOdpowiedzi({})).toEqual([])
+    expect(statusyZOdpowiedzi(null)).toEqual([])
   })
 })

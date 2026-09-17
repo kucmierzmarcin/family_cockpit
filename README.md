@@ -99,6 +99,27 @@ wciągnąć do nowo założonego domu.
    - Rodzic łączy konto w „Mój dom" Tokenem/Symbolem/PIN-em z oficjalnej
      aplikacji Vulcan, potem przypisuje uczniów do domowników.
 
+8. **Integracja z InPost** (opcjonalne — bez tego reszta aplikacji działa):
+
+   - SQL Editor: załóż sekret Vault z URL-em funkcji `inpost-sync`
+     (`kokpit_klucz_serwisowy` już istnieje z porannego podsumowania):
+
+     ```sql
+     select vault.create_secret(
+       'https://TWOJ-PROJEKT.supabase.co/functions/v1/inpost-sync',
+       'kokpit_url_funkcji_inpost_sync');
+     ```
+
+     Harmonogram `cron.schedule('inpost-sync', ...)` z `supabase/schema.sql`
+     istnieje w bazie od razu po uruchomieniu schematu, ale **nie zadziała**,
+     dopóki ten sekret nie zostanie założony — do tego momentu każde jego
+     uruchomienie (co 30 minut) kończy się cicho błędem odczytu sekretu, bez
+     żadnej paczki zsynchronizowanej.
+   - Wdróż obie funkcje: `supabase functions deploy inpost-sync` i
+     `supabase functions deploy inpost-polacz`.
+   - Domownik paruje numer telefonu w zakładce „Paczki" (SMS + kod) — nie
+     wymaga roli rodzica, w odróżnieniu od Vulcana.
+
 ## Struktura
 
 | Plik | Do czego służy |

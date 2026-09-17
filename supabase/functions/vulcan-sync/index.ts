@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { synchronizujDom } from '../_wspolne/vulcanSync.ts'
+import { jestWywolaniemSerwisowym } from '../_wspolne/autoryzacjaSerwisowa.ts'
 
 type Kandydat = { log_id: string; household_id: string }
 
@@ -14,38 +15,6 @@ function odpowiedz(tresc: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   })
-}
-
-/**
- * Czy to wywołanie z pg_cron (klucz service_role), czy z przeglądarki (JWT
- * rodzica)?
- *
- * NIE porównujemy nagłówka ze `SUPABASE_SERVICE_ROLE_KEY` ze środowiska -
- * takie porównanie było wcześniejszym błędem: sekret Vault
- * `kokpit_klucz_serwisowy` (którym `net.http_post` buduje nagłówek) trzyma
- * klucz w formacie legacy JWT, a `Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')`
- * po migracji API keys zwraca nowy format `sb_secret_...`. Dwa różne stringi,
- * porównanie nigdy prawdziwe, każdy tick crona kończył się 401.
- *
- * Czytamy więc rolę z samego tokenu. To bezpieczne, bo bramka Supabase ma dla
- * tej funkcji `verify_jwt: true` - podpis został zweryfikowany, zanim ten kod
- * w ogóle wystartował; my tylko odczytujemy zweryfikowany już ładunek. Dzięki
- * temu rozpoznanie jest niezależne od tego, w jakim formacie Supabase akurat
- * wydaje klucze service_role.
- */
-export function jestWywolaniemSerwisowym(naglowekAutoryzacji: string): boolean {
-  const dopasowanie = naglowekAutoryzacji.match(/^Bearer\s+(.+)$/)
-  if (!dopasowanie) return false
-  const czesci = dopasowanie[1].trim().split('.')
-  if (czesci.length !== 3) return false
-  try {
-    const base64 = czesci[1].replace(/-/g, '+').replace(/_/g, '/')
-    const uzupelnione = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
-    const ladunek = JSON.parse(atob(uzupelnione)) as { role?: unknown }
-    return ladunek.role === 'service_role'
-  } catch {
-    return false
-  }
 }
 
 Deno.serve(async (req) => {

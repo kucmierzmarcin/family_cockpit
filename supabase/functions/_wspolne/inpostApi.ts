@@ -71,6 +71,47 @@ export function rozpoznanyKsztaltOdpowiedzi(odpowiedz: unknown): boolean {
 }
 
 /**
+ * Drugi, subtelniejszy sygnał zmiany kształtu - ten, którego
+ * `rozpoznanyKsztaltOdpowiedzi` NIE łapie, bo `parcels` nadal jest tablicą.
+ *
+ * Precedens z tego repo: awaria `Lesson.date`/`DateAt` w Vulcanie była zmianą
+ * NAZWY POLA, nie zniknięciem korzenia odpowiedzi - `parcels` przetrwałby
+ * taką zmianę tak samo, jak przetrwałby zmianę NAPISU statusu (np. „Gotowa do
+ * odbioru" → „Gotowa do odbioru 24/7"). W obu przypadkach `naWierszePaczek`
+ * odfiltruje WSZYSTKO (żaden wiersz nie przejdzie przez `czekaNaOdbior` albo
+ * przez odczyt pola), `wiersze` wyjdzie puste, a wywołujący (`inpost-sync`)
+ * skasowałby wtedy WSZYSTKIE realne, wciąż czekające paczki domownika -
+ * zero błędów, zero logów, bo `[]` wygląda identycznie jak legalne „wszystko
+ * odebrane".
+ *
+ * Sygnał, który odróżnia te dwie sytuacje: `parcels` NIE jest pusta (API
+ * naprawdę coś zwróciło), a mimo to `wiersze` (po przejściu przez
+ * `naWierszePaczek`) jest puste. Legalne „wszystko odebrane" to `parcels: []`
+ * pusta OD RAZU - to rozróżnienie musi zrobić wywołujący, samo `[]` z
+ * `naWierszePaczek` go nie niesie.
+ */
+export function wygladaNaNiezgodnoscKsztaltu(odpowiedz: unknown, wiersze: WierszPaczki[]): boolean {
+  const paczki = (odpowiedz as { parcels?: unknown })?.parcels
+  return Array.isArray(paczki) && paczki.length > 0 && wiersze.length === 0
+}
+
+/**
+ * Statusy z odpowiedzi, do logu - WYŁĄCZNIE statusy, nigdy całe paczki ani
+ * surowa odpowiedź. Statusy nie niosą tajemnic (w przeciwieństwie do
+ * `openCode` - klucza do skrytki), więc bezpiecznie trafiają do `console.warn`
+ * i pomagają rozpoznać, JAKI nowy napis status InPost zaczął zwracać.
+ */
+export function statusyZOdpowiedzi(odpowiedz: unknown): string[] {
+  const paczki = (odpowiedz as { parcels?: unknown })?.parcels
+  if (!Array.isArray(paczki)) return []
+  const zbior = new Set<string>()
+  for (const p of paczki as PaczkaZApi[]) {
+    if (p && typeof p.status === 'string') zbior.add(p.status)
+  }
+  return [...zbior]
+}
+
+/**
  * Odpowiedź `/v4/parcels/tracked` na wiersze `inpost_parcels`.
  *
  * `unknown` na wejściu, bo to cudze, nieoficjalne API - kształt może się
