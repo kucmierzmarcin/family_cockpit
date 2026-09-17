@@ -28,13 +28,14 @@ import { BEZ_OSOBY, osobyWydarzenia, widocznePrzyFiltrze } from './osoby'
 import { kolor } from './kolory'
 import type { Ekran, TrybDodawania } from './uklad/nawigacja'
 import { useTelefon } from './uklad/useTelefon'
+import { useTrasa } from './uklad/useTrasa'
 import { useSzerokiKalendarz } from './uklad/useSzerokiKalendarz'
 import { UkladBiurko } from './uklad/UkladBiurko'
 import { UkladTelefon } from './uklad/UkladTelefon'
 import { KontoKarta } from './uklad/KontoKarta'
 import { Arkusz } from './uklad/Arkusz'
 import { Popup } from './uklad/Popup'
-import { SterowanieKalendarza, type Widok } from './widoki/SterowanieKalendarza'
+import { SterowanieKalendarza } from './widoki/SterowanieKalendarza'
 import './style/index.css'
 
 type Props = {
@@ -47,14 +48,16 @@ function App({ profil, email }: Props) {
   const dzisiaj = useMemo(() => new Date(), [])
   const jestemRodzicem = profil.role === 'rodzic'
 
-  // Start na „Dziś”: to ekran, który odpowiada na pytanie zadawane najczęściej
-  // („co się dzieje dzisiaj”), a kalendarz jest o jedno stuknięcie dalej.
-  const [ekran, setEkran] = useState<Ekran>('dashboard')
-  const [widok, setWidok] = useState<Widok>('miesiac')
-
+  // Ekran, widok kalendarza i data odniesienia mieszkają w adresie, nie w stanie
+  // komponentu (patrz useTrasa.ts). Dzięki temu odświeżenie wraca w to samo
+  // miejsce, „Wstecz” cofa między ekranami zamiast wychodzić z aplikacji, a link
+  // do konkretnego tygodnia da się wysłać domownikowi. Start na „Dziś” - to
+  // ekran, który odpowiada na pytanie zadawane najczęściej.
+  //
   // Jedna data odniesienia dla wszystkich trzech widoków - każdy bierze z niej
   // swój zakres, więc przełączanie widoku nie gubi miejsca w kalendarzu.
-  const [kotwica, setKotwica] = useState(() => new Date())
+  const trasa = useTrasa()
+  const { ekran, widok, kotwica } = trasa
 
   const [blad, setBlad] = useState<string | null>(null)
   const [ukryci, setUkryci] = useState<Set<string>>(() => new Set())
@@ -126,15 +129,16 @@ function App({ profil, email }: Props) {
   )
 
   function przesun(o: number) {
-    setKotwica((k) => {
-      if (widok === 'miesiac') return new Date(k.getFullYear(), k.getMonth() + o, 1)
-      const dni = widok === 'tydzien' ? 7 : 1
-      return new Date(k.getFullYear(), k.getMonth(), k.getDate() + o * dni)
-    })
+    const k = kotwica
+    const nowa =
+      widok === 'miesiac'
+        ? new Date(k.getFullYear(), k.getMonth() + o, 1)
+        : new Date(k.getFullYear(), k.getMonth(), k.getDate() + o * (widok === 'tydzien' ? 7 : 1))
+    trasa.ustawKotwice(nowa)
   }
 
   function przelaczEkran(nowy: Ekran) {
-    setEkran(nowy)
+    trasa.idzDoEkranu(nowy)
     setDodawanie(null)
   }
 
@@ -251,9 +255,9 @@ function App({ profil, email }: Props) {
         <SterowanieKalendarza
           naglowek={naglowek}
           widok={widok}
-          onWidok={setWidok}
+          onWidok={trasa.ustawWidok}
           onPrzesun={przesun}
-          onDzis={() => setKotwica(new Date())}
+          onDzis={() => trasa.ustawKotwice(new Date())}
           akcja={
             <button
               type="button"
@@ -310,12 +314,14 @@ function App({ profil, email }: Props) {
           maksPigulek={3}
           kropki={telefon}
           onWybierzDzien={(k) => {
-            setKotwica(new Date(`${k}T12:00:00`))
+            const dzien = new Date(`${k}T12:00:00`)
             setEdytowane(null)
             // Na komputerze nie ma juz panelu z lista dnia - klikniecie
             // dnia przenosi wprost do jego szczegolow, tak jak juz dzis
-            // robi klik w naglowek dnia w widoku Tydzien.
-            if (!telefon) setWidok('dzien')
+            // robi klik w naglowek dnia w widoku Tydzien. Jedno wywolanie,
+            // nie dwa - patrz `ustawWidok` w useTrasa.ts.
+            if (telefon) trasa.ustawKotwice(dzien)
+            else trasa.ustawWidok('dzien', dzien)
           }}
         />
       )}
@@ -327,10 +333,7 @@ function App({ profil, email }: Props) {
           osobaPoId={osobaPoId}
           dzisiaj={dzisiaj}
           onKlikWydarzenie={klikWydarzenie}
-          onKlikDzien={(d) => {
-            setKotwica(d)
-            setWidok('dzien')
-          }}
+          onKlikDzien={(d) => trasa.ustawWidok('dzien', d)}
           wypelnijOkno={szerokiKalendarz}
         />
       )}
@@ -461,9 +464,9 @@ function App({ profil, email }: Props) {
             <SterowanieKalendarza
               naglowek={naglowek}
               widok={widok}
-              onWidok={setWidok}
+              onWidok={trasa.ustawWidok}
               onPrzesun={przesun}
-              onDzis={() => setKotwica(new Date())}
+              onDzis={() => trasa.ustawKotwice(new Date())}
             />
           ) : null
         }

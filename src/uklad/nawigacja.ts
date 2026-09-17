@@ -41,6 +41,22 @@ export const TYTULY: Record<Ekran, string> = {
 }
 
 /**
+ * Slug ekranu w adresie. Osobna mapa od TYTULY, bo adres rządzi się innymi
+ * prawami niż podpis zakładki: bez spacji, bez wielkich liter i bez polskich
+ * znaków. „Dziś" dostaje `dzis`, a nie `dashboard` - adres ma mówić tym samym
+ * słowem, które widać w interfejsie.
+ */
+export const SLUGI: Record<Ekran, string> = {
+  dashboard: 'dzis',
+  kalendarz: 'kalendarz',
+  zakupy: 'zakupy',
+  tablica: 'tablica',
+  terminy: 'terminy',
+  szkola: 'szkola',
+  dom: 'dom',
+}
+
+/**
  * Etykieta przycisku „+", albo `null`, gdy na tym ekranie nie wolno dodawać.
  * Sam plus nie mówi czytnikowi ekranu niczego, więc etykieta jest wymagana,
  * nie ozdobna. `null` znaczy: nie pokazuj przycisku wcale - lepiej niż błąd
