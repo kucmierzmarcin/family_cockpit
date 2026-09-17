@@ -25,17 +25,28 @@ type Props = {
   }
 }
 
-/** Odpowiedź `FunctionsHttpError` niesie właściwy komunikat w ciele - patrz `useVulcan.ts`/`ImportAI.tsx`. */
+/**
+ * Odpowiedź `FunctionsHttpError` niesie właściwy komunikat w ciele - patrz `useVulcan.ts`/`ImportAI.tsx`.
+ *
+ * Gdy błąd NIE jest odpowiedzią naszej funkcji, doklejamy `error.message`
+ * (wzorem `komunikatBledu` w `useVulcan.ts`) i mówimy, że zawiodło WYWOŁANIE
+ * funkcji - nie InPost. Wcześniej stał tu stały napis „Nie udało się połączyć
+ * z InPostem", który raz już zmylił: funkcja `inpost-polacz` nie była w ogóle
+ * wdrożona, więc preflight CORS dostawał 404 i `invoke` rzucał
+ * `FunctionsFetchError` - a aplikacja pokazywała oskarżenie pod adresem
+ * InPostu, choć żadne zapytanie do InPostu nawet nie wyszło.
+ */
 async function komunikatBledu(error: unknown): Promise<string> {
   if (error instanceof FunctionsHttpError) {
     try {
       const cialo = await error.context.json()
       if (typeof cialo?.blad === 'string') return cialo.blad
     } catch {
-      // odpowiedź błędu nie była JSON-em - zostajemy przy komunikacie domyślnym
+      // odpowiedź błędu nie była JSON-em - spada niżej, do komunikatu z `error.message`
     }
   }
-  return 'Nie udało się połączyć z InPostem.'
+  const szczegol = error instanceof Error ? error.message : String(error)
+  return `Nie udało się wywołać funkcji parowania: ${szczegol}`
 }
 
 /**
