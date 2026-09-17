@@ -616,6 +616,29 @@
 }
 
 @media (max-width: 767px) {
+  /* Pasek sterowania kalendarzem obsługuje się kciukiem, więc jego przyciski
+     muszą mieć pełne --dotyk. Rośnie przez to sticky nagłówek o kilkanaście
+     pikseli - lepsze to niż niewidzialne powiększone pole trafienia, które
+     kłamie o tym, gdzie kończy się przycisk.
+
+     `min-*` wystarczy mimo sztywnego `width`/`height` wyżej: wartość użyta to
+     max(min-width, width). */
+  .strzalka {
+    min-width: var(--dotyk);
+    min-height: var(--dotyk);
+  }
+
+  .dzis,
+  .dodaj-wydarzenie-gorne {
+    min-height: var(--dotyk);
+  }
+
+  /* Tylko przełącznik zakresu kalendarza - `.listy-pasek .zakladka` ma swój
+     własny --dotyk w listy.css, a zakładki na biurku nie wchodzą tu wcale. */
+  .zakladki.widoki .zakladka {
+    min-height: var(--dotyk);
+  }
+
   /* Komórka dnia: numer i najwyżej dwie pigułki. Wyżej robi się nieczytelnie. */
   .dzien {
     min-height: 64px;

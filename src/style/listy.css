@@ -299,6 +299,26 @@
   .lista-osob li {
     flex-wrap: wrap;
   }
+
+  /* Ikony akcji w wierszu tabeli Terminów miały 32px - najmniejsze cele w całej
+     aplikacji po checkboksie niżej. Wiersze przez to urosną i dobrze. */
+  .menu-akcji-przycisk,
+  .zalaczniki-przycisk {
+    min-width: var(--dotyk);
+    min-height: var(--dotyk);
+  }
+
+  /* Cała etykieta jest celem, ale celuje się w kwadracik - stąd 22px na sam
+     checkbox, tyle samo co przy odhaczaniu zakupów. */
+  .przelacznik-zalatwionych {
+    min-height: var(--dotyk);
+  }
+
+  .przelacznik-zalatwionych input[type='checkbox'] {
+    width: 22px;
+    height: 22px;
+    accent-color: var(--akcent);
+  }
 }
 
 /* --- Ekran "Terminy" --- */

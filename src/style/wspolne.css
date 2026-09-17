@@ -245,6 +245,26 @@
     min-height: var(--dotyk);
   }
 
+  /* Listy rozwijane miały 18px wysokości - reguła jest tu, a nie w
+     formularze.css, bo `select` pojawia się także poza formularzami
+     (godzina powiadomień i wybór dziecka w „Mój dom"). */
+  select {
+    min-height: var(--dotyk);
+  }
+
+  /* Przełącznik porannego maila - cała etykieta jest celem, ale celuje się w
+     kwadracik, więc on też musi urosnąć (te same 22px co w Zakupach i
+     Terminach). */
+  .powiadomienia .przelacznik {
+    min-height: var(--dotyk);
+  }
+
+  .powiadomienia .przelacznik input[type='checkbox'] {
+    width: 22px;
+    height: 22px;
+    accent-color: var(--akcent);
+  }
+
   .konto-karta {
     display: flex;
     align-items: center;
