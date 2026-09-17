@@ -422,6 +422,9 @@ function App({ profil, email }: Props) {
           onUstawPowiadomienia={osoby.ustawPowiadomienia}
           onPolaczTelegram={osoby.polaczTelegram}
           vulcan={vulcan}
+          // Zaślepka do Taska 8: `useInpost` jeszcze nie istnieje. Podłącz tam
+          // prawdziwe `polaczenie`/`onOdswiez` - to nie jest docelowy stan.
+          inpost={{ polaczenie: null, onOdswiez: () => {} }}
           dodawanie={trybDodawania('dom')}
         />
       ) : telefon ? (

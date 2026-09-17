@@ -1,0 +1,144 @@
+import { useState } from 'react'
+import { FunctionsHttpError } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
+
+/**
+ * Stan połączenia z InPostem, tak jak zwraca go `status_polaczenia_inpost()`.
+ *
+ * Typ mieszka tutaj, a nie w `useInpost`, bo ten komponent jest jego pierwszym
+ * konsumentem i powstaje wcześniej. Hak zaimportuje go stąd - ten sam układ co
+ * `Widok` eksportowany z `SterowanieKalendarza.tsx` i używany przez `trasa.ts`.
+ */
+export type StatusInpost = {
+  memberId: string
+  imie: string
+  phone: string
+  status: 'aktywne' | 'wymaga_ponownego_logowania'
+  ostatniBlad: string | null
+}
+
+type Props = {
+  inpost: {
+    /** Połączenie tego domownika albo `null`, gdy jeszcze nie sparował numeru. */
+    polaczenie: StatusInpost | null
+    onOdswiez: () => void
+  }
+}
+
+/** Odpowiedź `FunctionsHttpError` niesie właściwy komunikat w ciele - patrz `useVulcan.ts`/`ImportAI.tsx`. */
+async function komunikatBledu(error: unknown): Promise<string> {
+  if (error instanceof FunctionsHttpError) {
+    try {
+      const cialo = await error.context.json()
+      if (typeof cialo?.blad === 'string') return cialo.blad
+    } catch {
+      // odpowiedź błędu nie była JSON-em - zostajemy przy komunikacie domyślnym
+    }
+  }
+  return 'Nie udało się połączyć z InPostem.'
+}
+
+/**
+ * Dwa kroki parowania w jednym komponencie: numer → SMS → kod.
+ *
+ * Numer i kod idą wprost do funkcji brzegowej i nigdzie się nie zatrzymują -
+ * przeglądarka nie zapisuje ich ani w stanie po zakończeniu, ani w bazie.
+ */
+export function ParowanieInpost({ inpost }: Props) {
+  const { polaczenie, onOdswiez } = inpost
+  const [etap, setEtap] = useState<'numer' | 'kod'>('numer')
+  const [phone, setPhone] = useState('')
+  const [kod, setKod] = useState('')
+  const [blad, setBlad] = useState<string | null>(null)
+  const [zapisywanie, setZapisywanie] = useState(false)
+
+  async function wyslij(krok: 'sms' | 'potwierdz') {
+    setZapisywanie(true)
+    setBlad(null)
+    const { error } = await supabase.functions.invoke('inpost-polacz', {
+      body: krok === 'sms' ? { krok, phone } : { krok, phone, kod },
+    })
+    setZapisywanie(false)
+
+    if (error) {
+      setBlad(await komunikatBledu(error))
+      return
+    }
+
+    if (krok === 'sms') {
+      setEtap('kod')
+    } else {
+      setKod('')
+      setPhone('')
+      setEtap('numer')
+      onOdswiez()
+    }
+  }
+
+  if (polaczenie && polaczenie.status === 'aktywne') {
+    return (
+      <section className="karta">
+        <h2 className="panel-tytul">Paczki InPost</h2>
+        <p className="polaczono">Połączono z numerem {polaczenie.phone}</p>
+      </section>
+    )
+  }
+
+  return (
+    <section className="karta">
+      <h2 className="panel-tytul">Paczki InPost</h2>
+
+      {polaczenie?.status === 'wymaga_ponownego_logowania' && (
+        <p className="blad" role="alert">
+          Sesja InPostu wygasła - zaloguj się ponownie kodem SMS.
+        </p>
+      )}
+
+      {blad && (
+        <p className="blad" role="alert">
+          {blad}
+        </p>
+      )}
+
+      {etap === 'numer' ? (
+        <div className="formularz">
+          <label htmlFor="inpost-telefon">Numer telefonu w InPoście</label>
+          <input
+            id="inpost-telefon"
+            inputMode="numeric"
+            autoComplete="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="np. 600100200"
+            maxLength={15}
+          />
+          <button
+            type="button"
+            disabled={zapisywanie || phone.replace(/\D/g, '').length !== 9}
+            onClick={() => void wyslij('sms')}
+          >
+            {zapisywanie ? 'Wysyłam…' : 'Wyślij kod SMS'}
+          </button>
+        </div>
+      ) : (
+        <div className="formularz">
+          <label htmlFor="inpost-kod">Kod z SMS-a</label>
+          <input
+            id="inpost-kod"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            value={kod}
+            onChange={(e) => setKod(e.target.value)}
+            maxLength={8}
+          />
+          <button type="button" disabled={zapisywanie || !kod.trim()} onClick={() => void wyslij('potwierdz')}>
+            {zapisywanie ? 'Sprawdzam…' : 'Połącz'}
+          </button>
+          <button type="button" className="drobny" onClick={() => setEtap('numer')}>
+            Zmień numer
+          </button>
+        </div>
+      )}
+    </section>
+  )
+}

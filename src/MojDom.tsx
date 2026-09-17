@@ -10,6 +10,7 @@ import { PALETA, kolor } from './kolory'
 import { Arkusz } from './uklad/Arkusz'
 import type { TrybDodawania } from './uklad/nawigacja'
 import { bladGodzinySync, MAKS_GODZIN_SYNC, type StatusPolaczenia } from './vulcan'
+import { ParowanieInpost, type StatusInpost } from './uklad/ParowanieInpost'
 import { Wczytywanie } from './uklad/Wczytywanie'
 
 const ROLE: Rola[] = ['rodzic', 'domownik', 'dziecko']
@@ -46,6 +47,10 @@ type Props = {
     odswiezTeraz: () => Promise<boolean>
     przypiszUcznia: (uczenId: string, memberId: string | null) => Promise<boolean>
   }
+  inpost: {
+    polaczenie: StatusInpost | null
+    onOdswiez: () => void
+  }
   dodawanie: TrybDodawania
 }
 
@@ -62,6 +67,7 @@ export function MojDom({
   onUstawPowiadomienia,
   onPolaczTelegram,
   vulcan,
+  inpost,
   dodawanie,
 }: Props) {
   const [edytowany, setEdytowany] = useState<string | null>(null)
@@ -170,6 +176,8 @@ export function MojDom({
       />
 
       {jestemRodzicem && <PolaczenieVulcan vulcan={vulcan} domownicy={domownicy} />}
+
+      <ParowanieInpost inpost={inpost} />
 
       {jestemRodzicem &&
         (dodawanie === null ? (
