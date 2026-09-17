@@ -44,6 +44,34 @@
   text-transform: capitalize;
 }
 
+/* Szkielet: „dane jeszcze lecą", w odróżnieniu od `.pusto`, które znaczy
+   „nic tu nie ma". Dotąd oba stany wyglądały identycznie - ten sam akapit w
+   przerywanej ramce - więc ładowanie nie do odróżnienia od pustki.
+
+   Puls jest delikatny i wyłącza się przy `prefers-reduced-motion`; wtedy
+   zostaje samo statyczne tło, które i tak niesie całą informację. */
+.szkielet {
+  background: linear-gradient(90deg, var(--tlo) 0%, #eceaf1 50%, var(--tlo) 100%);
+  background-size: 200% 100%;
+  animation: szkielet-puls 1.4s ease-in-out infinite;
+}
+
+@keyframes szkielet-puls {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .szkielet {
+    animation: none;
+    background: var(--tlo);
+  }
+}
+
 .pusto {
   margin: 0 0 18px;
   padding: 14px;

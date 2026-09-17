@@ -48,6 +48,14 @@
   border-radius: var(--promien-s);
 }
 
+/* Tor szkieletu nie ma w środku żadnego bloku, więc bez tego miałby zero
+   wysokości i wiersz by się spłaszczył - a cały sens szkieletu to zachowanie
+   dokładnie tej wysokości, którą zajmą prawdziwe dane. */
+.gd-tor-kontener.szkielet {
+  min-height: 24px;
+  align-self: center;
+}
+
 .gd-blok {
   position: absolute;
   box-sizing: border-box;
@@ -85,6 +93,25 @@
   text-align: center;
 }
 
+/* Miejsce na widget pogodowy. Bez rezerwacji karta ma samą wyściółkę, dopóki
+   skrypt widgetu nie ustawi swojej kotwicy, i reszta ekranu zjeżdża w dół.
+
+   150px, nie 111px: zmierzone przy `data-days="3"` widget najpierw rozpycha
+   się do 150px, a po chwili osiada na 111px. Rezerwujemy WIĘKSZĄ z tych
+   wartości, więc osiadanie nie rusza niczego pod spodem. Przycinanie go
+   `overflow: hidden` do 111px byłoby ryzykowne - to cudzy kod, który może
+   zmienić swój układ, a wtedy ucięłoby prognozę. */
+.pogoda-miejsce {
+  min-height: 150px;
+}
+
+/* Licznik w trakcie ładowania: półpauza zamiast liczby. Szarość mówi, że to
+   jeszcze nie jest wartość, a `tabular-nums` niesie równą szerokość, więc
+   podmiana półpauzy na cyfrę nie drga. */
+.dash-licznik[aria-busy='true'] .dash-licznik-wartosc {
+  color: var(--tekst-slaby);
+}
+
 .dash-godzina {
   margin: 0;
   font-size: 40px;
@@ -116,6 +143,7 @@
 .dash-licznik-wartosc {
   font-size: 32px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .dash-licznik-etykieta {

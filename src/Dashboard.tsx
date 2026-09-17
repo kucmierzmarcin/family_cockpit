@@ -82,14 +82,15 @@ export function Dashboard({
   const liczbaDoKupienia = policzPozostale(zakupy.pozycje)
   const liczbaNieusprawiedliwionych = useMemo(() => liczNieusprawiedliwione(obecnosci), [obecnosci])
 
-  const ladowanie = dane.ladowanie || terminy.ladowanie || tablica.ladowanie || zakupy.ladowanie
-
-  if (ladowanie) {
-    return <p className="pusto">Wczytuję…</p>
-  }
+  // Żadnej bramki na cały ekran: każdy kawałek czeka na SWOJE dane, nie na
+  // cudze. Wcześniej jedno `||` po czterech hakach chowało również zegar, który
+  // nie potrzebuje sieci, a cały ekran schodził do jednego akapitu - z 330px
+  // na 733px po nadejściu danych (zmierzone).
+  const cokolwiekLaduje =
+    dane.ladowanie || terminy.ladowanie || tablica.ladowanie || zakupy.ladowanie
 
   return (
-    <div className="dashboard">
+    <div className="dashboard" aria-busy={cokolwiekLaduje || undefined}>
       <div className="dash-karty">
         <div className="karta dash-zegar">
           <p className="dash-godzina">{godzinaHM(teraz)}</p>
@@ -101,15 +102,22 @@ export function Dashboard({
         </div>
       </div>
 
-      <GrafikDnia domownicy={domownicy} wydarzenia={wydarzeniaZeSzkola} />
+      <GrafikDnia
+        domownicy={domownicy}
+        wydarzenia={wydarzeniaZeSzkola}
+        ladowanie={dane.ladowanie}
+      />
 
       <div className="dash-liczniki">
         <LicznikDnia
           etykieta="Pilne terminy"
           wartosc={liczbaPilnychTerminow}
           pilny={liczbaPilnychTerminow > 0}
+          ladowanie={terminy.ladowanie}
           onKlik={() => onEkran('terminy')}
         />
+        {/* Wiadomości i nieobecności przychodzą propsami z App (useVulcan), więc
+            tu nie mają własnego stanu ładowania. */}
         <LicznikDnia
           etykieta="Wiadomości dziś"
           wartosc={liczbaWiadomosciDzis}
@@ -118,11 +126,13 @@ export function Dashboard({
         <LicznikDnia
           etykieta="Otwarte tematy"
           wartosc={liczbaOtwartychTematow}
+          ladowanie={tablica.ladowanie}
           onKlik={() => onEkran('tablica')}
         />
         <LicznikDnia
           etykieta="Do kupienia"
           wartosc={liczbaDoKupienia}
+          ladowanie={zakupy.ladowanie}
           onKlik={() => onEkran('zakupy')}
         />
         <LicznikDnia
@@ -140,17 +150,28 @@ type LicznikProps = {
   etykieta: string
   wartosc: number
   pilny?: boolean
+  ladowanie?: boolean
   onKlik: () => void
 }
 
-function LicznikDnia({ etykieta, wartosc, pilny, onKlik }: LicznikProps) {
+/**
+ * Pudełko licznika ma ten sam rozmiar przed danymi i po nich - w miejscu liczby
+ * stoi półpauza, a nie pustka, więc nic się nie przesuwa. `aria-busy` mówi
+ * czytnikowi ekranu, że to jeszcze nie jest wartość; bez tego „— pilne
+ * terminy" brzmi jak odpowiedź.
+ *
+ * W trakcie ładowania licznik nie może też świecić na czerwono: `wartosc` jest
+ * wtedy zerem z pierwszego renderu, a nie prawdą o dniu.
+ */
+function LicznikDnia({ etykieta, wartosc, pilny, ladowanie, onKlik }: LicznikProps) {
   return (
     <button
       type="button"
-      className={`karta dash-licznik${pilny ? ' dash-licznik-pilny' : ''}`}
+      className={`karta dash-licznik${pilny && !ladowanie ? ' dash-licznik-pilny' : ''}`}
+      aria-busy={ladowanie || undefined}
       onClick={onKlik}
     >
-      <span className="dash-licznik-wartosc">{wartosc}</span>
+      <span className="dash-licznik-wartosc">{ladowanie ? '—' : wartosc}</span>
       <span className="dash-licznik-etykieta">{etykieta}</span>
     </button>
   )

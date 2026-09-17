@@ -10,6 +10,8 @@ const WYSOKOSC_TORU = 28
 type Props = {
   domownicy: DomownikDb[]
   wydarzenia: Wydarzenie[]
+  /** Dane dnia jeszcze lecą - patrz `Szkielet` na dole pliku. */
+  ladowanie?: boolean
 }
 
 /**
@@ -18,7 +20,7 @@ type Props = {
  * `ukladajKolumny` z czas.ts - ten sam algorytm co w SiatkaGodzin.tsx,
  * tylko obrócony o 90°: kolumny stają się poziomymi torami w obrębie wiersza.
  */
-export function GrafikDnia({ domownicy, wydarzenia }: Props) {
+export function GrafikDnia({ domownicy, wydarzenia, ladowanie }: Props) {
   const godzinne = useMemo(
     () => wydarzenia.filter((w) => !w.calodniowe && wJednymDniu(w)),
     [wydarzenia],
@@ -32,6 +34,12 @@ export function GrafikDnia({ domownicy, wydarzenia }: Props) {
   // Sama linijka godzin bez żadnego wiersza wygląda jak ekran, który się nie
   // wczytał - lepiej powiedzieć wprost, że na dziś nic nie ma. Dotyczy też
   // domu bez domowników.
+  // Kolejność ma znaczenie: bez danych KAŻDY dzień wygląda na pusty, więc
+  // „Nic dziś nie zaplanowane" przed czasem byłoby po prostu nieprawdą.
+  if (ladowanie) {
+    return <Szkielet domownicy={domownicy} liczbaGodzin={liczbaGodzin} godzinaOd={godzinaOd} />
+  }
+
   const pusto =
     domownicy.length === 0 ||
     domownicy.every((osoba) => !godzinne.some((w) => w.osobyId.includes(osoba.id)))
@@ -105,6 +113,50 @@ export function GrafikDnia({ domownicy, wydarzenia }: Props) {
             </div>
           )
         })}
+      </div>
+    </div>
+  )
+}
+
+type SzkieletProps = {
+  domownicy: DomownikDb[]
+  liczbaGodzin: number
+  godzinaOd: number
+}
+
+/**
+ * Grafik w trakcie ładowania: ta sama struktura, te same wiersze, te same
+ * imiona - tylko tory zamiast bloków. Wysokość karty jest więc identyczna
+ * przed danymi i po nich, więc nic się pod spodem nie przesuwa.
+ *
+ * Liczba wierszy jest znana od ręki: `domownicy` przychodzą z App (useDomownicy)
+ * i nie mają nic wspólnego z hakami, na które czeka Dashboard.
+ */
+function Szkielet({ domownicy, liczbaGodzin, godzinaOd }: SzkieletProps) {
+  return (
+    <div className="karta grafik-dnia" aria-busy="true" aria-label="Wczytuję grafik dnia">
+      <div className="gd-godziny" style={{ '--godzin': liczbaGodzin } as CSSProperties}>
+        {Array.from({ length: liczbaGodzin }, (_, i) => godzinaOd + i).map((g) => (
+          <div key={g} className="gd-godzina">
+            {String(g).padStart(2, '0')}:00
+          </div>
+        ))}
+      </div>
+
+      <div className="gd-wiersze">
+        {domownicy.map((osoba) => (
+          <div key={osoba.id} className="gd-wiersz" style={{ minHeight: WYSOKOSC_TORU }}>
+            <div className="gd-etykieta">
+              <span
+                className="kropka"
+                style={{ background: kolor(osoba.color).kropka }}
+                aria-hidden="true"
+              />
+              {osoba.name}
+            </div>
+            <div className="gd-tor-kontener szkielet" />
+          </div>
+        ))}
       </div>
     </div>
   )

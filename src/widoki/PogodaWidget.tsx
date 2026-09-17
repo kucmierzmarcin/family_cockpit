@@ -40,5 +40,9 @@ export function PogodaWidget() {
     }
   }, [])
 
-  return <div ref={kontenerRef} />
+  // Klasa niesie zarezerwowaną wysokość: dopóki skrypt nie podmieni kotwicy na
+  // iframe, ten div ma zero pikseli i wszystko pod nim skacze w dół, gdy widget
+  // wreszcie doleci (na telefonie karty stoją jedna pod drugą, więc skok widać
+  // wprost).
+  return <div className="pogoda-miejsce" ref={kontenerRef} />
 }
