@@ -164,3 +164,64 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* --- Plan dnia jako lista (telefon, patrz prop `lista` w GrafikDnia) --- */
+
+.plan-dnia {
+  display: flex;
+  flex-direction: column;
+  gap: var(--odstep-3);
+}
+
+.plan-osoby {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--odstep-4);
+}
+
+.plan-osoba {
+  display: flex;
+  align-items: center;
+  gap: var(--odstep-2);
+  margin: 0 0 var(--odstep-1);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.plan-wydarzenia {
+  list-style: none;
+  margin: 0;
+  /* Wcięcie równe kropce i jej odstępowi - godziny ustawiają się pod imieniem,
+     nie pod kropką. */
+  padding: 0 0 0 calc(10px + var(--odstep-2));
+  display: flex;
+  flex-direction: column;
+  gap: var(--odstep-1);
+}
+
+.plan-wydarzenia li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--odstep-3);
+  font-size: 15px;
+}
+
+.plan-wydarzenia .czas {
+  flex-shrink: 0;
+  /* Stała szerokość i cyfry jednakowej szerokości - tytuły ustawiają się w
+     jedną kolumnę zamiast skakać zależnie od godziny. */
+  min-width: 96px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-wolni {
+  margin: 0;
+  padding-top: var(--odstep-3);
+  border-top: 1px solid var(--kreska);
+  color: var(--tekst-drugi);
+  font-size: 14px;
+}

@@ -148,6 +148,31 @@ export function Terminy({ jestemRodzicem, mojeId, householdId, onBlad, dodawanie
         <p className="pusto">Wczytuję…</p>
       ) : widoczne.length === 0 ? (
         <p className="pusto">Brak terminów do pokazania.</p>
+      ) : telefon ? (
+        /* Tabela na 390px chowała 296 z 640 pikseli treści za przewijaniem w bok
+           - a ucinała się kolumna „Do kiedy", czyli przy terminie rzecz
+           najważniejsza. Te same dane, ten sam `WierszTerminu`-owy zestaw
+           podkomponentów, tylko ułożone w pionie. */
+        <ul className="karty-terminow">
+          {widoczne.map((t) => (
+            <KartaTerminu
+              key={t.id}
+              termin={t}
+              dzisiaj={dzisiaj}
+              przeterminowany={!t.zalatwiony && czyPrzeterminowany(t.termin, dzisiaj)}
+              powiadomienieMinelo={t.powiadom !== null && czyPrzeterminowany(t.powiadom, dzisiaj)}
+              mogeUsunacTermin={jestemRodzicem || t.autorId === mojeId}
+              mojeId={mojeId}
+              jestemRodzicem={jestemRodzicem}
+              onEdytuj={() => setEdytowanyTermin(t)}
+              onPrzelacz={() => void dane.przelaczZalatwiony(t)}
+              onUsunTermin={() => void dane.usunTermin(t)}
+              onWgrajZalacznik={(plik) => wgrajZWalidacja(t.id, plik)}
+              onUsunZalacznik={(z) => void dane.usunZalacznik(z)}
+              onOtworzZalacznik={(z) => void otworzZalacznik(z)}
+            />
+          ))}
+        </ul>
       ) : (
         <div className="tabela-terminow-kontener">
           <table className="tabela-terminow">
@@ -360,6 +385,78 @@ type WierszTerminuProps = {
   onWgrajZalacznik: (plik: File) => void
   onUsunZalacznik: (zalacznik: Zalacznik) => void
   onOtworzZalacznik: (zalacznik: Zalacznik) => void
+}
+
+/**
+ * Ten sam termin co `WierszTerminu`, tylko złożony w pionie - wariant telefonowy.
+ *
+ * Tytuł jest akapitem, nie nagłówkiem: to pozycja listy, a nie sekcja dokumentu,
+ * a ekran „Terminy" nie ma żadnego <h2>, więc nagłówek karty przeskakiwałby
+ * poziom. Kolejność celowo inna niż w tabeli: najpierw tytuł i status, potem
+ * data - bo to ona odpowiada na pytanie „czy zdążę".
+ */
+function KartaTerminu({
+  termin,
+  dzisiaj,
+  przeterminowany,
+  powiadomienieMinelo,
+  mogeUsunacTermin,
+  mojeId,
+  jestemRodzicem,
+  onEdytuj,
+  onPrzelacz,
+  onUsunTermin,
+  onWgrajZalacznik,
+  onUsunZalacznik,
+  onOtworzZalacznik,
+}: WierszTerminuProps) {
+  const status = termin.zalatwiony ? 'zalatwiony' : przeterminowany ? 'przeterminowany' : 'aktywny'
+  const statusEtykieta = termin.zalatwiony ? 'Załatwiony' : przeterminowany ? 'Przeterminowany' : 'Aktywny'
+
+  return (
+    <li
+      className={`karta karta-terminu${termin.zalatwiony ? ' zalatwiony' : ''}${powiadomienieMinelo ? ' powiadomienie-minelo' : ''}`}
+    >
+      <div className="karta-terminu-gora">
+        <p className="tytul-terminu">{termin.tytul}</p>
+        <span className={`status-terminu status-${status}`}>{statusEtykieta}</span>
+      </div>
+
+      {termin.opis && <p className="opis-terminu">{termin.opis}</p>}
+
+      <div className="karta-terminu-dol">
+        <span className="data-terminu">
+          {formatujTermin(termin.termin)}
+          {przeterminowany && (
+            <span className="dni-po-terminie">{dniPoTerminie(termin.termin, dzisiaj)} dni po terminie</span>
+          )}
+        </span>
+
+        <ZalacznikiIkona
+          zalaczniki={termin.zalaczniki}
+          mojeId={mojeId}
+          jestemRodzicem={jestemRodzicem}
+          onWgraj={onWgrajZalacznik}
+          onUsun={onUsunZalacznik}
+          onOtworz={onOtworzZalacznik}
+        />
+
+        <MenuKropek>
+          <button type="button" className="menu-akcji-pozycja" onClick={onEdytuj}>
+            Edytuj
+          </button>
+          <button type="button" className="menu-akcji-pozycja" onClick={onPrzelacz}>
+            {termin.zalatwiony ? 'Cofnij zatwierdzenie' : 'Zatwierdź'}
+          </button>
+          {mogeUsunacTermin && (
+            <button type="button" className="menu-akcji-pozycja menu-akcji-niebezpieczna" onClick={onUsunTermin}>
+              Usuń
+            </button>
+          )}
+        </MenuKropek>
+      </div>
+    </li>
+  )
 }
 
 function WierszTerminu({

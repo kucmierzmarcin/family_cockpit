@@ -708,3 +708,70 @@
   white-space: pre-wrap;
   font-size: 14px;
 }
+
+/* --- Terminy jako karty (telefon) --- */
+
+.karty-terminow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--odstep-3);
+}
+
+.karta-terminu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--odstep-2);
+}
+
+.karta-terminu-gora {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--odstep-3);
+}
+
+/* W tabeli tytuł miał sztywne 240px; w karcie ma zająć tyle, ile zostanie po
+   pigułce statusu. */
+.karta-terminu .tytul-terminu {
+  max-width: none;
+  margin: 0;
+  font-size: 16px;
+}
+
+.karta-terminu .opis-terminu {
+  margin: 0;
+  min-width: 0;
+  max-width: none;
+  font-size: 14px;
+}
+
+.karta-terminu-dol {
+  display: flex;
+  align-items: center;
+  gap: var(--odstep-2);
+  margin-top: var(--odstep-1);
+}
+
+/* Data zajmuje całą wolną szerokość, a ikony lądują przy prawej krawędzi. */
+.karta-terminu .data-terminu {
+  flex: 1;
+  min-width: 0;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--odstep-2);
+  white-space: normal;
+  font-size: 14px;
+}
+
+.karta-terminu.zalatwiony .tytul-terminu {
+  text-decoration: line-through;
+}
+
+/* Minione powiadomienie barwi kartę tak samo jak wiersz w tabeli. */
+.karta-terminu.powiadomienie-minelo {
+  background: #fdecea;
+}

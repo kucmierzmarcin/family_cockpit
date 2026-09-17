@@ -4,6 +4,7 @@ import type { Wydarzenie } from '../useWydarzenia'
 import { godzinaHM, minutyOdPolnocy, ukladajKolumny, wJednymDniu } from '../czas'
 import { kolor } from '../kolory'
 import { MINUT_W_DOBIE, zakresGodzin } from './zakresGodzin'
+import { pogrupujPlanDnia } from './planDnia'
 
 const WYSOKOSC_TORU = 28
 
@@ -12,6 +13,13 @@ type Props = {
   wydarzenia: Wydarzenie[]
   /** Dane dnia jeszcze lecą - patrz `Szkielet` na dole pliku. */
   ladowanie?: boolean
+  /**
+   * Lista zamiast osi czasu. Na 390px oś chowała 363 z 706 pikseli treści za
+   * przewijaniem w bok (zmierzone), a sama kolumna imion zjadała 37% szerokości
+   * - przy czym zwykle większość torów i tak jest pusta. Lista mówi to samo
+   * krócej i w całości mieści się na ekranie.
+   */
+  lista?: boolean
 }
 
 /**
@@ -20,7 +28,7 @@ type Props = {
  * `ukladajKolumny` z czas.ts - ten sam algorytm co w SiatkaGodzin.tsx,
  * tylko obrócony o 90°: kolumny stają się poziomymi torami w obrębie wiersza.
  */
-export function GrafikDnia({ domownicy, wydarzenia, ladowanie }: Props) {
+export function GrafikDnia({ domownicy, wydarzenia, ladowanie, lista }: Props) {
   const godzinne = useMemo(
     () => wydarzenia.filter((w) => !w.calodniowe && wJednymDniu(w)),
     [wydarzenia],
@@ -43,6 +51,10 @@ export function GrafikDnia({ domownicy, wydarzenia, ladowanie }: Props) {
   const pusto =
     domownicy.length === 0 ||
     domownicy.every((osoba) => !godzinne.some((w) => w.osobyId.includes(osoba.id)))
+
+  if (lista && !pusto) {
+    return <ListaPlanu domownicy={domownicy} godzinne={godzinne} />
+  }
 
   if (pusto) {
     return (
@@ -159,5 +171,57 @@ function Szkielet({ domownicy, liczbaGodzin, godzinaOd }: SzkieletProps) {
         ))}
       </div>
     </div>
+  )
+}
+
+type ListaProps = {
+  domownicy: DomownikDb[]
+  godzinne: Wydarzenie[]
+}
+
+/**
+ * Plan dnia jako lista - wariant telefonowy (patrz prop `lista`).
+ *
+ * Wolni lądują w jednej linijce na dole zamiast dostawać własny, pusty wiersz:
+ * „Marcin nic dziś nie ma" to jedno słowo informacji, a na osi czasu kosztowało
+ * tyle samo miejsca co pełny dzień.
+ */
+function ListaPlanu({ domownicy, godzinne }: ListaProps) {
+  const { zajeci, wolni } = pogrupujPlanDnia(domownicy, godzinne)
+
+  return (
+    <section className="karta plan-dnia">
+      <h2 className="panel-tytul">Dziś w planie</h2>
+
+      <ul className="plan-osoby">
+        {zajeci.map(({ osoba, wydarzenia }) => {
+          const barwa = kolor(osoba.color)
+          return (
+            <li key={osoba.id}>
+              <p className="plan-osoba">
+                <span className="kropka" style={{ background: barwa.kropka }} aria-hidden="true" />
+                {osoba.name}
+              </p>
+              <ul className="plan-wydarzenia">
+                {wydarzenia.map((w) => (
+                  <li key={w.id}>
+                    <span className="czas">
+                      {godzinaHM(w.start)}–{godzinaHM(w.koniec)}
+                    </span>
+                    <span className="nazwa">{w.tytul}</span>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          )
+        })}
+      </ul>
+
+      {wolni.length > 0 && (
+        <p className="plan-wolni">
+          Wolni: {wolni.map((o) => o.name).join(', ')}
+        </p>
+      )}
+    </section>
   )
 }

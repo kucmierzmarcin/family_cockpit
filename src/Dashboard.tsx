@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { DomownikDb } from './lib/supabase'
 import { blokiSzkolne, type Lekcja, type Obecnosc, type Uczen, type Wiadomosc } from './vulcan'
 import type { Ekran } from './uklad/nawigacja'
+import { useTelefon } from './uklad/useTelefon'
 import { dlugaData, klucz } from './dates'
 import { godzinaHM, nastepnyDzien, poczatekDnia } from './czas'
 import { useWydarzenia } from './useWydarzenia'
@@ -35,6 +36,7 @@ export function Dashboard({
   onBlad,
   onEkran,
 }: Props) {
+  const telefon = useTelefon()
   const [teraz, setTeraz] = useState(() => new Date())
   useEffect(() => {
     const timer = setInterval(() => setTeraz(new Date()), 60_000)
@@ -106,6 +108,7 @@ export function Dashboard({
         domownicy={domownicy}
         wydarzenia={wydarzeniaZeSzkola}
         ladowanie={dane.ladowanie}
+        lista={telefon}
       />
 
       <div className="dash-liczniki">
