@@ -192,15 +192,23 @@ as $$
   )
 $$;
 
-grant execute on function public.jestem_przypisany(uuid)        to authenticated;
-grant execute on function public.jestem_autorem(uuid)           to authenticated;
-grant execute on function public.wydarzenie_z_mojego_domu(uuid) to authenticated;
+revoke execute on function public.jestem_przypisany(uuid)        from public, anon;
+revoke execute on function public.jestem_autorem(uuid)           from public, anon;
+revoke execute on function public.wydarzenie_z_mojego_domu(uuid) from public, anon;
+grant  execute on function public.jestem_przypisany(uuid)        to authenticated;
+grant  execute on function public.jestem_autorem(uuid)           to authenticated;
+grant  execute on function public.wydarzenie_z_mojego_domu(uuid) to authenticated;
 
-grant execute on function public.moj_dom()           to authenticated;
-grant execute on function public.ja_jako_member()    to authenticated;
-grant execute on function public.jestem_rodzicem()   to authenticated;
-grant execute on function public.polacz_moje_konto() to authenticated;
-grant execute on function public.zaloz_dom(text, text) to authenticated;
+revoke execute on function public.moj_dom()             from public, anon;
+revoke execute on function public.ja_jako_member()      from public, anon;
+revoke execute on function public.jestem_rodzicem()     from public, anon;
+revoke execute on function public.polacz_moje_konto()   from public, anon;
+revoke execute on function public.zaloz_dom(text, text) from public, anon;
+grant  execute on function public.moj_dom()           to authenticated;
+grant  execute on function public.ja_jako_member()    to authenticated;
+grant  execute on function public.jestem_rodzicem()   to authenticated;
+grant  execute on function public.polacz_moje_konto() to authenticated;
+grant  execute on function public.zaloz_dom(text, text) to authenticated;
 
 -- 6. Ochrona wierszy. Od tej chwili nic nie jest dostępne bez reguł poniżej,
 --    a niezalogowany (rola "anon") nie dostaje żadnej.
@@ -384,9 +392,12 @@ begin
 end
 $$;
 
-grant execute on function public.lista_z_mojego_domu(uuid)   to authenticated;
-grant execute on function public.moja_pozycja(uuid)          to authenticated;
-grant execute on function public.zapewnij_listy_zakupow()    to authenticated;
+revoke execute on function public.lista_z_mojego_domu(uuid) from public, anon;
+revoke execute on function public.moja_pozycja(uuid)        from public, anon;
+revoke execute on function public.zapewnij_listy_zakupow()  from public, anon;
+grant  execute on function public.lista_z_mojego_domu(uuid)   to authenticated;
+grant  execute on function public.moja_pozycja(uuid)          to authenticated;
+grant  execute on function public.zapewnij_listy_zakupow()    to authenticated;
 
 alter table public.shopping_lists enable row level security;
 alter table public.shopping_items enable row level security;
@@ -465,7 +476,8 @@ as $$
   )
 $$;
 
-grant execute on function public.moja_notatka(uuid) to authenticated;
+revoke execute on function public.moja_notatka(uuid) from public, anon;
+grant  execute on function public.moja_notatka(uuid) to authenticated;
 
 alter table public.notes enable row level security;
 
@@ -1270,9 +1282,12 @@ as $$
   )
 $$;
 
-grant execute on function public.termin_z_mojego_domu(uuid) to authenticated;
-grant execute on function public.moj_termin(uuid)           to authenticated;
-grant execute on function public.moj_zalacznik(uuid)        to authenticated;
+revoke execute on function public.termin_z_mojego_domu(uuid) from public, anon;
+revoke execute on function public.moj_termin(uuid)           from public, anon;
+revoke execute on function public.moj_zalacznik(uuid)        from public, anon;
+grant  execute on function public.termin_z_mojego_domu(uuid) to authenticated;
+grant  execute on function public.moj_termin(uuid)           to authenticated;
+grant  execute on function public.moj_zalacznik(uuid)        to authenticated;
 
 alter table public.deadlines            enable row level security;
 alter table public.deadline_attachments enable row level security;
