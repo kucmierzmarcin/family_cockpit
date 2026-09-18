@@ -444,7 +444,11 @@ function App({ profil, email }: Props) {
           onUstawPowiadomienia={osoby.ustawPowiadomienia}
           onPolaczTelegram={osoby.polaczTelegram}
           vulcan={vulcan}
-          inpost={{ polaczenie: polaczenieInpost, onOdswiez: () => void inpost.odswiez() }}
+          inpost={{
+            polaczenie: polaczenieInpost,
+            onOdswiez: () => void inpost.odswiez(),
+            onRozlacz: inpost.rozlacz,
+          }}
           dodawanie={trybDodawania('dom')}
         />
       ) : telefon ? (

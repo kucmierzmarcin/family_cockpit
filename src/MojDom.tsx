@@ -50,6 +50,7 @@ type Props = {
   inpost: {
     polaczenie: StatusInpost | null
     onOdswiez: () => void
+    onRozlacz: () => Promise<boolean>
   }
   dodawanie: TrybDodawania
 }

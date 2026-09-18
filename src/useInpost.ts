@@ -71,5 +71,15 @@ export function useInpost(onBlad: (tekst: string) => void) {
     else await pobierz()
   }, [onBlad, pobierz])
 
-  return { paczki, polaczenia, ladowanie, odswiez }
+  const rozlacz = useCallback(async (): Promise<boolean> => {
+    const { error } = await supabase.rpc('rozlacz_inpost')
+    if (error) {
+      onBlad(`Nie udało się rozłączyć: ${error.message}`)
+      return false
+    }
+    await pobierz()
+    return true
+  }, [onBlad, pobierz])
+
+  return { paczki, polaczenia, ladowanie, odswiez, rozlacz }
 }

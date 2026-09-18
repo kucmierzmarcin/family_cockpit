@@ -1865,6 +1865,26 @@ $$;
 revoke execute on function public.status_polaczenia_inpost() from public, anon;
 grant  execute on function public.status_polaczenia_inpost() to authenticated;
 
+-- Rozlaczenie - self-service jak parowanie (bez wymogu roli rodzica), bo
+-- polaczenie InPost jest per DOMOWNIK, nie per dom (w odroznieniu od Vulcana,
+-- gdzie tylko rodzic rozlacza cale konto domu). Kasuje wlasne polaczenie i
+-- wlasne paczki - inaczej odlaczony numer zostawialby stare paczki w tabeli,
+-- ktorych zaden kolejny sync juz by nie odswiezyl ani nie usunal
+-- (inpost-sync dziala tylko na polaczeniach ze statusem "aktywne").
+create or replace function public.rozlacz_inpost() returns void
+  language plpgsql volatile security definer set search_path = public
+as $$
+declare
+  ja uuid := public.ja_jako_member();
+begin
+  delete from public.inpost_parcels where member_id = ja;
+  delete from public.inpost_connections where member_id = ja;
+end
+$$;
+
+revoke execute on function public.rozlacz_inpost() from public, anon;
+grant  execute on function public.rozlacz_inpost() to authenticated;
+
 alter publication supabase_realtime add table public.inpost_parcels;
 
 -- ============================================================

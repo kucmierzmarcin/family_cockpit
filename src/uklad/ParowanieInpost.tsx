@@ -27,6 +27,7 @@ type Props = {
     /** Połączenie tego domownika albo `null`, gdy jeszcze nie sparował numeru. */
     polaczenie: StatusInpost | null
     onOdswiez: () => void
+    onRozlacz: () => Promise<boolean>
   }
 }
 
@@ -61,12 +62,13 @@ async function komunikatBledu(error: unknown): Promise<string> {
  * przeglądarka nie zapisuje ich ani w stanie po zakończeniu, ani w bazie.
  */
 export function ParowanieInpost({ inpost }: Props) {
-  const { polaczenie, onOdswiez } = inpost
+  const { polaczenie, onOdswiez, onRozlacz } = inpost
   const [etap, setEtap] = useState<'numer' | 'kod'>('numer')
   const [phone, setPhone] = useState('')
   const [kod, setKod] = useState('')
   const [blad, setBlad] = useState<string | null>(null)
   const [zapisywanie, setZapisywanie] = useState(false)
+  const [rozlaczanie, setRozlaczanie] = useState(false)
 
   /**
    * Krok 1 - prośba o SMS. NIE idzie przez funkcję brzegową, i NIE idzie
@@ -167,6 +169,18 @@ export function ParowanieInpost({ inpost }: Props) {
             {polaczenie.ostatniBlad}
           </p>
         )}
+        <button
+          type="button"
+          className="usuwanie"
+          disabled={rozlaczanie}
+          onClick={async () => {
+            setRozlaczanie(true)
+            await onRozlacz()
+            setRozlaczanie(false)
+          }}
+        >
+          {rozlaczanie ? 'Rozłączam…' : 'Rozłącz'}
+        </button>
       </section>
     )
   }
