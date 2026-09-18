@@ -414,3 +414,13 @@ Bez tego sekretu funkcja odpowiada błędem 500 zamiast wywoływać Gemini.
 | `npm run lint` | Sprawdzenie kodu (oxlint) |
 | `npm test` | Testy logiki czasu, walidacji importu z AI, klienta Gemini API i budowania wierszy wydarzeń z importu AI (vitest) |
 | `npm run test:watch` | Testy w trybie ciągłym |
+| `npm run check:functions` | Sprawdzenie typów w `supabase/functions/**` (Deno, nie tsc - patrz niżej) |
+
+`tsconfig.app.json` obejmuje tylko `src` - `tsc` nie potrafi typować `supabase/functions/**`
+(kod na Deno, specyfikatory importu `npm:`/`jsr:`/`https://`, globalny `Deno.*`), więc
+`npm run check:functions` używa `deno check` zamiast `tsc`. Wymaga zainstalowanego
+[Deno CLI](https://deno.com) w PATH. Dwie flagi są konieczne: `--node-modules-dir=none`
+(bez niej Deno próbuje użyć `node_modules` appki, w którym nie ma zależności funkcji
+brzegowych) i `--unstable-sloppy-imports` (część importów w `_wspolne/` pomija
+rozszerzenie `.ts` - działa na Supabase Edge Runtime, ale ścisła rezolucja Deno CLI
+bez tej flagi tego nie akceptuje).
