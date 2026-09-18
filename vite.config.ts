@@ -1,5 +1,11 @@
 import react from '@vitejs/plugin-react'
 import { configDefaults, defineConfig } from 'vitest/config'
+import { utworzLimiterInpost } from './src/inpostLimiter.js'
+
+// Jeden limiter na cały czas życia procesu `npm run dev` - patrz komentarz
+// w src/inpostLimiter.ts o tym, czemu to jedyne miejsce, gdzie da się
+// ograniczyć wysyłkę SMS-ów przez InPost.
+const limiterInpost = utworzLimiterInpost()
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -19,12 +25,27 @@ export default defineConfig({
       '/inpost-api': {
         target: 'https://api-inmobile-pl.easypack24.net',
         changeOrigin: true,
-        rewrite: (sciezka) => sciezka.replace(/^\/inpost-api/, ''),
+        // Numer telefonu leci też jako `?tel=` (patrz ParowanieInpost.tsx) -
+        // wyłącznie po to, żeby `bypass` niżej mógł go przeczytać z URL-a bez
+        // czytania strumienia body. InPost go nie widzi: `rewrite` ucina
+        // wszystko od `?` przed przekazaniem dalej.
+        rewrite: (sciezka) => sciezka.replace(/^\/inpost-api/, '').replace(/\?.*$/, ''),
         // Nagłówek aplikacji mobilnej - taki sam, jakim posłużyło się
         // żądanie, które faktycznie dostarczyło SMS. Przeglądarka nie może
         // ustawić `User-Agent` sama, więc dokłada go proxy.
         headers: {
           'User-Agent': 'InPost-Mobile/3.23.0(32300001) (Android 9; unknown; unknown unknown; en)',
+        },
+        // Rate-limiting: bez tego zalogowany domownik mógłby tym proxy
+        // zbombardować SMS-ami dowolny numer telefonu, nie tylko własny.
+        bypass(req, res) {
+          const tel = new URL(req.url ?? '', 'http://localhost').searchParams.get('tel')
+          if (tel && res && !limiterInpost.pozwalaj(tel)) {
+            res.statusCode = 429
+            res.setHeader('Content-Type', 'application/json; charset=UTF-8')
+            res.end(JSON.stringify({ blad: 'Zbyt wiele prób dla tego numeru - spróbuj później.' }))
+            return false
+          }
         },
       },
     },

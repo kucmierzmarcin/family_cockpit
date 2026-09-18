@@ -76,10 +76,12 @@ export function ParowanieInpost({ inpost }: Props) {
    * może zawołać InPostu wprost - preflight CORS dostaje 403 - więc idziemy
    * przez proxy serwera deweloperskiego, patrz `vite.config.ts`.
    *
-   * Nie jesteśmy tu przekaźnikiem SMS-ów dla nikogo obcego: żądanie wychodzi z
-   * maszyny domownika, a nie z naszej funkcji, więc bramka logowania, która
-   * chroniła tamten krok, przestaje być potrzebna właśnie dlatego, że nie ma
-   * już czego chronić.
+   * Bramka logowania Supabase nie ma tu czego chronić - żądanie wychodzi z
+   * maszyny domownika, a nie z naszej funkcji. Ale sam formularz przyjmuje
+   * DOWOLNY numer, nie tylko własny - bez ograniczenia dałoby to sposób na
+   * bombardowanie SMS-ami cudzego numeru. Dlatego proxy w `vite.config.ts`
+   * ma własny rate-limiting (`src/inpostLimiter.ts`), niezależny od
+   * uwierzytelnienia.
    */
   async function wyslijProsbeOKod(e: React.FormEvent) {
     e.preventDefault()
@@ -92,12 +94,27 @@ export function ParowanieInpost({ inpost }: Props) {
 
     setZapisywanie(true)
     try {
-      const odp = await fetch('/inpost-api/v1/account', {
+      const numer = phone.replace(/\D/g, '')
+      // `?tel=` powtarza numer z body wyłącznie do odczytu przez rate-limiter
+      // proxy (patrz vite.config.ts) - samego żądania do InPostu nie zmienia,
+      // `rewrite` proxy ucina go przed przekazaniem dalej.
+      const odp = await fetch(`/inpost-api/v1/account?tel=${numer}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-        body: JSON.stringify(cialoWyslaniaKodu(phone.replace(/\D/g, ''))),
+        body: JSON.stringify(cialoWyslaniaKodu(numer)),
       })
       if (!odp.ok) {
+        if (odp.status === 429) {
+          try {
+            const cialo = await odp.json()
+            if (typeof cialo?.blad === 'string') {
+              setBlad(cialo.blad)
+              return
+            }
+          } catch {
+            // odpowiedź 429 bez JSON-a - spada do ogólnego komunikatu niżej
+          }
+        }
         setBlad(`InPost odrzucił prośbę o kod (HTTP ${odp.status}).`)
         return
       }
