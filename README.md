@@ -120,25 +120,39 @@ wciągnąć do nowo założonego domu.
    - Domownik paruje numer telefonu na ekranie **„Mój dom"** (SMS + kod) — nie
      wymaga roli rodzica, w odróżnieniu od Vulcana. Zakładka „Paczki" pokazuje
      wyłącznie listę przesyłek.
-   - **Parowanie (krok „wyślij kod SMS") - kontrakt API przepięty 2026-09-18,
-     wynik jeszcze niepotwierdzony żywym testem.** Stary kontrakt
-     (`POST /v1/account`, z referencyjnej biblioteki `IFOSSA/inpost-python`,
-     kilka lat nieaktualnej) zwracał HTTP 200 z każdej drogi (proxy, zwykły
-     skrypt Node.js z domowej sieci) i NIGDY nie dostarczał SMS-a - pełna
-     diagnoza w pamięci projektu „kokpit-plan-budowy". Zamieniony na kontrakt
-     `POST /v1/sendSMSCode` + `POST /v1/confirmSMSCode` (nagłówki i kształt
-     ciała jak w aktywnie rozwijanej integracji Home Assistant
-     `ha-parcel-integrations/ha-inpost`, jej `CLAUDE.md` deklaruje
-     potwierdzenie na żywym koncie 2026-08-15). To wciąż nieoficjalne, reverse
-     engineered API - brak gwarancji, że ten kontrakt przetrwa dłużej niż
-     poprzedni. Przeglądarka nie może zawołać InPostu wprost (preflight CORS
-     dostaje 403, a jedyny typ treści bez preflightu, `text/plain`, API
-     odrzuca), więc ten krok idzie przez proxy serwera deweloperskiego —
-     `server.proxy['/inpost-api']` w `vite.config.ts`. Potwierdzenie kodu leci
-     już normalnie przez funkcję brzegową, żeby tokeny InPostu trafiły prosto
-     do bazy i nigdy nie przeszły przez przeglądarkę. W zbudowanej, wdrożonej
-     aplikacji tego proxy nie ma i parowanie się nie uda; synchronizacja już
-     sparowanego numeru działa wszędzie.
+   - **Parowanie działa - potwierdzone żywym testem 2026-09-18** (numer
+     rzeczywiście sparowany, SMS dotarł, synchronizacja pobrała paczki). Droga
+     do tego była kręta - pełna diagnoza w pamięci projektu
+     „kokpit-plan-budowy" - w skrócie:
+     - Kontrakt API przepięty ze starego (`POST /v1/account`, z referencyjnej
+       biblioteki `IFOSSA/inpost-python`, kilka lat nieaktualnej) na
+       `POST /v1/sendSMSCode` + `POST /v1/confirmSMSCode` (nagłówki i kształt
+       ciała jak w aktywnie rozwijanej integracji Home Assistant
+       `ha-parcel-integrations/ha-inpost`, potwierdzonej na żywym koncie
+       2026-08-15).
+     - To NIE WYSTARCZYŁO: żywy test wykazał, że Cloudflare przed InPostem
+       cicho blokuje krok „poproś o SMS" z Node.js (HTTP 200, ale SMS nigdy
+       nie dociera) - niezależnie od nagłówków, kontraktu czy adresu IP.
+       Identyczne żądanie z **Pythona** (inny stos TLS/HTTP) przechodzi.
+     - Stąd `server.proxy` w `vite.config.ts` zamieniony na własny middleware
+       (`configureServer`), który dla `/inpost-api/v1/sendSMSCode` uruchamia
+       proces potomny `scripts/wyslij_sms_inpost.py` zamiast wysyłać żądanie
+       samemu - **wymaga Pythona 3 w PATH jako `python`** na maszynie, na
+       której odpalasz `npm run dev`. Rate-limiting (`src/inpostLimiter.ts`)
+       działa bez zmian, teraz w tym middleware.
+     - Potwierdzenie kodu (`inpost-polacz`) i synchronizacja paczek
+       (`inpost-sync`) NIE mają tego problemu - obie to Deno na Supabase,
+       żywo potwierdzone że przechodzą bez przeszkód. `inpost-sync` dodatkowo
+       potrzebował `cache: 'no-store'` na pobraniu listy paczek - bez tego
+       pierwsze wywołanie po świeżym tokenie dostawało `304 Not Modified`
+       zamiast prawdziwej listy.
+     - To wciąż nieoficjalne, reverse engineered API - brak gwarancji, że ten
+       kontrakt (albo obejście przez Pythona) przetrwa bez zmian w przyszłości.
+     - Przeglądarka nie może zawołać InPostu wprost (preflight CORS dostaje
+       403), więc krok „poproś o SMS" i tak musi iść przez serwer
+       deweloperski - w zbudowanej, wdrożonej aplikacji tego middleware'u nie
+       ma i parowanie się nie uda; synchronizacja już sparowanego numeru
+       działa wszędzie.
 
 ## Struktura
 

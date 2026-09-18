@@ -109,8 +109,14 @@ async function synchronizujPolaczenia(baza: SupabaseClient, polaczenia: Polaczen
         throw new Error(`Zapis odświeżonego tokenu nie powiódł się: ${bladZapisuTokenu.message}`)
       }
 
+      // `cache: 'no-store'` jest konieczne - bez niego Deno potrafi zwrocic
+      // `304 Not Modified` (puste cialo) zamiast prawdziwej listy paczek,
+      // najwyrazniej wykorzystujac wspoldzielony cache fetch() z rozgrzanego
+      // izolatu - zywo potwierdzone 2026-09-18, pierwsze prawdziwe wywolanie
+      // po udanym parowaniu dostalo 304 zamiast 200.
       const odp = await fetch(`${HOST}/v3/parcels/tracked`, {
         headers: { ...NAGLOWKI_INPOST, Authorization: authToken },
+        cache: 'no-store',
       })
       if (!odp.ok) throw new Error(`Pobranie paczek nie powiodło się (HTTP ${odp.status}).`)
 

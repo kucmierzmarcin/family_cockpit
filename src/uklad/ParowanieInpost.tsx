@@ -69,17 +69,15 @@ export function ParowanieInpost({ inpost }: Props) {
   const [zapisywanie, setZapisywanie] = useState(false)
 
   /**
-   * Krok 1 - prośba o SMS. NIE idzie przez funkcję brzegową.
-   *
-   * `POST /v1/sendSMSCode` - kontrakt zmieniony 2026-09-18 na wzór aktywnie
-   * rozwijanej integracji `ha-parcel-integrations/ha-inpost` (potwierdzonej na
-   * żywym koncie 2026-08-15), po tym jak stary `POST /v1/account` (z
-   * referencyjnej biblioteki `IFOSSA/inpost-python`, kilka lat nieaktualnej)
-   * zwracał 200, ale NIGDY nie dostarczał SMS-a - potwierdzone żywym testem,
-   * patrz pamięć projektu "kokpit-plan-budowy". Wciąż nieoficjalne, reverse
-   * engineered API - jeśli i ten kontrakt zawiedzie, tam jest pełna diagnoza.
+   * Krok 1 - prośba o SMS. NIE idzie przez funkcję brzegową, i NIE idzie
+   * przez zwykły `fetch()` Node.js po drugiej stronie proxy - patrz
+   * `vite.config.ts`: Cloudflare przed InPostem blokuje to zadanie z Node.js
+   * (200 bez realnego skutku), więc serwer deweloperski uruchamia zamiast
+   * tego Pythona (`scripts/wyslij_sms_inpost.py`) - żywo potwierdzone
+   * dwukrotnie 2026-09-18, patrz pamięć projektu "kokpit-plan-budowy".
    * Przeglądarka nie może zawołać InPostu wprost - preflight CORS dostaje 403
-   * - więc idziemy przez proxy serwera deweloperskiego, patrz `vite.config.ts`.
+   * - więc i tak musi iść przez serwer deweloperski, tylko realną robotę
+   * wykonuje tam Python, nie Node.
    *
    * Bramka logowania Supabase nie ma tu czego chronić - żądanie wychodzi z
    * maszyny domownika, a nie z naszej funkcji. Ale sam formularz przyjmuje
