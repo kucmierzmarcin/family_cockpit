@@ -4,11 +4,11 @@ import type { ZapytanieGemini } from './importAI'
 
 const ZAPYTANIE: ZapytanieGemini = {
   model: 'gemini-3.6-flash',
-  system_instruction: { parts: [{ text: 'test' }] },
+  systemInstruction: { parts: [{ text: 'test' }] },
   contents: [{ role: 'user', parts: [{ text: 'test' }] }],
-  tools: [{ function_declarations: [] }],
-  tool_config: { function_calling_config: { mode: 'ANY', allowed_function_names: ['zwroc_pozycje'] } },
-  generationConfig: { maxOutputTokens: 100, thinkingConfig: { thinkingBudget: 0 } },
+  tools: [{ functionDeclarations: [] }],
+  toolConfig: { functionCallingConfig: { mode: 'ANY', allowedFunctionNames: ['zwroc_pozycje'] } },
+  generationConfig: { maxOutputTokens: 100, thinkingConfig: { thinkingLevel: 'minimal' } },
 }
 
 afterEach(() => {

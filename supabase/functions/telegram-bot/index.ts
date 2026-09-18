@@ -1,4 +1,4 @@
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
 import {
   WSPOLNE,
   budujZapytanieBota,
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
 })
 
 async function obsluzStart(
-  baza: ReturnType<typeof createClient>,
+  baza: SupabaseClient,
   chatId: number,
   tekst: string,
 ): Promise<void> {
@@ -122,7 +122,7 @@ async function obsluzStart(
 }
 
 async function obsluzPotwierdzenie(
-  baza: ReturnType<typeof createClient>,
+  baza: SupabaseClient,
   domownik: Domownik,
   chatId: number,
   tekst: string,
@@ -251,7 +251,7 @@ async function obsluzPotwierdzenie(
 }
 
 async function obsluzWiadomosc(
-  baza: ReturnType<typeof createClient>,
+  baza: SupabaseClient,
   domownik: Domownik,
   chatId: number,
   tekst: string,
@@ -344,7 +344,7 @@ async function obsluzWiadomosc(
  * przeciwienstwie do zakupow/notatek dostaje zawsze potwierdzenie.
  */
 async function obsluzUsuniecie(
-  baza: ReturnType<typeof createClient>,
+  baza: SupabaseClient,
   domownik: Domownik,
   chatId: number,
   opis: string,
@@ -387,7 +387,7 @@ async function obsluzUsuniecie(
  * cyklicznej - obsluguje to `edytuj_wydarzenie_bota` w bazie.
  */
 async function obsluzEdycje(
-  baza: ReturnType<typeof createClient>,
+  baza: SupabaseClient,
   domownik: Domownik,
   chatId: number,
   opis: string,
@@ -440,7 +440,7 @@ async function obsluzEdycje(
  * albo kilka list -> pyta uzytkownika, nic nie zapisuje.
  */
 async function obsluzZakupy(
-  baza: ReturnType<typeof createClient>,
+  baza: SupabaseClient,
   domownik: Domownik,
   chatId: number,
   listy: ListaZakupow[],
@@ -501,7 +501,7 @@ async function obsluzZakupy(
 
 /** Dodaje notatke na tablice - zapisuje sie od razu, bez potwierdzenia tak/nie. */
 async function obsluzNotatke(
-  baza: ReturnType<typeof createClient>,
+  baza: SupabaseClient,
   domownik: Domownik,
   chatId: number,
   notatka: ProponowanaNotatka,
@@ -516,7 +516,7 @@ async function obsluzNotatke(
 }
 
 async function pobierzCzlonkow(
-  baza: ReturnType<typeof createClient>,
+  baza: SupabaseClient,
   householdId: string,
 ): Promise<Map<string, string>> {
   const { data } = await baza.from('members').select('id, name').eq('household_id', householdId)
@@ -525,12 +525,12 @@ async function pobierzCzlonkow(
 
 /** Imiona obecnie przypisanych do wydarzenia osob - [WSPOLNE], gdy nikt nie jest przypisany. */
 async function pobierzOsobyWydarzenia(
-  baza: ReturnType<typeof createClient>,
+  baza: SupabaseClient,
   eventId: string,
 ): Promise<string[]> {
   const { data } = await baza.from('event_members').select('members(name)').eq('event_id', eventId)
-  const nazwy = (data ?? [])
-    .map((w: { members: { name: string } | null }) => w.members?.name)
+  const nazwy = ((data ?? []) as unknown as { members: { name: string } | null }[])
+    .map((w) => w.members?.name)
     .filter((n): n is string => Boolean(n))
   return nazwy.length > 0 ? nazwy : [WSPOLNE]
 }

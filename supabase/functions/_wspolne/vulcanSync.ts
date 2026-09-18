@@ -204,7 +204,7 @@ export async function synchronizujDom(
           `Ostrzeżenie: ${zmiany.length} zmian planu dla ucznia ${uczen.id} bez scheduleId - możliwy brak/inna nazwa pola.`,
         )
       } else if (zmianyPoScheduleId.size > 0) {
-        const dopasowane = lekcjePrzefiltrowane.filter((l) => zmianyPoScheduleId.has(l.id)).length
+        const dopasowane = lekcjePrzefiltrowane.filter((l) => l.id != null && zmianyPoScheduleId.has(l.id)).length
         if (dopasowane === 0) {
           // scheduleId nie trafia w żadną lekcję z TEGO SAMEGO okna - albo
           // zmiana dotyczy dnia poza oknem 4 tygodni, albo (jak wcześniej z
@@ -216,7 +216,7 @@ export async function synchronizujDom(
       }
 
       const wierszePlanu = lekcjePrzefiltrowane.map((l) => {
-        const zmiana = zmianyPoScheduleId.get(l.id)
+        const zmiana = l.id != null ? zmianyPoScheduleId.get(l.id) : undefined
         const zmieniona = Boolean(l.change) || Boolean(zmiana)
         return {
           student_id: uczen.id,

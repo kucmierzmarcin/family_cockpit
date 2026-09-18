@@ -33,3 +33,7 @@ dist-ssr
 
 # Cache Supabase CLI
 supabase/.temp/
+
+# Lockfile Deno - `npm run check:functions` go dopisuje, ale dubluje czesc
+# package-lock.json (Deno skanuje tez package.json appki mimo --node-modules-dir=none)
+deno.lock

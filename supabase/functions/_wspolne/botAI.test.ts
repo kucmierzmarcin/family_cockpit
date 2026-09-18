@@ -40,7 +40,7 @@ describe('budujZapytanieBota', () => {
     const zakupy = z.tools[0].functionDeclarations.find(
       (n: { name: string }) => n.name === 'dodaj_pozycje_zakupow',
     )
-    expect(zakupy.parameters.properties.lista.enum).toEqual(['Zakupy', 'Apteka'])
+    expect(zakupy!.parameters.properties.lista!.enum).toEqual(['Zakupy', 'Apteka'])
   })
 
   it('bez enuma pola "lista", gdy zaden dom nie ma jeszcze listy', () => {
@@ -48,7 +48,7 @@ describe('budujZapytanieBota', () => {
     const zakupy = z.tools[0].functionDeclarations.find(
       (n: { name: string }) => n.name === 'dodaj_pozycje_zakupow',
     )
-    expect(zakupy.parameters.properties.lista.enum).toBeUndefined()
+    expect(zakupy!.parameters.properties.lista!.enum).toBeUndefined()
   })
 })
 
