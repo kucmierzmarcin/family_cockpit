@@ -10,6 +10,18 @@ import { jestWywolaniemSerwisowym } from '../_wspolne/autoryzacjaSerwisowa.ts'
 
 const HOST = 'https://api-inmobile-pl.easypack24.net'
 
+// Naglowki 1:1 jak w `ha-parcel-integrations/ha-inpost` (potwierdzone na
+// zywym koncie 2026-08-15) - patrz `inpost-polacz/index.ts`. Wczesniej te
+// dwa wywolania (odswiezenie tokenu, pobranie paczek) nie mialy ZADNEGO
+// User-Agenta - jesli InPost/Cloudflare rozpoznaje klienta wlasnie po tym
+// naglowku, byla to osobna przyczyna cichych awarii synchronizacji.
+const NAGLOWKI_INPOST = {
+  'Content-Type': 'application/json',
+  Accept: 'application/json',
+  'User-Agent': 'InPost-Mobile/3.27.2 (Android 14; SDK 34) okhttp/4.11.0',
+  'X-Api-Version': '1',
+}
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -53,7 +65,7 @@ async function synchronizujPolaczenia(baza: SupabaseClient, polaczenia: Polaczen
       // dodatkowy request na pół godziny).
       const odswiez = await fetch(`${HOST}/v1/authenticate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: NAGLOWKI_INPOST,
         body: JSON.stringify({ refreshToken: p.refresh_token, phoneOS: 'Android' }),
       })
 
@@ -97,8 +109,8 @@ async function synchronizujPolaczenia(baza: SupabaseClient, polaczenia: Polaczen
         throw new Error(`Zapis odświeżonego tokenu nie powiódł się: ${bladZapisuTokenu.message}`)
       }
 
-      const odp = await fetch(`${HOST}/v4/parcels/tracked`, {
-        headers: { Authorization: authToken },
+      const odp = await fetch(`${HOST}/v3/parcels/tracked`, {
+        headers: { ...NAGLOWKI_INPOST, Authorization: authToken },
       })
       if (!odp.ok) throw new Error(`Pobranie paczek nie powiodło się (HTTP ${odp.status}).`)
 

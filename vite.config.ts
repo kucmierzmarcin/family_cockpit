@@ -13,12 +13,20 @@ export default defineConfig({
   server: {
     proxy: {
       // Wysłanie SMS-a z kodem InPostu MUSI wyjść z łącza domownika, nie z
-      // serwerowni Supabase: sprawdzone doświadczalnie - to samo żądanie
-      // wysłane przez funkcję brzegową dostaje HTTP 200 i nie wysyła nic,
-      // a wysłane stąd wysyła SMS. Przeglądarka nie może zawołać InPostu
-      // bezpośrednio (preflight CORS dostaje 403, a jedyny typ treści bez
-      // preflightu - text/plain - API odrzuca), więc pośredniczy Vite:
-      // strona woła własny adres, a Node przekazuje żądanie dalej.
+      // serwerowni Supabase: z serwerowni to żądanie dostaje HTTP 200 i nie
+      // wysyła nic. Przeglądarka nie może zawołać InPostu bezpośrednio
+      // (preflight CORS dostaje 403, a jedyny typ treści bez preflightu -
+      // text/plain - API odrzuca), więc pośredniczy Vite: strona woła własny
+      // adres, a Node przekazuje żądanie dalej.
+      //
+      // Endpoint/nagłówki zmienione 2026-09-18 na wzór aktywnie rozwijanej
+      // integracji `ha-parcel-integrations/ha-inpost` (potwierdzonej na żywym
+      // koncie 2026-08-15), po tym jak stary kontrakt (referencyjna biblioteka
+      // `IFOSSA/inpost-python`, kilka lat nieaktualna) zwracał 200 z tego
+      // proxy I ze zwykłego `fetch()` z Node.js z tej samej domowej sieci, ale
+      // NIGDY nie dostarczał SMS-a - patrz pamięć projektu
+      // "kokpit-plan-budowy" po pełną diagnozę. Wciąż nieoficjalne, reverse
+      // engineered API - brak gwarancji, że i ten kontrakt przetrwa.
       //
       // UWAGA: to działa TYLKO przy `npm run dev`. Zbudowana, wdrożona
       // aplikacja nie ma tego proxy - patrz README, sekcja o InPoście.
@@ -30,11 +38,13 @@ export default defineConfig({
         // czytania strumienia body. InPost go nie widzi: `rewrite` ucina
         // wszystko od `?` przed przekazaniem dalej.
         rewrite: (sciezka) => sciezka.replace(/^\/inpost-api/, '').replace(/\?.*$/, ''),
-        // Nagłówek aplikacji mobilnej - taki sam, jakim posłużyło się
-        // żądanie, które faktycznie dostarczyło SMS. Przeglądarka nie może
-        // ustawić `User-Agent` sama, więc dokłada go proxy.
+        // Nagłówki aplikacji mobilnej - identyczne z `ha-parcel-integrations/ha-inpost`
+        // (potwierdzone na żywym koncie 2026-08-15). Przeglądarka nie może
+        // ustawić żadnego z nich sama, więc dokłada je proxy.
         headers: {
-          'User-Agent': 'InPost-Mobile/3.23.0(32300001) (Android 9; unknown; unknown unknown; en)',
+          'User-Agent': 'InPost-Mobile/3.27.2 (Android 14; SDK 34) okhttp/4.11.0',
+          'X-Api-Version': '1',
+          Accept: 'application/json',
         },
         // Rate-limiting: bez tego zalogowany domownik mógłby tym proxy
         // zbombardować SMS-ami dowolny numer telefonu, nie tylko własny.

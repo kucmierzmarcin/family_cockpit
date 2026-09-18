@@ -11,12 +11,14 @@ const CORS_HEADERS = {
 
 type Cialo = { phone?: string; kod?: string }
 
-// Naglowki 1:1 jak w aplikacji mobilnej (za `IFOSSA/inpost-python`). `charset`
-// w Content-Type i User-Agent nie sa ozdoba - to jedyne, czym to API odroznia
-// swojego klienta; wysylamy je, zeby nie roznic sie od dzialajacej referencji.
+// Naglowki 1:1 jak w `ha-parcel-integrations/ha-inpost` (potwierdzone na
+// zywym koncie 2026-08-15) - to jedyne, czym to API odroznia swojego klienta;
+// wysylamy je, zeby nie roznic sie od dzialajacej referencji.
 const NAGLOWKI_INPOST = {
-  'Content-Type': 'application/json; charset=UTF-8',
-  'User-Agent': 'InPost-Mobile/3.23.0(32300001) (Android 9; unknown; unknown unknown; en)',
+  'Content-Type': 'application/json',
+  Accept: 'application/json',
+  'User-Agent': 'InPost-Mobile/3.27.2 (Android 14; SDK 34) okhttp/4.11.0',
+  'X-Api-Version': '1',
 }
 
 function bladJson(tekst: string, status: number): Response {
@@ -52,13 +54,18 @@ Deno.serve(async (req) => {
   // Ta funkcja miala kiedys drugi krok, 'sms', ktory prosil InPost o kod.
   // Zostal usuniety, bo z serwerowni nie dziala: InPost odpowiada 200 i nie
   // wysyla nic. Prosba o kod idzie dzis wprost z przegladarki domownika przez
-  // proxy serwera deweloperskiego (patrz `vite.config.ts`).
+  // proxy serwera deweloperskiego (patrz `vite.config.ts`). Stary kontrakt
+  // (`/v1/account`) nie dostarczal SMS-a z ZADNEJ drogi (ani stad, ani z
+  // przegladarki) - 2026-09-18 przepiety na nowy, zywo potwierdzony kontrakt
+  // (`/v1/sendSMSCode`+`/v1/confirmSMSCode`), patrz pamiec projektu
+  // "kokpit-plan-budowy" po pelna diagnoze i zastrzezenia.
   //
-  // GDYBY ktos kiedys chcial ten krok tu przywrocic: bramka ponizej MUSI
-  // obowiazywac takze jego. Zapytanie o kod wysyla realny SMS pod dowolny
-  // numer, a klucz anon jest publiczny - "wymagany JWT" na poziomie platformy
-  // Supabase sam z siebie nie zatrzyma nikogo, kto chcialby uzyc tej funkcji
-  // do bombardowania SMS-ami cudzych numerow.
+  // GDYBY ktos kiedys chcial ten krok tu przywrocic (albo naprawic obecna
+  // sciezke): bramka ponizej MUSI obowiazywac takze jego. Zapytanie o kod
+  // wysyla realny SMS pod dowolny numer, a klucz anon jest publiczny -
+  // "wymagany JWT" na poziomie platformy Supabase sam z siebie nie zatrzyma
+  // nikogo, kto chcialby uzyc tej funkcji do bombardowania SMS-ami cudzych
+  // numerow.
   const autoryzacja = req.headers.get('Authorization')
   if (!autoryzacja) return bladJson('Brak autoryzacji.', 401)
 
@@ -87,7 +94,7 @@ Deno.serve(async (req) => {
 
   let odp: Response
   try {
-    odp = await fetch(`${HOST}/v1/account/verification`, {
+    odp = await fetch(`${HOST}/v1/confirmSMSCode`, {
       method: 'POST',
       headers: NAGLOWKI_INPOST,
       body: JSON.stringify(cialoPotwierdzeniaKodu(phone, kod)),

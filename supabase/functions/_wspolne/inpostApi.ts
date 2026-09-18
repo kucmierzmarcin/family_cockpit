@@ -1,5 +1,5 @@
 /**
- * Mapowanie odpowiedzi API InPostu (`/v4/parcels/tracked`) na wiersze bazy.
+ * Mapowanie odpowiedzi API InPostu (`/v3/parcels/tracked`) na wiersze bazy.
  *
  * Ten plik nie importuje NICZEGO - ani z `src/`, ani z Deno. Dzięki temu
  * testuje się zwykłym vitestem, bez sieci i bez mockowania.
@@ -36,7 +36,7 @@ export function czekaNaOdbior(status: string): boolean {
  *
  * POPRZEDNIA wersja nazywala sie STATUSY_KONCOWE i miala osiem pozycji -
  * zakladala, ze paczka jest albo "czeka", albo "zakonczona". To bylo falszywe:
- * `/v4/parcels/tracked` zwraca rowniez paczki W DRODZE (`ADOPTED_AT_SORTING_CENTER`,
+ * `/v3/parcels/tracked` zwraca rowniez paczki W DRODZE (`ADOPTED_AT_SORTING_CENTER`,
  * `OUT_FOR_DELIVERY`...), wiec pierwsza przesylka w tranzycie wywolalaby falszywy
  * alarm o zmianie API. Dlatego tu jest caly slownik, a nie jego wycinek.
  */
@@ -151,7 +151,7 @@ export function rozpoznanyKsztaltOdpowiedzi(odpowiedz: unknown): boolean {
  * odbioru" → „Gotowa do odbioru 24/7").
  *
  * WCZEŚNIEJSZA wersja tej funkcji uznawała za podejrzane KAŻDE `wiersze:
- * []` przy niepustym `parcels` - ale `/v4/parcels/tracked` z założenia
+ * []` przy niepustym `parcels` - ale `/v3/parcels/tracked` z założenia
  * zwraca też paczki w stanach końcowych i w drodze (patrz `STATUSY_ZNANE`), więc
  * domownik, który ma w danej chwili WYŁĄCZNIE paczki już odebrane/zwrócone,
  * dawał dokładnie taki wynik (`wiersze: []`, `parcels` niepuste) i był
@@ -195,7 +195,7 @@ export function statusyNierozpoznane(odpowiedz: unknown): string[] {
 }
 
 /**
- * Odpowiedź `/v4/parcels/tracked` na wiersze `inpost_parcels`.
+ * Odpowiedź `/v3/parcels/tracked` na wiersze `inpost_parcels`.
  *
  * `unknown` na wejściu, bo to cudze, nieoficjalne API - kształt może się
  * zmienić bez uprzedzenia i wolimy pustą listę niż wyjątek w cronie. Wołający,
@@ -224,33 +224,27 @@ export function naWierszePaczek(odpowiedz: unknown): WierszPaczki[] {
 }
 
 /**
- * Numer telefonu w kształcie, jakiego wymaga API logowania: OBIEKT
- * `{prefix, value}`, nie string.
+ * Ciało `POST /v1/sendSMSCode` - prośba o SMS z kodem.
  *
- * To nie jest kosmetyka - na tym poległo pierwsze parowanie. `POST /v1/account`
- * z `{"phoneNumber": "600100200"}` zwraca **HTTP 500 z pustym ciałem** (pole jest
- * rozpoznane, ale typ się nie zgadza i deserializacja wywala się za walidacją),
- * podczas gdy `{"phoneNumber": {"prefix": "+48", "value": "600100200"}}` zwraca
- * 200. Dla kontrastu nieznane pole (`{"phone": ...}`) daje uczciwe 400 - czyli
- * 500 było JEDYNYM sygnałem, że kształt jest zły, i wyglądało jak awaria
- * InPostu. Stąd testy poniżej: pilnują struktury, nie ładnych napisów.
+ * Kontrakt zmieniony 2026-09-18: wcześniejszy `POST /v1/account` z numerem
+ * jako obiekt `{prefix, value}` (z referencyjnej biblioteki `IFOSSA/inpost-python`,
+ * zbudowanej pod stary, kilka lat nieaktualny endpoint) zwracał HTTP 200, ale
+ * nigdy nie dostarczał SMS-a - potwierdzone żywym testem, patrz pamięć
+ * projektu "kokpit-plan-budowy". Nowy endpoint (na wzór aktywnie rozwijanej
+ * integracji `ha-parcel-integrations/ha-inpost`, potwierdzonej na żywym
+ * koncie 2026-08-15) chce numeru jako PŁASKIEGO stringu.
  */
-export function numerDlaApi(phone: string): { prefix: string; value: string } {
-  return { prefix: '+48', value: phone }
-}
-
-/** Ciało `POST /v1/account` - prośba o SMS z kodem. */
 export function cialoWyslaniaKodu(phone: string): Record<string, unknown> {
-  return { phoneNumber: numerDlaApi(phone) }
+  return { phoneNumber: phone }
 }
 
 /**
- * Ciało `POST /v1/account/verification` - potwierdzenie kodu.
+ * Ciało `POST /v1/confirmSMSCode` - potwierdzenie kodu.
  *
- * Uwaga na nazwę pola: tutaj platforma nazywa się `devicePlatform`, a w
- * `POST /v1/authenticate` (odswiezenie tokenu w `inpost-sync`) ta sama wartość
- * jedzie jako `phoneOS`. Niekonsekwencja jest po stronie API, nie nasza.
+ * Platforma nazywa się tu `phoneOS` - ten sam klucz co w `POST /v1/authenticate`
+ * (odświeżenie tokenu w `inpost-sync`), w odróżnieniu od starego kontraktu
+ * `/v1/account/verification`, który używał `devicePlatform`.
  */
 export function cialoPotwierdzeniaKodu(phone: string, kod: string): Record<string, unknown> {
-  return { smsCode: kod, devicePlatform: 'Android', phoneNumber: numerDlaApi(phone) }
+  return { phoneNumber: phone, smsCode: kod, phoneOS: 'Android' }
 }

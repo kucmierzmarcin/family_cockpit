@@ -71,10 +71,15 @@ export function ParowanieInpost({ inpost }: Props) {
   /**
    * Krok 1 - prośba o SMS. NIE idzie przez funkcję brzegową.
    *
-   * InPost odpowiada 200 i nie wysyła nic, gdy żądanie przychodzi z serwerowni
-   * (sprawdzone: to samo żądanie z łącza domowego wysyła SMS). Przeglądarka nie
-   * może zawołać InPostu wprost - preflight CORS dostaje 403 - więc idziemy
-   * przez proxy serwera deweloperskiego, patrz `vite.config.ts`.
+   * `POST /v1/sendSMSCode` - kontrakt zmieniony 2026-09-18 na wzór aktywnie
+   * rozwijanej integracji `ha-parcel-integrations/ha-inpost` (potwierdzonej na
+   * żywym koncie 2026-08-15), po tym jak stary `POST /v1/account` (z
+   * referencyjnej biblioteki `IFOSSA/inpost-python`, kilka lat nieaktualnej)
+   * zwracał 200, ale NIGDY nie dostarczał SMS-a - potwierdzone żywym testem,
+   * patrz pamięć projektu "kokpit-plan-budowy". Wciąż nieoficjalne, reverse
+   * engineered API - jeśli i ten kontrakt zawiedzie, tam jest pełna diagnoza.
+   * Przeglądarka nie może zawołać InPostu wprost - preflight CORS dostaje 403
+   * - więc idziemy przez proxy serwera deweloperskiego, patrz `vite.config.ts`.
    *
    * Bramka logowania Supabase nie ma tu czego chronić - żądanie wychodzi z
    * maszyny domownika, a nie z naszej funkcji. Ale sam formularz przyjmuje
@@ -98,7 +103,7 @@ export function ParowanieInpost({ inpost }: Props) {
       // `?tel=` powtarza numer z body wyłącznie do odczytu przez rate-limiter
       // proxy (patrz vite.config.ts) - samego żądania do InPostu nie zmienia,
       // `rewrite` proxy ucina go przed przekazaniem dalej.
-      const odp = await fetch(`/inpost-api/v1/account?tel=${numer}`, {
+      const odp = await fetch(`/inpost-api/v1/sendSMSCode?tel=${numer}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json; charset=UTF-8' },
         body: JSON.stringify(cialoWyslaniaKodu(numer)),

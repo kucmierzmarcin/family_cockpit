@@ -120,17 +120,25 @@ wciągnąć do nowo założonego domu.
    - Domownik paruje numer telefonu na ekranie **„Mój dom"** (SMS + kod) — nie
      wymaga roli rodzica, w odróżnieniu od Vulcana. Zakładka „Paczki" pokazuje
      wyłącznie listę przesyłek.
-   - **Parowanie wymaga aplikacji uruchomionej lokalnie (`npm run dev`).**
-     InPost przyjmuje prośbę o kod SMS wysłaną z serwerowni (odpowiada HTTP
-     200), ale wtedy żadnego SMS-a nie wysyła — to samo żądanie z łącza
-     domowego SMS wysyła. Przeglądarka nie może zawołać InPostu wprost
-     (preflight CORS dostaje 403, a jedyny typ treści bez preflightu,
-     `text/plain`, API odrzuca), więc ten jeden krok idzie przez proxy serwera
-     deweloperskiego — `server.proxy['/inpost-api']` w `vite.config.ts`.
-     Potwierdzenie kodu leci już normalnie przez funkcję brzegową, żeby tokeny
-     InPostu trafiły prosto do bazy i nigdy nie przeszły przez przeglądarkę.
-     W zbudowanej, wdrożonej aplikacji tego proxy nie ma i parowanie się nie
-     uda — synchronizacja już sparowanego numeru działa wszędzie.
+   - **Parowanie (krok „wyślij kod SMS") - kontrakt API przepięty 2026-09-18,
+     wynik jeszcze niepotwierdzony żywym testem.** Stary kontrakt
+     (`POST /v1/account`, z referencyjnej biblioteki `IFOSSA/inpost-python`,
+     kilka lat nieaktualnej) zwracał HTTP 200 z każdej drogi (proxy, zwykły
+     skrypt Node.js z domowej sieci) i NIGDY nie dostarczał SMS-a - pełna
+     diagnoza w pamięci projektu „kokpit-plan-budowy". Zamieniony na kontrakt
+     `POST /v1/sendSMSCode` + `POST /v1/confirmSMSCode` (nagłówki i kształt
+     ciała jak w aktywnie rozwijanej integracji Home Assistant
+     `ha-parcel-integrations/ha-inpost`, jej `CLAUDE.md` deklaruje
+     potwierdzenie na żywym koncie 2026-08-15). To wciąż nieoficjalne, reverse
+     engineered API - brak gwarancji, że ten kontrakt przetrwa dłużej niż
+     poprzedni. Przeglądarka nie może zawołać InPostu wprost (preflight CORS
+     dostaje 403, a jedyny typ treści bez preflightu, `text/plain`, API
+     odrzuca), więc ten krok idzie przez proxy serwera deweloperskiego —
+     `server.proxy['/inpost-api']` w `vite.config.ts`. Potwierdzenie kodu leci
+     już normalnie przez funkcję brzegową, żeby tokeny InPostu trafiły prosto
+     do bazy i nigdy nie przeszły przez przeglądarkę. W zbudowanej, wdrożonej
+     aplikacji tego proxy nie ma i parowanie się nie uda; synchronizacja już
+     sparowanego numeru działa wszędzie.
 
 ## Struktura
 

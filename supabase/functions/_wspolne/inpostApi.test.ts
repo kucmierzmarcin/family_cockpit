@@ -4,7 +4,6 @@ import {
   cialoWyslaniaKodu,
   czekaNaOdbior,
   naWierszePaczek,
-  numerDlaApi,
   rozpoznanyKsztaltOdpowiedzi,
   statusyNierozpoznane,
   statusyZOdpowiedzi,
@@ -199,7 +198,7 @@ describe('statusyNierozpoznane', () => {
 describe('statusy w drodze', () => {
   it('paczka w tranzycie to ZNANY status, nie sygnal zmiany API', () => {
     // Regresja: pierwsza wersja dzielila swiat na "czeka" i "zakonczona", a
-    // `/v4/parcels/tracked` zwraca tez paczki jadace do punktu. Pierwsza taka
+    // `/v3/parcels/tracked` zwraca tez paczki jadace do punktu. Pierwsza taka
     // przesylka wywolalaby falszywy alarm i zablokowala cala synchronizacje.
     const wDrodze = {
       parcels: [
@@ -219,30 +218,24 @@ describe('statusy w drodze', () => {
 })
 
 describe('cialo zadan logowania', () => {
-  it('wysyla numer jako obiekt {prefix, value}, nie jako string', () => {
-    // Regresja: plaski string dawal HTTP 500 z pustym cialem - patrz komentarz
-    // przy `numerDlaApi`. Sprawdzamy STRUKTURE, bo to ona decyduje.
-    expect(cialoWyslaniaKodu('600100200')).toEqual({
-      phoneNumber: { prefix: '+48', value: '600100200' },
-    })
-    expect(typeof (cialoWyslaniaKodu('600100200') as { phoneNumber: unknown }).phoneNumber).toBe(
-      'object',
-    )
+  // Kontrakt zmieniony 2026-09-18 na wzor `ha-parcel-integrations/ha-inpost`
+  // (potwierdzone na zywym koncie 2026-08-15) - POST /v1/sendSMSCode i
+  // POST /v1/confirmSMSCode chca numeru jako PLASKIEGO stringu, nie obiektu
+  // {prefix, value}. Stary kontrakt (POST /v1/account) nigdy nie dostarczal
+  // SMS-a mimo HTTP 200 - patrz pamiec projektu "kokpit-plan-budowy".
+  it('wysyla numer jako plaski string, nie jako obiekt {prefix, value}', () => {
+    expect(cialoWyslaniaKodu('600100200')).toEqual({ phoneNumber: '600100200' })
   })
 
-  it('potwierdzenie niesie kod, devicePlatform i ten sam obiekt numeru', () => {
+  it('potwierdzenie niesie plaski numer, kod i phoneOS', () => {
     expect(cialoPotwierdzeniaKodu('600100200', '123456')).toEqual({
+      phoneNumber: '600100200',
       smsCode: '123456',
-      devicePlatform: 'Android',
-      phoneNumber: { prefix: '+48', value: '600100200' },
+      phoneOS: 'Android',
     })
   })
 
-  it('nie nazywa platformy `phoneOS` - tak nazywa sie ona dopiero w /v1/authenticate', () => {
-    expect(cialoPotwierdzeniaKodu('600100200', '123456')).not.toHaveProperty('phoneOS')
-  })
-
-  it('doklada polski prefiks osobno, zamiast wklejac go do numeru', () => {
-    expect(numerDlaApi('600100200')).toEqual({ prefix: '+48', value: '600100200' })
+  it('nie uzywa juz `devicePlatform` - ten sam klucz `phoneOS` co /v1/authenticate', () => {
+    expect(cialoPotwierdzeniaKodu('600100200', '123456')).not.toHaveProperty('devicePlatform')
   })
 })
