@@ -53,7 +53,7 @@ function dataIso(d: Date): string {
  * "Ostatni wygrywa" jest tu celowe: łączymy plan lekcji ze zmianami w tej
  * kolejności, więc zmiana nadal nadpisuje zwykłą lekcję.
  */
-function bezDuplikatow<T>(wiersze: T[], klucz: (w: T) => string): T[] {
+export function bezDuplikatow<T>(wiersze: T[], klucz: (w: T) => string): T[] {
   const mapa = new Map<string, T>()
   for (const w of wiersze) mapa.set(klucz(w), w)
   return Array.from(mapa.values())
@@ -246,10 +246,19 @@ export async function synchronizujDom(
         throw new Error(`Czyszczenie planu lekcji nie powiodło się: ${bladKasowania.message}`)
       }
 
-      if (wierszePlanu.length > 0) {
+      // Vulcan potrafi zwrocic dwie lekcje w tym samym slocie planu (np. grupy
+      // jezykowe/WF dzielone na tym samym dniu i godzinie) - bez deduplikacji
+      // po kluczu konfliktu upsert wywali sie na "cannot affect row a second
+      // time" (patrz `bezDuplikatow` wyzej; ten sam wzorzec co przy
+      // sprawdzianach/zadaniach/frekwencji/wiadomosciach nizej w tym pliku).
+      const wierszePlanuBezDuplikatow = bezDuplikatow(
+        wierszePlanu,
+        (w) => `${w.student_id}|${w.lesson_date}|${w.start_time}`,
+      )
+      if (wierszePlanuBezDuplikatow.length > 0) {
         const { error: bladZapisu } = await baza
           .from('vulcan_lessons')
-          .upsert(wierszePlanu, { onConflict: 'student_id,lesson_date,start_time' })
+          .upsert(wierszePlanuBezDuplikatow, { onConflict: 'student_id,lesson_date,start_time' })
         if (bladZapisu) throw new Error(`Zapis planu lekcji nie powiódł się: ${bladZapisu.message}`)
       }
 
