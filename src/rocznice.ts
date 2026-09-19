@@ -5,10 +5,13 @@
  * (wzorem `blokiSzkolne()` w `vulcan.ts`) - patrz spec
  * docs/superpowers/specs/2026-09-19-rocznice-design.md.
  *
- * Ten plik nie importuje NICZEGO poza typem `Wydarzenie` (sam typ, bez
- * runtime'u) - testuje się zwykłym vitestem, tak jak `terminy.ts`.
+ * Ten plik importuje tylko małe, już przetestowane funkcje pomocnicze z
+ * `czas.ts` i `dates.ts` (`nastepnyDzien`, `dlugaData`) plus typ `Wydarzenie`
+ * - wciąż testuje się zwykłym vitestem, bez zależności od komponentów ani
+ * runtime'u, tak jak `terminy.ts`.
  */
 import { nastepnyDzien } from './czas'
+import { dlugaData } from './dates'
 import type { Wydarzenie } from './useWydarzenia'
 
 export type TypRocznicy = 'urodziny' | 'imieniny' | 'rocznica' | 'inne'
@@ -106,10 +109,7 @@ function tytulWystapienia(r: Rocznica, rokDocelowy: number): string {
 /** Data samej rocznicy do wyświetlenia w tabeli, np. "8 maja" - bez roku,
  * bo rocznica powtarza się co roku niezależnie od niego. */
 export function formatujDataRocznicy(dzien: number, miesiac: number): string {
-  return new Date(2000, miesiac - 1, dzien).toLocaleDateString('pl-PL', {
-    day: 'numeric',
-    month: 'long',
-  })
+  return dlugaData(new Date(2000, miesiac - 1, dzien))
 }
 
 /**
@@ -126,6 +126,7 @@ export function wydarzeniaRocznic(rocznice: Rocznica[], teraz: Date = new Date()
   const wydarzenia: Wydarzenie[] = []
   for (const r of rocznice) {
     for (const rok of lata) {
+      if (r.rok !== null && rok < r.rok) continue
       const dzien = dzienWystapienia(r, rok)
       const start = new Date(rok, r.miesiac - 1, dzien)
       wydarzenia.push({

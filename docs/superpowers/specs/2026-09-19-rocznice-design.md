@@ -108,7 +108,7 @@ z ikony typu i nazwy, z wiekiem w nawiasie gdy `rok` jest podane:
 | urodziny | 🎂 | „🎂 Urodziny — Zuzia (10 lat)" | „🎂 Urodziny — Zuzia" |
 | imieniny | 🎉 | „🎉 Imieniny — Zuzia" | (rok bez znaczenia, pomijany) |
 | rocznica | 💍 | „💍 Rocznica — Ślub rodziców (15 lat)" | „💍 Rocznica — Ślub rodziców" |
-| inne | 📌 | „📌 Babcia — wizyta doroczna" | (jak wyżej) |
+| inne | 📌 | „📌 Inne — Babcia — wizyta doroczna" | (jak wyżej) |
 
 Wiek liczony jako `rok_docelowy - rok`, tylko dla typu `urodziny`/`rocznica` -
 dla `imieniny`/`inne` rok, nawet jeśli podany, nie wpływa na tytuł (nie ma

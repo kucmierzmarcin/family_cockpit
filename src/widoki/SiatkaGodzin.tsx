@@ -13,6 +13,7 @@ import {
 import { klucz } from '../dates'
 import { barwyWydarzenia } from '../osoby'
 import { KropkiOsob } from './KropkiOsob'
+import { paskiCalodniowe } from './paskiCalodniowe'
 
 /** Wysokość jednej godziny w pikselach - stąd biorą się pozycje bloków, gdy
  *  siatka się przewija (telefon, wąski ekran). */
@@ -87,9 +88,7 @@ export function SiatkaGodzin({
 
   // Wydarzenia całodniowe i te ciągnące się przez kilka dni idą paskiem nad
   // siatką - w kolumnie godzin nie dałoby się ich sensownie narysować.
-  const paskowe = wydarzenia.filter(
-    (w) => (w.calodniowe || !wJednymDniu(w)) && nachodzi(w, odZakresu, doZakresu),
-  )
+  const paskowe = paskiCalodniowe(wydarzenia, odZakresu, doZakresu)
   const godzinne = wydarzenia.filter((w) => !w.calodniowe && wJednymDniu(w))
 
   // Pełna doba, chyba że wypelnijOkno - wtedy tylko rozsądne okno, rozszerzane

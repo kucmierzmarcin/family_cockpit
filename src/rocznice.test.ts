@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   dzienPoprawny,
   formatujDataRocznicy,
+  ikonaTypu,
+  nazwaTypu,
   posortujRocznice,
   wydarzeniaRocznic,
   type Rocznica,
@@ -102,6 +104,40 @@ describe('wydarzeniaRocznic', () => {
       )
       expect(biezacy.tytul).toContain(`${wiek} ${oczekiwane}`)
     }
+  })
+
+  it('nie pokazuje wystapienia sprzed podanego roku (bez ujemnego wieku)', () => {
+    // 'teraz' = 2026-01-01, wiec lata do rozwazenia to 2025/2026/2027;
+    // rok=2026 oznacza, ze wystapienie z 2025 jeszcze nie mialo miejsca.
+    const wynik = wydarzeniaRocznic([rocznica({ typ: 'urodziny', rok: 2026 })], new Date(2026, 0, 1))
+    expect(wynik.map((w) => w.start.getFullYear())).toEqual([2026, 2027])
+    expect(wynik.every((w) => !w.tytul.includes('-'))).toBe(true) // brak ujemnego wieku w tytule
+  })
+
+  it('pomija dwa poprzednie wystapienia, gdy rok jest w przyszlosci', () => {
+    const wynik = wydarzeniaRocznic([rocznica({ typ: 'urodziny', rok: 2027 })], new Date(2026, 0, 1))
+    expect(wynik.map((w) => w.start.getFullYear())).toEqual([2027])
+  })
+
+  it('tytul dla typu "inne" nie pokazuje wieku, nawet z podanym rokiem', () => {
+    const [, biezacy] = wydarzeniaRocznic(
+      [rocznica({ typ: 'inne', tytul: 'Babcia - wizyta doroczna', rok: 2016 })],
+      new Date(2026, 0, 1),
+    )
+    expect(biezacy.tytul).toBe('📌 Inne — Babcia - wizyta doroczna')
+  })
+})
+
+describe('ikonaTypu i nazwaTypu', () => {
+  it('maja poprawne wartosci dla wszystkich czterech typow', () => {
+    expect(ikonaTypu('urodziny')).toBe('🎂')
+    expect(ikonaTypu('imieniny')).toBe('🎉')
+    expect(ikonaTypu('rocznica')).toBe('💍')
+    expect(ikonaTypu('inne')).toBe('📌')
+    expect(nazwaTypu('urodziny')).toBe('Urodziny')
+    expect(nazwaTypu('imieniny')).toBe('Imieniny')
+    expect(nazwaTypu('rocznica')).toBe('Rocznica')
+    expect(nazwaTypu('inne')).toBe('Inne')
   })
 })
 

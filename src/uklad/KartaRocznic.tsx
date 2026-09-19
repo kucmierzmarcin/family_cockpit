@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { MIESIACE } from '../dates'
 import {
   OPCJE_TYPU,
   dzienPoprawny,
@@ -10,11 +11,6 @@ import {
   type TypRocznicy,
 } from '../rocznice'
 import { Wczytywanie } from './Wczytywanie'
-
-const NAZWY_MIESIECY = [
-  'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
-  'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień',
-]
 
 type DaneRocznicy = { tytul: string; typ: TypRocznicy; dzien: number; miesiac: number; rok: number | null }
 
@@ -201,7 +197,7 @@ function FormularzRocznicy({ poczatkowe, etykietaZapisu, onZapisz, onZapisano, o
         value={miesiac}
         onChange={(e) => setMiesiac(Number(e.target.value))}
       >
-        {NAZWY_MIESIECY.map((nazwa, i) => (
+        {MIESIACE.map((nazwa, i) => (
           <option key={nazwa} value={i + 1}>
             {nazwa}
           </option>
