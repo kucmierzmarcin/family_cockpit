@@ -105,127 +105,149 @@ export function MojDom({
 
   return (
     <div className="dom">
-      <section className="karta">
-        <h2 className="panel-tytul">Domownicy</h2>
-        <p className="panel-dzien">
-          {jestemRodzicem
-            ? 'Jako rodzic możesz dodawać osoby, zmieniać role i przypisywać konta.'
-            : 'Listę domowników zmienia rodzic.'}
-        </p>
+      <section className="grupa-dom" aria-labelledby="grupa-domownicy-tytul">
+        <h3 className="grupa-tytul" id="grupa-domownicy-tytul">
+          Domownicy
+        </h3>
+        <div className="grupa-karty">
+          <section className="karta">
+            <h2 className="panel-tytul">Domownicy</h2>
+            <p className="panel-dzien">
+              {jestemRodzicem
+                ? 'Jako rodzic możesz dodawać osoby, zmieniać role i przypisywać konta.'
+                : 'Listę domowników zmienia rodzic.'}
+            </p>
 
-        {ladowanie ? (
-          <Wczytywanie wierszy={4} />
-        ) : domownicy.length === 0 ? (
-          <p className="pusto">Nikogo tu jeszcze nie ma.</p>
-        ) : (
-          <ul className="lista-osob">
-            {domownicy.map((d) =>
-              edytowany === d.id ? (
-                <li key={d.id} className="osoba-edycja">
-                  <FormularzOsoby
-                    poczatkowe={{
-                      name: d.name,
-                      color: d.color,
-                      role: d.role,
-                      email: d.email ?? '',
-                    }}
-                    etykietaZapisu="Zapisz"
-                    onZapisz={async (dane) => {
-                      const ok = await onZmien(d.id, dane)
-                      if (ok) setEdytowany(null)
-                      return ok
-                    }}
-                    onAnuluj={() => setEdytowany(null)}
-                  />
-                </li>
-              ) : (
-                <li key={d.id}>
-                  <span
-                    className="kropka"
-                    style={{ background: kolor(d.color).kropka }}
-                    aria-hidden="true"
-                  />
-                  <span className="nazwa">
-                    {d.name}
-                    {d.id === mojeId && <span className="to-ja">to Ty</span>}
-                    <span className="meta">
-                      {OPISY_ROL[d.role]} · {OPIS_KONTA[stanKonta(d)]}
-                      {d.email && ` · ${d.email}`}
-                    </span>
-                  </span>
-                  {jestemRodzicem && (
-                    <>
-                      <button
-                        type="button"
-                        className="drobny"
-                        onClick={() => setEdytowany(d.id)}
-                      >
-                        Zmień
-                      </button>
-                      <button
-                        type="button"
-                        className="usun"
-                        onClick={() => onUsun(d.id)}
-                        aria-label={`Usuń domownika ${d.name}`}
-                        disabled={d.id === mojeId}
-                        title={
-                          d.id === mojeId ? 'Nie możesz usunąć samego siebie' : undefined
-                        }
-                      >
-                        ×
-                      </button>
-                    </>
-                  )}
-                </li>
-              ),
+            {ladowanie ? (
+              <Wczytywanie wierszy={4} />
+            ) : domownicy.length === 0 ? (
+              <p className="pusto">Nikogo tu jeszcze nie ma.</p>
+            ) : (
+              <ul className="lista-osob">
+                {domownicy.map((d) =>
+                  edytowany === d.id ? (
+                    <li key={d.id} className="osoba-edycja">
+                      <FormularzOsoby
+                        poczatkowe={{
+                          name: d.name,
+                          color: d.color,
+                          role: d.role,
+                          email: d.email ?? '',
+                        }}
+                        etykietaZapisu="Zapisz"
+                        onZapisz={async (dane) => {
+                          const ok = await onZmien(d.id, dane)
+                          if (ok) setEdytowany(null)
+                          return ok
+                        }}
+                        onAnuluj={() => setEdytowany(null)}
+                      />
+                    </li>
+                  ) : (
+                    <li key={d.id}>
+                      <span
+                        className="kropka"
+                        style={{ background: kolor(d.color).kropka }}
+                        aria-hidden="true"
+                      />
+                      <span className="nazwa">
+                        {d.name}
+                        {d.id === mojeId && <span className="to-ja">to Ty</span>}
+                        <span className="meta">
+                          {OPISY_ROL[d.role]} · {OPIS_KONTA[stanKonta(d)]}
+                          {d.email && ` · ${d.email}`}
+                        </span>
+                      </span>
+                      {jestemRodzicem && (
+                        <>
+                          <button
+                            type="button"
+                            className="drobny"
+                            onClick={() => setEdytowany(d.id)}
+                          >
+                            Zmień
+                          </button>
+                          <button
+                            type="button"
+                            className="usun"
+                            onClick={() => onUsun(d.id)}
+                            aria-label={`Usuń domownika ${d.name}`}
+                            disabled={d.id === mojeId}
+                            title={
+                              d.id === mojeId ? 'Nie możesz usunąć samego siebie' : undefined
+                            }
+                          >
+                            ×
+                          </button>
+                        </>
+                      )}
+                    </li>
+                  ),
+                )}
+              </ul>
             )}
-          </ul>
-        )}
+          </section>
+
+          {jestemRodzicem && dodawanie === null && (
+            <section className="karta">
+              <h2 className="panel-tytul">Dodaj domownika</h2>
+              <p className="panel-dzien">
+                Osoba bez adresu e-mail nie loguje się, ale ma swój kolor i wydarzenia.
+                Żeby dać jej dostęp, załóż konto w panelu Supabase i wpisz tu ten sam adres.
+              </p>
+              {formularzOsoby}
+            </section>
+          )}
+        </div>
       </section>
 
-      <Powiadomienia
-        ja={domownicy.find((d) => d.id === mojeId)}
-        onZapisz={onUstawPowiadomienia}
-      />
+      <section className="grupa-dom" aria-labelledby="grupa-integracje-tytul">
+        <h3 className="grupa-tytul" id="grupa-integracje-tytul">
+          Integracje
+        </h3>
+        <div className="grupa-karty">
+          <BotTelegram
+            ja={domownicy.find((d) => d.id === mojeId)}
+            onGeneruj={onPolaczTelegram}
+          />
 
-      <BotTelegram
-        ja={domownicy.find((d) => d.id === mojeId)}
-        onGeneruj={onPolaczTelegram}
-      />
+          {jestemRodzicem && <PolaczenieVulcan vulcan={vulcan} domownicy={domownicy} />}
 
-      {jestemRodzicem && <PolaczenieVulcan vulcan={vulcan} domownicy={domownicy} />}
+          <ParowanieInpost inpost={inpost} />
+        </div>
+      </section>
 
-      <ParowanieInpost inpost={inpost} />
+      <section className="grupa-dom" aria-labelledby="grupa-ustawienia-tytul">
+        <h3 className="grupa-tytul" id="grupa-ustawienia-tytul">
+          Ustawienia domu
+        </h3>
+        <div className="grupa-karty">
+          <Powiadomienia
+            ja={domownicy.find((d) => d.id === mojeId)}
+            onZapisz={onUstawPowiadomienia}
+          />
 
-      <KartaRocznic
-        rocznice={rocznice.lista}
-        ladowanie={rocznice.ladowanie}
-        mojeId={mojeId}
-        jestemRodzicem={jestemRodzicem}
-        onDodaj={rocznice.onDodaj}
-        onEdytuj={rocznice.onEdytuj}
-        onUsun={rocznice.onUsun}
-      />
+          <KartaRocznic
+            rocznice={rocznice.lista}
+            ladowanie={rocznice.ladowanie}
+            mojeId={mojeId}
+            jestemRodzicem={jestemRodzicem}
+            onDodaj={rocznice.onDodaj}
+            onEdytuj={rocznice.onEdytuj}
+            onUsun={rocznice.onUsun}
+          />
+        </div>
+      </section>
 
-      {jestemRodzicem &&
-        (dodawanie === null ? (
-          <section className="karta">
-            <h2 className="panel-tytul">Dodaj domownika</h2>
-            <p className="panel-dzien">
-              Osoba bez adresu e-mail nie loguje się, ale ma swój kolor i wydarzenia.
-              Żeby dać jej dostęp, załóż konto w panelu Supabase i wpisz tu ten sam adres.
-            </p>
-            {formularzOsoby}
-          </section>
-        ) : (
-          <Arkusz
-            otwarty={dodawanie.otwarte}
-            tytul="Dodaj domownika"
-            onZamknij={dodawanie.onZamknij}
-          >
-            {formularzOsoby}
-          </Arkusz>
-        ))}
+      {jestemRodzicem && dodawanie !== null && (
+        <Arkusz
+          otwarty={dodawanie.otwarte}
+          tytul="Dodaj domownika"
+          onZamknij={dodawanie.onZamknij}
+        >
+          {formularzOsoby}
+        </Arkusz>
+      )}
     </div>
   )
 }

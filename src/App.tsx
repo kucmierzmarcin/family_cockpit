@@ -555,7 +555,7 @@ function ListaDnia({ dzien, wydarzenia, osobaPoId, onKlik }: ListaProps) {
   return (
     <>
       <h2 className="panel-tytul">{dlugaData(dzien)}</h2>
-      <p className="panel-dzien">{dzien.toLocaleDateString('pl-PL', { weekday: 'long' })}</p>
+      <p className="panel-dzien dzien-tygodnia">{dzien.toLocaleDateString('pl-PL', { weekday: 'long' })}</p>
 
       {tegoDnia.length === 0 ? (
         <p className="pusto">Brak wydarzeń tego dnia.</p>

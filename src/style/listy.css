@@ -1,8 +1,33 @@
 /* --- Ekran "Mój dom" --- */
 
 .dom {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* Grupa tematyczna (Domownicy / Integracje / Ustawienia domu) - miejsce na
+   kolejne karty w przyszłości bez zaburzania układu reszty ekranu, w
+   odróżnieniu od dawnej sztywnej siatki 1fr/340px, gdzie karty lądowały w
+   dwóch kolumnach wg kolejności w kodzie, nie wg tematu. */
+.grupa-dom {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.grupa-tytul {
+  margin: 0;
+  font-size: var(--tekst-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tekst-drugi);
+}
+
+.grupa-karty {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 24px;
   align-items: start;
 }
@@ -249,12 +274,6 @@
 .stopka-karteczki .drobny {
   padding: 4px 10px;
   font-size: var(--tekst-xs);
-}
-
-@media (max-width: 900px) {
-  .dom {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 @media (max-width: 767px) {

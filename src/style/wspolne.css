@@ -41,6 +41,14 @@
   margin: 2px 0 18px;
   color: var(--tekst-drugi);
   font-size: var(--tekst-s);
+}
+
+/* Nazwa dnia tygodnia z `toLocaleDateString('pl-PL', { weekday: 'long' })`
+   wraca z małej litery ("poniedziałek") - w odróżnieniu od zwykłych opisów
+   pod tytułem karty, tu naprawdę chcemy Wielkiej Litery, nie Title Case Na
+   Każdym Słowie (stąd osobna klasa, nie `text-transform` na `.panel-dzien`
+   wprost - to jednowyrazowa etykieta, więc capitalize działa bezpiecznie). */
+.dzien-tygodnia {
   text-transform: capitalize;
 }
 
