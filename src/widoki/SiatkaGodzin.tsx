@@ -87,7 +87,9 @@ export function SiatkaGodzin({
 
   // Wydarzenia całodniowe i te ciągnące się przez kilka dni idą paskiem nad
   // siatką - w kolumnie godzin nie dałoby się ich sensownie narysować.
-  const paskowe = wydarzenia.filter((w) => w.calodniowe || !wJednymDniu(w))
+  const paskowe = wydarzenia.filter(
+    (w) => (w.calodniowe || !wJednymDniu(w)) && nachodzi(w, odZakresu, doZakresu),
+  )
   const godzinne = wydarzenia.filter((w) => !w.calodniowe && wJednymDniu(w))
 
   // Pełna doba, chyba że wypelnijOkno - wtedy tylko rozsądne okno, rozszerzane
@@ -158,9 +160,8 @@ export function SiatkaGodzin({
             {paskowe.map((w) => {
               // Pasek zaczyna się w pierwszym widocznym dniu wydarzenia i kończy
               // w ostatnim - poza zakresem dostaje strzałkę zamiast ucięcia.
-              const pierwszy = Math.max(
-                0,
-                dni.findIndex((d) => nachodzi(w, poczatekDnia(d), nastepnyDzien(d))),
+              const pierwszy = dni.findIndex((d) =>
+                nachodzi(w, poczatekDnia(d), nastepnyDzien(d)),
               )
               const ostatni = dni.reduce(
                 (akt, d, i) => (nachodzi(w, poczatekDnia(d), nastepnyDzien(d)) ? i : akt),
