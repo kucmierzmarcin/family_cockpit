@@ -26,6 +26,8 @@ import { useVulcan } from './useVulcan'
 import { useInpost } from './useInpost'
 import { useWydarzenia, type Wydarzenie } from './useWydarzenia'
 import { blokiSzkolne } from './vulcan'
+import { useRocznice } from './useRocznice'
+import { wydarzeniaRocznic } from './rocznice'
 import { BEZ_OSOBY, osobyWydarzenia, widocznePrzyFiltrze } from './osoby'
 import { kolor } from './kolory'
 import type { Ekran, TrybDodawania } from './uklad/nawigacja'
@@ -73,6 +75,7 @@ function App({ profil, email }: Props) {
   const osoby = useDomownicy(setBlad)
   const vulcan = useVulcan(setBlad)
   const inpost = useInpost(setBlad)
+  const rocznice = useRocznice(setBlad)
   const telefon = useTelefon()
   const szerokiKalendarz = useSzerokiKalendarz()
   const [dodawanie, setDodawanie] = useState<Ekran | null>(null)
@@ -108,8 +111,12 @@ function App({ profil, email }: Props) {
   // dolaczamy do prawdziwych wydarzen - dzieki temu ten sam filtr osob i te
   // same widoki (Dzien/Tydzien/Miesiac) obsluguja je bez zadnych zmian.
   const wydarzeniaZeSzkola = useMemo(
-    () => [...dane.wydarzenia, ...blokiSzkolne(vulcan.lekcje, vulcan.status?.uczniowie ?? [])],
-    [dane.wydarzenia, vulcan.lekcje, vulcan.status],
+    () => [
+      ...dane.wydarzenia,
+      ...blokiSzkolne(vulcan.lekcje, vulcan.status?.uczniowie ?? []),
+      ...wydarzeniaRocznic(rocznice.rocznice),
+    ],
+    [dane.wydarzenia, vulcan.lekcje, vulcan.status, rocznice.rocznice],
   )
 
   // Filtr działa po stronie przeglądarki - wydarzenia zakresu i tak już mamy.
@@ -123,6 +130,7 @@ function App({ profil, email }: Props) {
   // zakladki "Szkola" zamiast otwierac formularz edycji prawdziwego wydarzenia.
   function klikWydarzenie(w: Wydarzenie) {
     if (w.blokSzkolny) przelaczEkran('szkola')
+    else if (w.rocznicaId) przelaczEkran('dom')
     else setEdytowane(w)
   }
 
@@ -448,6 +456,13 @@ function App({ profil, email }: Props) {
             polaczenie: polaczenieInpost,
             onOdswiez: () => void inpost.odswiez(),
             onRozlacz: inpost.rozlacz,
+          }}
+          rocznice={{
+            lista: rocznice.rocznice,
+            ladowanie: rocznice.ladowanie,
+            onDodaj: rocznice.dodaj,
+            onEdytuj: rocznice.edytuj,
+            onUsun: rocznice.usun,
           }}
           dodawanie={trybDodawania('dom')}
         />

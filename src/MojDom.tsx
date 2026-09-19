@@ -12,6 +12,8 @@ import type { TrybDodawania } from './uklad/nawigacja'
 import { bladGodzinySync, MAKS_GODZIN_SYNC, type StatusPolaczenia } from './vulcan'
 import { ParowanieInpost, type StatusInpost } from './uklad/ParowanieInpost'
 import { Wczytywanie } from './uklad/Wczytywanie'
+import { KartaRocznic } from './uklad/KartaRocznic'
+import type { Rocznica, TypRocznicy } from './rocznice'
 
 const ROLE: Rola[] = ['rodzic', 'domownik', 'dziecko']
 
@@ -52,6 +54,20 @@ type Props = {
     onOdswiez: () => void
     onRozlacz: () => Promise<boolean>
   }
+  rocznice: {
+    lista: Rocznica[]
+    ladowanie: boolean
+    onDodaj: (tytul: string, typ: TypRocznicy, dzien: number, miesiac: number, rok: number | null) => Promise<boolean>
+    onEdytuj: (
+      id: string,
+      tytul: string,
+      typ: TypRocznicy,
+      dzien: number,
+      miesiac: number,
+      rok: number | null,
+    ) => Promise<boolean>
+    onUsun: (id: string) => Promise<boolean>
+  }
   dodawanie: TrybDodawania
 }
 
@@ -69,6 +85,7 @@ export function MojDom({
   onPolaczTelegram,
   vulcan,
   inpost,
+  rocznice,
   dodawanie,
 }: Props) {
   const [edytowany, setEdytowany] = useState<string | null>(null)
@@ -179,6 +196,16 @@ export function MojDom({
       {jestemRodzicem && <PolaczenieVulcan vulcan={vulcan} domownicy={domownicy} />}
 
       <ParowanieInpost inpost={inpost} />
+
+      <KartaRocznic
+        rocznice={rocznice.lista}
+        ladowanie={rocznice.ladowanie}
+        mojeId={mojeId}
+        jestemRodzicem={jestemRodzicem}
+        onDodaj={rocznice.onDodaj}
+        onEdytuj={rocznice.onEdytuj}
+        onUsun={rocznice.onUsun}
+      />
 
       {jestemRodzicem &&
         (dodawanie === null ? (
