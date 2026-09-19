@@ -19,6 +19,9 @@ export type Wydarzenie = Przedzial & {
    *  bazie, więc kliknięcie nie może próbować go edytować/kasować jak
    *  prawdziwe wydarzenie. */
   blokSzkolny?: boolean
+  /** Syntetyczne wydarzenie z `wydarzeniaRocznic` (src/rocznice.ts) - jak
+   *  `blokSzkolny`, ale przenosi do "Mój dom" zamiast do "Szkoła". */
+  rocznicaId?: string
 }
 
 /** Dane wpisywane w formularzu przy dodawaniu i edycji. */
