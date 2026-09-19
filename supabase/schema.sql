@@ -1914,3 +1914,69 @@ select cron.schedule('inpost-sync', '*/30 * * * *', $$
     timeout_milliseconds := 30000
   );
 $$);
+
+-- ===== Ważne rocznice (urodziny, imieniny, rocznice) =====
+-- Dzien+miesiac+opcjonalny rok, NIE realne wydarzenia w `events` - kalendarz
+-- liczy wystapienia w locie (src/rocznice.ts, wzorem blokiSzkolne w vulcan.ts).
+-- Bez tego kazdy rok wymagalby recznego dopisania, a system powtarzania
+-- (seria() w czas.ts) ma limit 400 wystapien i wymaga daty koncowej - nie
+-- pasuje do "co roku, bez konca".
+create table if not exists public.rocznice (
+  id           uuid        primary key default gen_random_uuid(),
+  household_id uuid        not null references public.households(id) on delete cascade,
+  tytul        text        not null,
+  typ          text        not null,
+  dzien        smallint    not null,
+  miesiac      smallint    not null,
+  rok          smallint,
+  created_by   uuid        references public.members(id) on delete set null,
+  created_at   timestamptz not null default now(),
+  constraint rocznice_typ_check check (typ in ('urodziny', 'imieniny', 'rocznica', 'inne')),
+  constraint rocznice_miesiac_check check (miesiac between 1 and 12),
+  constraint rocznice_dzien_check check (
+    dzien between 1 and case miesiac
+      when 2 then 29
+      when 4 then 30 when 6 then 30 when 9 then 30 when 11 then 30
+      else 31
+    end
+  ),
+  constraint rocznice_rok_check check (rok is null or rok between 1900 and 2100)
+);
+
+create index if not exists rocznice_household_idx on public.rocznice (household_id);
+
+-- Bez tych domyslnych wartosci INSERT z useRocznice.ts (Task 5), ktory
+-- swiadomie NIE ustawia household_id/created_by recznie (ten sam wzorzec co
+-- useTerminy.ts dla deadlines), wstawialby NULL - lamiac NOT NULL na
+-- household_id i polityke RLS "Rocznice - dodawanie" (ktora wymaga
+-- created_by = ja_jako_member()).
+alter table public.rocznice alter column household_id set default public.moj_dom();
+alter table public.rocznice alter column created_by   set default public.ja_jako_member();
+
+alter table public.rocznice enable row level security;
+
+-- Cala reszta domu widzi i dodaje (jak Terminy). Zmiana/usuniecie - w
+-- odroznieniu od Terminow - wymaga autora LUB rodzica przy OBU akcjach: nie
+-- ma tu odpowiednika "bezpiecznego" czesciowego update'u jak odhaczanie.
+drop policy if exists "Rocznice - odczyt" on public.rocznice;
+create policy "Rocznice - odczyt" on public.rocznice
+  for select to authenticated
+  using (household_id = public.moj_dom());
+
+drop policy if exists "Rocznice - dodawanie" on public.rocznice;
+create policy "Rocznice - dodawanie" on public.rocznice
+  for insert to authenticated
+  with check (household_id = public.moj_dom() and created_by = public.ja_jako_member());
+
+drop policy if exists "Rocznice - zmiana" on public.rocznice;
+create policy "Rocznice - zmiana" on public.rocznice
+  for update to authenticated
+  using (household_id = public.moj_dom() and (created_by = public.ja_jako_member() or public.jestem_rodzicem()))
+  with check (household_id = public.moj_dom());
+
+drop policy if exists "Rocznice - usuwanie" on public.rocznice;
+create policy "Rocznice - usuwanie" on public.rocznice
+  for delete to authenticated
+  using (household_id = public.moj_dom() and (created_by = public.ja_jako_member() or public.jestem_rodzicem()));
+
+alter publication supabase_realtime add table public.rocznice;
