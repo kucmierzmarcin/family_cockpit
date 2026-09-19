@@ -104,6 +104,18 @@ export function stanKonta(d: DomownikDb): 'polaczone' | 'czeka' | 'brak' {
   return d.email ? 'czeka' : 'brak'
 }
 
+export type RocznicaDb = {
+  id: string
+  household_id: string
+  tytul: string
+  typ: string
+  dzien: number
+  miesiac: number
+  rok: number | null
+  created_by: string | null
+  created_at: string
+}
+
 /** Termin w tabeli deadlines. */
 export type TerminDb = {
   id: string
