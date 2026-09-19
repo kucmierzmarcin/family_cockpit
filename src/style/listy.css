@@ -775,3 +775,37 @@
 .karta-terminu.powiadomienie-minelo {
   background: #fdecea;
 }
+
+.tabela-rocznic-kontener {
+  overflow-x: auto;
+}
+
+.tabela-rocznic {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--karta);
+  border: 1px solid var(--kreska);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.tabela-rocznic th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: var(--tekst-xs);
+  font-weight: 600;
+  color: var(--tekst-drugi);
+  border-bottom: 1px solid var(--kreska);
+  white-space: nowrap;
+}
+
+.tabela-rocznic td {
+  padding: 10px 12px;
+  font-size: var(--tekst-s);
+  border-bottom: 1px solid var(--kreska);
+  vertical-align: top;
+}
+
+.tabela-rocznic tbody tr:last-child td {
+  border-bottom: none;
+}
