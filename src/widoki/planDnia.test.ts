@@ -59,11 +59,19 @@ describe('pogrupujPlanDnia', () => {
 
   it('pusty dzień to sami wolni, pusty dom to nic', () => {
     expect(pogrupujPlanDnia(DOM, []).wolni).toHaveLength(3)
-    expect(pogrupujPlanDnia([], [wyd('1', 8, ['m'])])).toEqual({ zajeci: [], wolni: [] })
+    expect(pogrupujPlanDnia([], [wyd('1', 8, ['m'])])).toEqual({ zajeci: [], wolni: [], bezOsoby: [] })
   })
 
   it('każdy domownik jest dokładnie po jednej stronie podziału', () => {
     const plan = pogrupujPlanDnia(DOM, [wyd('1', 8, ['a']), wyd('2', 9, ['k'])])
     expect(plan.zajeci.length + plan.wolni.length).toBe(DOM.length)
+  })
+
+  it('wydarzenia bez przypisanej osoby trafiają do osobnej listy, posortowane po godzinie', () => {
+    const plan = pogrupujPlanDnia(DOM, [
+      wyd('1', 14, [], 'Impreza sąsiedzka'),
+      wyd('2', 9, [], 'Dostawa mebli'),
+    ])
+    expect(plan.bezOsoby.map((w) => w.tytul)).toEqual(['Dostawa mebli', 'Impreza sąsiedzka'])
   })
 })

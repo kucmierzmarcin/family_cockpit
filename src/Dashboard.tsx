@@ -55,15 +55,23 @@ export function Dashboard({
   }, [])
 
   const dzisiaj = klucz(teraz)
+
+  // Dzień przeglądany w grafiku - niezależny od `teraz`: strzałki obok planu
+  // dnia nie mają ruszać licznikami niżej, które zawsze mówią o prawdziwym
+  // dzisiaj (patrz `dzisiaj` wyżej), tylko samą kartę z planem.
+  const [dzienGrafiku, setDzienGrafiku] = useState(() => poczatekDnia(new Date()))
+  const kluczGrafiku = klucz(dzienGrafiku)
+  function przesunGrafik(kierunek: -1 | 1) {
+    setDzienGrafiku((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + kierunek))
+  }
+
   // Osobne wywołanie useWydarzenia, niezależne od tego, po jakim zakresie
   // nawiguje akurat zakładka „kalendarz" (tamten `dane` w App.tsx pokazuje
   // miesiąc/tydzień/dzień zależnie od stanu `widok`). Stąd też własna nazwa
   // kanału Realtime - oba wywołania żyją naraz i nie mogą dzielić kanału.
-  // Nowe obiekty Date przy każdym tyknięciu zegara są bezpieczne: useWydarzenia
-  // sprowadza zakres do tekstu, zanim trafi do zależności efektu.
   const dane = useWydarzenia(
-    poczatekDnia(teraz),
-    nastepnyDzien(teraz),
+    dzienGrafiku,
+    nastepnyDzien(dzienGrafiku),
     onBlad,
     'dashboard-kalendarz-na-zywo',
   )
@@ -73,14 +81,15 @@ export function Dashboard({
 
   // Bloki „Szkoła" nie mieszkają w `events` (patrz kalendarz ogólny w App.tsx),
   // więc grafik dnia trzeba nimi ręcznie dosycić - inaczej dzień z samymi
-  // lekcjami wygląda jak dzień bez niczego zaplanowanego. Filtr do „dzisiaj":
-  // `blokiSzkolne` grupuje WSZYSTKIE zsynchronizowane lekcje, nie tylko dziś.
+  // lekcjami wygląda jak dzień bez niczego zaplanowanego. Filtr do dnia
+  // przeglądanego w grafiku, nie zawsze do dzisiaj - inaczej strzałki
+  // przesuwałyby zwykłe wydarzenia, ale plan lekcji zostawałyby na dzisiejszym.
   const wydarzeniaZeSzkola = useMemo(
     () => [
       ...dane.wydarzenia,
-      ...blokiSzkolne(lekcje, uczniowie).filter((w) => klucz(w.start) === dzisiaj),
+      ...blokiSzkolne(lekcje, uczniowie).filter((w) => klucz(w.start) === kluczGrafiku),
     ],
-    [dane.wydarzenia, lekcje, uczniowie, dzisiaj],
+    [dane.wydarzenia, lekcje, uczniowie, kluczGrafiku],
   )
 
   const liczbaPilnychTerminow = useMemo(
@@ -122,6 +131,9 @@ export function Dashboard({
         wydarzenia={wydarzeniaZeSzkola}
         ladowanie={dane.ladowanie}
         lista={telefon}
+        dzien={dzienGrafiku}
+        onPrzesun={przesunGrafik}
+        onDzis={() => setDzienGrafiku(poczatekDnia(new Date()))}
       />
 
       <div className="dash-liczniki">

@@ -5,7 +5,7 @@ import { kolor, type Kolor } from './kolory'
 export const BEZ_OSOBY = 'brak'
 
 /** Barwy neutralne - dla wydarzeń bez przypisanej osoby. */
-const NEUTRALNE = { tlo: '#eeedf2', tekst: '#4a4553', kropka: '#9b96a6' }
+export const NEUTRALNE = { tlo: '#eeedf2', tekst: '#4a4553', kropka: '#9b96a6' }
 
 /**
  * Domownicy przypisani do wydarzenia, w kolejności, w jakiej występują w domu.

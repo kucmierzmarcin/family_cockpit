@@ -10,6 +10,9 @@ export type PlanOsoby = {
 export type PlanDnia = {
   zajeci: PlanOsoby[]
   wolni: DomownikDb[]
+  /** Wydarzenia bez przypisanej osoby (`osobyId: []`) - inaczej znikały z
+   *  planu dnia całkowicie, mimo że realnie coś tego dnia się dzieje. */
+  bezOsoby: Wydarzenie[]
 }
 
 /**
@@ -41,5 +44,9 @@ export function pogrupujPlanDnia(
     else wolni.push(osoba)
   }
 
-  return { zajeci, wolni }
+  const bezOsoby = wydarzenia
+    .filter((w) => w.osobyId.length === 0)
+    .sort((a, b) => a.start.getTime() - b.start.getTime())
+
+  return { zajeci, wolni, bezOsoby }
 }
