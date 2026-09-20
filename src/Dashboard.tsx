@@ -18,6 +18,7 @@ import {
   liczWiadomosciDzis,
 } from './dashboardLiczniki'
 import { policzPozostale } from './pozycje'
+import { wydarzeniaRocznic, type Rocznica } from './rocznice'
 import { GrafikDnia } from './widoki/GrafikDnia'
 import { PogodaWidget } from './widoki/PogodaWidget'
 
@@ -28,6 +29,7 @@ type Props = {
   lekcje: Lekcja[]
   uczniowie: Uczen[]
   obecnosci: Obecnosc[]
+  rocznice: Rocznica[]
   paczki: Paczka[]
   paczkiLadowanie: boolean
   onBlad: (tekst: string) => void
@@ -42,6 +44,7 @@ export function Dashboard({
   lekcje,
   uczniowie,
   obecnosci,
+  rocznice,
   paczki,
   paczkiLadowanie,
   onBlad,
@@ -84,12 +87,17 @@ export function Dashboard({
   // lekcjami wygląda jak dzień bez niczego zaplanowanego. Filtr do dnia
   // przeglądanego w grafiku, nie zawsze do dzisiaj - inaczej strzałki
   // przesuwałyby zwykłe wydarzenia, ale plan lekcji zostawałyby na dzisiejszym.
+  // Rocznice też są syntetyczne (liczone w locie, patrz `wydarzeniaRocznic`),
+  // tym samym wzorcem co bloki „Szkoła" tuż wyżej - w odróżnieniu od Kalendarza
+  // (App.tsx) Dashboard ich wcześniej wcale nie doliczał, więc urodziny czy
+  // rocznice nie były tu widoczne w ogóle.
   const wydarzeniaZeSzkola = useMemo(
     () => [
       ...dane.wydarzenia,
       ...blokiSzkolne(lekcje, uczniowie).filter((w) => klucz(w.start) === kluczGrafiku),
+      ...wydarzeniaRocznic(rocznice).filter((w) => klucz(w.start) === kluczGrafiku),
     ],
-    [dane.wydarzenia, lekcje, uczniowie, kluczGrafiku],
+    [dane.wydarzenia, lekcje, uczniowie, rocznice, kluczGrafiku],
   )
 
   const liczbaPilnychTerminow = useMemo(

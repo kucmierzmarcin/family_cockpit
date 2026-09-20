@@ -2,6 +2,25 @@
   overflow-x: auto;
 }
 
+/* Wydarzenia całodniowe (rocznice, urlopy...) - własny pasek nad osią godzin,
+   bo na osi nie mają sensownej pozycji ani długości. */
+.gd-calodniowe {
+  list-style: none;
+  margin: 0 0 var(--odstep-2);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--odstep-1);
+}
+
+.gd-calodniowy {
+  padding: 4px 10px;
+  border-radius: var(--promien-s);
+  background: var(--tlo);
+  font-size: var(--tekst-xs);
+  font-weight: 500;
+}
+
 .gd-godziny {
   display: grid;
   grid-template-columns: repeat(var(--godzin), 1fr);

@@ -40,6 +40,11 @@ export function GrafikDnia({ domownicy, wydarzenia, ladowanie, lista, dzien, onP
     [wydarzenia],
   )
   const bezOsobyGodzinne = useMemo(() => godzinne.filter((w) => w.osobyId.length === 0), [godzinne])
+  // `wydarzenia` przychodzi z Dashboardu już przycięte do jednego,
+  // przeglądanego dnia (patrz filtr po `kluczGrafiku` tam) - stąd bez
+  // dodatkowego sprawdzania zakresu, w odróżnieniu od wielodniowego paska w
+  // SiatkaGodzin.tsx, który musi to robić sam.
+  const calodniowe = useMemo(() => wydarzenia.filter((w) => w.calodniowe), [wydarzenia])
 
   const { godzinaOd, godzinaDo } = useMemo(() => zakresGodzin(godzinne), [godzinne])
   const liczbaGodzin = godzinaDo - godzinaOd
@@ -47,6 +52,15 @@ export function GrafikDnia({ domownicy, wydarzenia, ladowanie, lista, dzien, onP
   const zakresMinut = liczbaGodzin * 60
 
   const naglowek = <NaglowekDnia dzien={dzien} onPrzesun={onPrzesun} onDzis={onDzis} />
+  const paskCalodniowy = calodniowe.length > 0 && (
+    <ul className="gd-calodniowe">
+      {calodniowe.map((w) => (
+        <li key={w.id} className="gd-calodniowy">
+          {w.tytul}
+        </li>
+      ))}
+    </ul>
+  )
 
   // Sama linijka godzin bez żadnego wiersza wygląda jak ekran, który się nie
   // wczytał - lepiej powiedzieć wprost, że nic tu nie ma. Dotyczy też
@@ -59,17 +73,24 @@ export function GrafikDnia({ domownicy, wydarzenia, ladowanie, lista, dzien, onP
     )
   }
 
-  // Ktoś zajęty ALBO coś nieprzypisanego - w obu przypadkach dzień nie jest
-  // pusty. `.some` na pustej liście domowników daje `false`, więc dom bez
-  // nikogo z samym nieprzypisanym wydarzeniem trafia poprawnie do gałęzi
-  // "coś tu jest", nie do "pusto".
-  const pusto =
+  // Ktoś zajęty ALBO coś nieprzypisanego w GODZINACH - to jedyne, co decyduje
+  // o osi czasu. Wydarzenie całodniowe (np. rocznica) samo w sobie NIE robi
+  // dnia "niepustego" w tym sensie - dostaje własny pasek niezależnie od tego.
+  // `.some` na pustej liście domowników daje `false`, więc dom bez nikogo z
+  // samym nieprzypisanym wydarzeniem trafia poprawnie do gałęzi "coś tu jest".
+  const pustoGodzinowo =
     !domownicy.some((osoba) => godzinne.some((w) => w.osobyId.includes(osoba.id))) &&
     bezOsobyGodzinne.length === 0
+  const pusto = pustoGodzinowo && calodniowe.length === 0
 
   if (lista && !pusto) {
     return (
-      <ListaPlanu naglowek={naglowek} domownicy={domownicy} godzinne={godzinne} />
+      <ListaPlanu
+        naglowek={naglowek}
+        paskCalodniowy={paskCalodniowy}
+        domownicy={domownicy}
+        godzinne={godzinne}
+      />
     )
   }
 
@@ -82,9 +103,21 @@ export function GrafikDnia({ domownicy, wydarzenia, ladowanie, lista, dzien, onP
     )
   }
 
+  // Same rocznice/wydarzenia całodniowe, bez niczego w godzinach - oś 0-24
+  // bez ani jednego bloku wygląda jak błąd, nie jak informacja.
+  if (pustoGodzinowo) {
+    return (
+      <div className="karta grafik-dnia">
+        {naglowek}
+        {paskCalodniowy}
+      </div>
+    )
+  }
+
   return (
     <div className="karta grafik-dnia">
       {naglowek}
+      {paskCalodniowy}
 
       <div className="gd-godziny" style={{ '--godzin': liczbaGodzin } as CSSProperties}>
         {Array.from({ length: liczbaGodzin }, (_, i) => godzinaOd + i).map((g) => (
@@ -291,6 +324,7 @@ function Szkielet({ naglowek, domownicy, liczbaGodzin, godzinaOd }: SzkieletProp
 
 type ListaProps = {
   naglowek: ReactNode
+  paskCalodniowy: ReactNode
   domownicy: DomownikDb[]
   godzinne: Wydarzenie[]
 }
@@ -302,12 +336,13 @@ type ListaProps = {
  * „Marcin nic dziś nie ma" to jedno słowo informacji, a na osi czasu kosztowało
  * tyle samo miejsca co pełny dzień.
  */
-function ListaPlanu({ naglowek, domownicy, godzinne }: ListaProps) {
+function ListaPlanu({ naglowek, paskCalodniowy, domownicy, godzinne }: ListaProps) {
   const { zajeci, wolni, bezOsoby } = pogrupujPlanDnia(domownicy, godzinne)
 
   return (
     <section className="karta plan-dnia">
       {naglowek}
+      {paskCalodniowy}
 
       <ul className="plan-osoby">
         {zajeci.map(({ osoba, wydarzenia }) => {
