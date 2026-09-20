@@ -34,6 +34,9 @@ type Props = {
   paczkiLadowanie: boolean
   onBlad: (tekst: string) => void
   onEkran: (e: Ekran) => void
+  /** Tablet na ścianie: pełny ekran bez paska adresu, dopasowany do okna bez
+   *  przewijania (patrz `.kokpit-pelny` w App.tsx/powloka.css). */
+  pelnyEkran: { aktywny: boolean; przelacz: () => void }
 }
 
 /** Ekran „Dziś": pogoda, zegar, grafik dnia całej rodziny i sześć liczników. */
@@ -49,6 +52,7 @@ export function Dashboard({
   paczkiLadowanie,
   onBlad,
   onEkran,
+  pelnyEkran,
 }: Props) {
   const telefon = useTelefon()
   const [teraz, setTeraz] = useState(() => new Date())
@@ -132,6 +136,17 @@ export function Dashboard({
         <div className="karta dash-pogoda">
           <PogodaWidget />
         </div>
+
+        {/* Tablet na ścianie: pełny ekran bez paska adresu, dopasowany do
+            okna bez przewijania - patrz `pelnyEkran` w App.tsx. */}
+        <button
+          type="button"
+          className="drobny dash-pelny-ekran"
+          onClick={pelnyEkran.przelacz}
+          aria-pressed={pelnyEkran.aktywny}
+        >
+          {pelnyEkran.aktywny ? '⤢ Wyjdź z pełnego ekranu' : '⛶ Pełny ekran'}
+        </button>
       </div>
 
       <GrafikDnia

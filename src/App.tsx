@@ -34,6 +34,8 @@ import type { Ekran, TrybDodawania } from './uklad/nawigacja'
 import { useTelefon } from './uklad/useTelefon'
 import { useTrasa } from './uklad/useTrasa'
 import { useSzerokiKalendarz } from './uklad/useSzerokiKalendarz'
+import { useFullscreen } from './uklad/useFullscreen'
+import { useAutoOdswiezanie } from './uklad/useAutoOdswiezanie'
 import { UkladBiurko } from './uklad/UkladBiurko'
 import { UkladTelefon } from './uklad/UkladTelefon'
 import { KontoKarta } from './uklad/KontoKarta'
@@ -78,6 +80,8 @@ function App({ profil, email }: Props) {
   const rocznice = useRocznice(setBlad)
   const telefon = useTelefon()
   const szerokiKalendarz = useSzerokiKalendarz()
+  const pelnyEkranDzis = useFullscreen()
+  useAutoOdswiezanie()
   const [dodawanie, setDodawanie] = useState<Ekran | null>(null)
 
   // Na telefonie formularz danego ekranu siedzi w arkuszu sterowanym stąd; na
@@ -393,6 +397,7 @@ function App({ profil, email }: Props) {
           paczkiLadowanie={inpost.ladowanie}
           onBlad={setBlad}
           onEkran={przelaczEkran}
+          pelnyEkran={pelnyEkranDzis}
         />
       ) : ekran === 'zakupy' ? (
         <Zakupy
@@ -531,7 +536,10 @@ function App({ profil, email }: Props) {
       email={email}
       ekran={ekran}
       onEkran={przelaczEkran}
-      pelnyEkran={ekran === 'kalendarz' && widok !== 'miesiac'}
+      pelnyEkran={
+        (ekran === 'kalendarz' && widok !== 'miesiac') ||
+        (ekran === 'dashboard' && pelnyEkranDzis.aktywny)
+      }
     >
       {tresc}
     </UkladBiurko>

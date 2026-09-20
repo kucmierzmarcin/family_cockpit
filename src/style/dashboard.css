@@ -112,6 +112,36 @@
   text-align: center;
 }
 
+.dash-pelny-ekran {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+/* Tablet powieszony na ścianie: pełny ekran dokładnie wypełnia okno, bez
+   przewijania strony - ten sam mechanizm co widok dnia/tygodnia w Kalendarzu
+   (patrz `.kokpit-pelny .kalendarz` w kalendarz.css). Karta z planem dnia
+   jest jedynym elementem o zmiennej wysokości (liczba wydarzeń), więc to ona
+   dostaje `flex: 1` i własne przewijanie w środku - zegar/pogoda/liczniki
+   mają stałą wysokość i się nie ruszają. */
+@media (min-width: 901px) {
+  .kokpit-pelny .dashboard {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .kokpit-pelny .dash-karty,
+  .kokpit-pelny .dash-liczniki {
+    flex: 0 0 auto;
+  }
+
+  .kokpit-pelny .grafik-dnia {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
 /* Miejsce na widget pogodowy. Bez rezerwacji karta ma samą wyściółkę, dopóki
    skrypt widgetu nie ustawi swojej kotwicy, i reszta ekranu zjeżdża w dół.
 
