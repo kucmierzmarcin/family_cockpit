@@ -397,6 +397,7 @@ function App({ profil, email }: Props) {
           uczniowie={vulcan.status?.uczniowie ?? []}
           obecnosci={vulcan.obecnosci}
           rocznice={rocznice.rocznice}
+          odpady={odpady.terminy}
           paczki={inpost.paczki}
           paczkiLadowanie={inpost.ladowanie}
           onBlad={setBlad}

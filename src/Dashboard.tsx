@@ -19,6 +19,7 @@ import {
 } from './dashboardLiczniki'
 import { policzPozostale } from './pozycje'
 import { wydarzeniaRocznic, type Rocznica } from './rocznice'
+import { wydarzeniaOdpadow, type TerminOdbioru } from './odpady'
 import { GrafikDnia } from './widoki/GrafikDnia'
 import { PogodaWidget } from './widoki/PogodaWidget'
 
@@ -30,6 +31,7 @@ type Props = {
   uczniowie: Uczen[]
   obecnosci: Obecnosc[]
   rocznice: Rocznica[]
+  odpady: TerminOdbioru[]
   paczki: Paczka[]
   paczkiLadowanie: boolean
   onBlad: (tekst: string) => void
@@ -48,6 +50,7 @@ export function Dashboard({
   uczniowie,
   obecnosci,
   rocznice,
+  odpady,
   paczki,
   paczkiLadowanie,
   onBlad,
@@ -91,17 +94,19 @@ export function Dashboard({
   // lekcjami wygląda jak dzień bez niczego zaplanowanego. Filtr do dnia
   // przeglądanego w grafiku, nie zawsze do dzisiaj - inaczej strzałki
   // przesuwałyby zwykłe wydarzenia, ale plan lekcji zostawałyby na dzisiejszym.
-  // Rocznice też są syntetyczne (liczone w locie, patrz `wydarzeniaRocznic`),
-  // tym samym wzorcem co bloki „Szkoła" tuż wyżej - w odróżnieniu od Kalendarza
-  // (App.tsx) Dashboard ich wcześniej wcale nie doliczał, więc urodziny czy
-  // rocznice nie były tu widoczne w ogóle.
+  // Rocznice i odbiór odpadów też są syntetyczne (liczone w locie, patrz
+  // `wydarzeniaRocznic`/`wydarzeniaOdpadow`), tym samym wzorcem co bloki
+  // „Szkoła" tuż wyżej - w odróżnieniu od Kalendarza (App.tsx) Dashboard ich
+  // wcześniej wcale nie doliczał, więc urodziny, rocznice czy jutrzejszy
+  // odbiór śmieci nie były tu widoczne w ogóle.
   const wydarzeniaZeSzkola = useMemo(
     () => [
       ...dane.wydarzenia,
       ...blokiSzkolne(lekcje, uczniowie).filter((w) => klucz(w.start) === kluczGrafiku),
       ...wydarzeniaRocznic(rocznice).filter((w) => klucz(w.start) === kluczGrafiku),
+      ...wydarzeniaOdpadow(odpady).filter((w) => klucz(w.start) === kluczGrafiku),
     ],
-    [dane.wydarzenia, lekcje, uczniowie, rocznice, kluczGrafiku],
+    [dane.wydarzenia, lekcje, uczniowie, rocznice, odpady, kluczGrafiku],
   )
 
   const liczbaPilnychTerminow = useMemo(
