@@ -28,6 +28,8 @@ import { useWydarzenia, type Wydarzenie } from './useWydarzenia'
 import { blokiSzkolne } from './vulcan'
 import { useRocznice } from './useRocznice'
 import { wydarzeniaRocznic } from './rocznice'
+import { useOdpady } from './useOdpady'
+import { wydarzeniaOdpadow } from './odpady'
 import { BEZ_OSOBY, osobyWydarzenia, widocznePrzyFiltrze } from './osoby'
 import { kolor } from './kolory'
 import type { Ekran, TrybDodawania } from './uklad/nawigacja'
@@ -78,6 +80,7 @@ function App({ profil, email }: Props) {
   const vulcan = useVulcan(setBlad)
   const inpost = useInpost(setBlad)
   const rocznice = useRocznice(setBlad)
+  const odpady = useOdpady(setBlad)
   const telefon = useTelefon()
   const szerokiKalendarz = useSzerokiKalendarz()
   const pelnyEkranDzis = useFullscreen()
@@ -119,8 +122,9 @@ function App({ profil, email }: Props) {
       ...dane.wydarzenia,
       ...blokiSzkolne(vulcan.lekcje, vulcan.status?.uczniowie ?? []),
       ...wydarzeniaRocznic(rocznice.rocznice),
+      ...wydarzeniaOdpadow(odpady.terminy),
     ],
-    [dane.wydarzenia, vulcan.lekcje, vulcan.status, rocznice.rocznice],
+    [dane.wydarzenia, vulcan.lekcje, vulcan.status, rocznice.rocznice, odpady.terminy],
   )
 
   // Filtr działa po stronie przeglądarki - wydarzenia zakresu i tak już mamy.
@@ -134,7 +138,7 @@ function App({ profil, email }: Props) {
   // zakladki "Szkola" zamiast otwierac formularz edycji prawdziwego wydarzenia.
   function klikWydarzenie(w: Wydarzenie) {
     if (w.blokSzkolny) przelaczEkran('szkola')
-    else if (w.rocznicaId) przelaczEkran('dom')
+    else if (w.rocznicaId || w.odpadId) przelaczEkran('dom')
     else setEdytowane(w)
   }
 
@@ -469,6 +473,13 @@ function App({ profil, email }: Props) {
             onDodaj: rocznice.dodaj,
             onEdytuj: rocznice.edytuj,
             onUsun: rocznice.usun,
+          }}
+          odpady={{
+            lista: odpady.terminy,
+            ladowanie: odpady.ladowanie,
+            onDodaj: odpady.dodaj,
+            onEdytuj: odpady.edytuj,
+            onUsun: odpady.usun,
           }}
           dodawanie={trybDodawania('dom')}
         />

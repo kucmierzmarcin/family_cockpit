@@ -1980,3 +1980,57 @@ create policy "Rocznice - usuwanie" on public.rocznice
   using (household_id = public.moj_dom() and (created_by = public.ja_jako_member() or public.jestem_rodzicem()));
 
 alter publication supabase_realtime add table public.rocznice;
+
+-- ===== Terminy odbioru odpadow (papier, szklo, plastik i metale, bio, ...) =====
+-- Pojedyncze, konkretne daty - NIE regula powtarzania (harmonogram gminy
+-- przesuwa sie przez swieta, wiec "co N tygodni" by sie rozjechalo).
+-- Kalendarz liczy dwa syntetyczne wydarzenia na termin w locie
+-- (src/odpady.ts, wzorem rocznice.ts): w dniu odbioru i dzien wczesniej jako
+-- przypomnienie.
+create table if not exists public.odpady (
+  id           uuid        primary key default gen_random_uuid(),
+  household_id uuid        not null references public.households(id) on delete cascade,
+  rodzaj       text        not null,
+  data         date        not null,
+  created_by   uuid        references public.members(id) on delete set null,
+  created_at   timestamptz not null default now(),
+  constraint odpady_rodzaj_check check (
+    rodzaj in ('papier', 'szklo', 'plastik_metale', 'bio', 'zmieszane', 'inne')
+  )
+);
+
+create index if not exists odpady_household_idx on public.odpady (household_id);
+
+-- Bez tych domyslnych wartosci INSERT z useOdpady.ts, ktory swiadomie NIE
+-- ustawia household_id/created_by recznie (ten sam wzorzec co
+-- useRocznice.ts), wstawialby NULL - lamiac NOT NULL na household_id i
+-- polityke RLS "Odpady - dodawanie" (ktora wymaga created_by = ja_jako_member()).
+alter table public.odpady alter column household_id set default public.moj_dom();
+alter table public.odpady alter column created_by   set default public.ja_jako_member();
+
+alter table public.odpady enable row level security;
+
+-- Cala reszta domu widzi i dodaje (jak Rocznice). Zmiana/usuniecie wymaga
+-- autora LUB rodzica przy OBU akcjach.
+drop policy if exists "Odpady - odczyt" on public.odpady;
+create policy "Odpady - odczyt" on public.odpady
+  for select to authenticated
+  using (household_id = public.moj_dom());
+
+drop policy if exists "Odpady - dodawanie" on public.odpady;
+create policy "Odpady - dodawanie" on public.odpady
+  for insert to authenticated
+  with check (household_id = public.moj_dom() and created_by = public.ja_jako_member());
+
+drop policy if exists "Odpady - zmiana" on public.odpady;
+create policy "Odpady - zmiana" on public.odpady
+  for update to authenticated
+  using (household_id = public.moj_dom() and (created_by = public.ja_jako_member() or public.jestem_rodzicem()))
+  with check (household_id = public.moj_dom());
+
+drop policy if exists "Odpady - usuwanie" on public.odpady;
+create policy "Odpady - usuwanie" on public.odpady
+  for delete to authenticated
+  using (household_id = public.moj_dom() and (created_by = public.ja_jako_member() or public.jestem_rodzicem()));
+
+alter publication supabase_realtime add table public.odpady;

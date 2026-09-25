@@ -116,6 +116,15 @@ export type RocznicaDb = {
   created_at: string
 }
 
+export type OdpadDb = {
+  id: string
+  household_id: string
+  rodzaj: string
+  data: string
+  created_by: string | null
+  created_at: string
+}
+
 /** Termin w tabeli deadlines. */
 export type TerminDb = {
   id: string

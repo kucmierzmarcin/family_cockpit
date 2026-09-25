@@ -14,6 +14,8 @@ import { ParowanieInpost, type StatusInpost } from './uklad/ParowanieInpost'
 import { Wczytywanie } from './uklad/Wczytywanie'
 import { KartaRocznic } from './uklad/KartaRocznic'
 import type { Rocznica, TypRocznicy } from './rocznice'
+import { KartaOdpadow } from './uklad/KartaOdpadow'
+import type { RodzajOdpadow, TerminOdbioru } from './odpady'
 
 const ROLE: Rola[] = ['rodzic', 'domownik', 'dziecko']
 
@@ -68,6 +70,13 @@ type Props = {
     ) => Promise<boolean>
     onUsun: (id: string) => Promise<boolean>
   }
+  odpady: {
+    lista: TerminOdbioru[]
+    ladowanie: boolean
+    onDodaj: (rodzaj: RodzajOdpadow, data: string) => Promise<boolean>
+    onEdytuj: (id: string, rodzaj: RodzajOdpadow, data: string) => Promise<boolean>
+    onUsun: (id: string) => Promise<boolean>
+  }
   dodawanie: TrybDodawania
 }
 
@@ -86,6 +95,7 @@ export function MojDom({
   vulcan,
   inpost,
   rocznice,
+  odpady,
   dodawanie,
 }: Props) {
   const [edytowany, setEdytowany] = useState<string | null>(null)
@@ -235,6 +245,16 @@ export function MojDom({
             onDodaj={rocznice.onDodaj}
             onEdytuj={rocznice.onEdytuj}
             onUsun={rocznice.onUsun}
+          />
+
+          <KartaOdpadow
+            terminy={odpady.lista}
+            ladowanie={odpady.ladowanie}
+            mojeId={mojeId}
+            jestemRodzicem={jestemRodzicem}
+            onDodaj={odpady.onDodaj}
+            onEdytuj={odpady.onEdytuj}
+            onUsun={odpady.onUsun}
           />
         </div>
       </section>

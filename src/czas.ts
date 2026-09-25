@@ -26,6 +26,11 @@ export function nastepnyDzien(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
 }
 
+/** Północ poprzedniego dnia. */
+export function poprzedniDzien(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1)
+}
+
 /**
  * Czy przedział wydarzenia zachodzi na zakres [od, doKiedy)?
  * Oba końce są wyłączne, więc wydarzenie kończące się dokładnie o północy
