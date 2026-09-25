@@ -17,7 +17,7 @@ type Props = {
   ladowanie: boolean
   mojeId: string
   jestemRodzicem: boolean
-  onDodaj: (rodzaj: RodzajOdpadow, data: string) => Promise<boolean>
+  onDodaj: (rodzaje: RodzajOdpadow[], data: string) => Promise<boolean>
   onEdytuj: (id: string, rodzaj: RodzajOdpadow, data: string) => Promise<boolean>
   onUsun: (id: string) => Promise<boolean>
 }
@@ -96,9 +96,8 @@ export function KartaOdpadow({ terminy, ladowanie, mojeId, jestemRodzicem, onDod
       )}
 
       {dodawanie ? (
-        <FormularzTerminu
-          etykietaZapisu="Dodaj termin"
-          onZapisz={(dane) => onDodaj(dane.rodzaj, dane.data)}
+        <FormularzDodawania
+          onZapisz={onDodaj}
           onZapisano={() => setDodawanie(false)}
           onAnuluj={() => setDodawanie(false)}
         />
@@ -108,6 +107,70 @@ export function KartaOdpadow({ terminy, ladowanie, mojeId, jestemRodzicem, onDod
         </button>
       )}
     </section>
+  )
+}
+
+type FormularzDodawaniaProps = {
+  onZapisz: (rodzaje: RodzajOdpadow[], data: string) => Promise<boolean>
+  onZapisano: () => void
+  onAnuluj: () => void
+}
+
+/** Dodawanie terminu: jedna data, kilka zaznaczonych rodzajow naraz - tego
+ * samego dnia gmina czesto odbiera wiecej niz jeden rodzaj odpadow. */
+function FormularzDodawania({ onZapisz, onZapisano, onAnuluj }: FormularzDodawaniaProps) {
+  const [rodzaje, setRodzaje] = useState<RodzajOdpadow[]>([])
+  const [data, setData] = useState('')
+  const [zapisywanie, setZapisywanie] = useState(false)
+
+  function przelacz(rodzaj: RodzajOdpadow) {
+    setRodzaje((biezace) =>
+      biezace.includes(rodzaj) ? biezace.filter((r) => r !== rodzaj) : [...biezace, rodzaj],
+    )
+  }
+
+  async function wyslij(e: React.FormEvent) {
+    e.preventDefault()
+    if (!data || rodzaje.length === 0) return
+    setZapisywanie(true)
+    const udalo = await onZapisz(rodzaje, data)
+    setZapisywanie(false)
+    if (udalo) onZapisano()
+  }
+
+  return (
+    <form className="formularz" onSubmit={(e) => void wyslij(e)}>
+      <label htmlFor="data-odbioru-nowy">Data odbioru</label>
+      <input
+        id="data-odbioru-nowy"
+        type="date"
+        value={data}
+        onChange={(e) => setData(e.target.value)}
+      />
+
+      <span className="etykieta-koloru" id="rodzaje-odbioru-nowy-etykieta">
+        Rodzaje odpadów tego dnia
+      </span>
+      <div role="group" aria-labelledby="rodzaje-odbioru-nowy-etykieta">
+        {OPCJE_RODZAJU.map((o) => (
+          <label key={o.wartosc} className="przelacznik">
+            <input
+              type="checkbox"
+              checked={rodzaje.includes(o.wartosc)}
+              onChange={() => przelacz(o.wartosc)}
+            />
+            {ikonaRodzaju(o.wartosc)} {o.etykieta}
+          </label>
+        ))}
+      </div>
+
+      <button type="submit" disabled={zapisywanie || !data || rodzaje.length === 0}>
+        {zapisywanie ? 'Zapisuję…' : 'Dodaj termin'}
+      </button>
+      <button type="button" className="drugi" onClick={onAnuluj}>
+        Anuluj
+      </button>
+    </form>
   )
 }
 

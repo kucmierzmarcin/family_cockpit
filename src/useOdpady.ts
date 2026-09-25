@@ -39,9 +39,13 @@ export function useOdpady(onBlad: (tekst: string) => void) {
 
   useNaZywo('odpady-na-zywo', ['odpady'], () => void wczytaj())
 
+  /** Dodaje po jednym wierszu na kazdy rodzaj - tego samego dnia moze byc
+   * kilka odbiorow naraz (np. papier i plastik). */
   const dodaj = useCallback(
-    async (rodzaj: RodzajOdpadow, data: string): Promise<boolean> => {
-      const { error } = await supabase.from('odpady').insert({ rodzaj, data })
+    async (rodzaje: RodzajOdpadow[], data: string): Promise<boolean> => {
+      const { error } = await supabase
+        .from('odpady')
+        .insert(rodzaje.map((rodzaj) => ({ rodzaj, data })))
       if (error) {
         onBlad(`Nie udało się dodać terminu odbioru: ${error.message}`)
         return false

@@ -73,7 +73,7 @@ type Props = {
   odpady: {
     lista: TerminOdbioru[]
     ladowanie: boolean
-    onDodaj: (rodzaj: RodzajOdpadow, data: string) => Promise<boolean>
+    onDodaj: (rodzaje: RodzajOdpadow[], data: string) => Promise<boolean>
     onEdytuj: (id: string, rodzaj: RodzajOdpadow, data: string) => Promise<boolean>
     onUsun: (id: string) => Promise<boolean>
   }
